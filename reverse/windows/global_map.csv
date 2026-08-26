@@ -1,0 +1,10 @@
+address,provisional_name,confidence,notes
+0x0042B188,game_state_raw,high,"dispatcher selector; values beyond 0..5 also used as transition/sentinel values"
+0x0042B1B4,frame_limiter_enabled,high,"when ==1, gameplay path busy-waits on QPC threshold"
+0x00440DF8,qpc_buffer_ptr,high,"8-byte allocation passed to QueryPerformanceCounter"
+0x004677E8,previous_qpc_low,high,"low 32 bits used for delta/pacing"
+0x0045A140,current_qpc_low,medium,"updated from QPC buffer in gameplay path"
+0x0048003C,qpc_delta_low,high,"current low32 minus previous low32"
+0x004D9580,main_hwnd,high,"window handle saved by WinMain-like routine"
+0x004D9584,framebuffer_or_surface_pixels,medium,"updated from locked DirectDraw surface data"
+0x004DA780,framebuffer_pitch,medium,"updated from DirectDraw surface descriptor"

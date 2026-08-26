@@ -1,0 +1,10 @@
+id,area,claim,confidence,status,primary_evidence,cross_check,implementation,documentation
+FMT-JBA-001,JBA,"Full-screen files contain 768 palette bytes plus 64000 lane-interleaved indexed pixels",high,established,"WIN 0x004012B0; DOS 0x00067F90",DOS/Windows algorithms agree,"src/formats/jba.cpp","docs/formats/JBA.md"
+FMT-CLV-001,CLV,"CLV is headerless 22050 Hz unsigned 8-bit interleaved stereo PCM",high,established,"DOS corpus + loader/audio comparison","Windows WAV comparison","src/formats/clv.cpp","docs/formats/CLV.md"
+FMT-FLY-001,FLY,"File begins with count followed by count triples stored int16,int16,int8",high,established,"original parser/storage behavior","DOS/Windows family correspondence","src/formats/fly.cpp","docs/formats/FLY.md"
+FMT-DEMO-001,demo,"Observed demo DAT stream divides into 14-signed-integer records",high,established,"canonical demo corpus","DOS/Windows demo sets","src/formats/demo.cpp","docs/formats/DEMO_DAT.md"
+INST-WISE-001,installer,"Known Windows installer payload can be reconstructed from 207 raw-DEFLATE streams with CRC validation",high,established,"BIN-WIN-INSTALL-01 + recovered stream table","All manifest streams decode/CRC validate","scripts/wise_extract.py","docs/formats/WISE_INSTALLER.md"
+WIN-LOOP-001,win32,"0x00404E30 performs Win32 startup/message/surface loop and calls 0x0040BA50",high,established,"BIN-WIN-SW-01 control flow","DirectX/API anchors",,"reverse/windows/winmain.md"
+WIN-STATE-001,state,"0x0040BA50 directly dispatches raw values 0..5 through a six-entry table",high,established,"BIN-WIN-SW-01 0x0040BA50",,"","reverse/windows/state_machine.md"
+WIN-TIME-001,timing,"When limiter guard equals 1, code busy-waits until QPC low32 delta >= 15000",high,established,"BIN-WIN-SW-01 0x00411456-0x00411494",,"","docs/TIMING.md"
+WIN-TIME-002,timing,"The 15000-count threshold corresponds to a specific simulation FPS",low,open,"No QueryPerformanceFrequency import; frequency unresolved","DOS timer not yet recovered",,"docs/TIMING.md"

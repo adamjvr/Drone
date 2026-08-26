@@ -1,0 +1,10 @@
+id,platform,address,provisional_name,type_or_width,confidence,status,known_writers,known_readers,evidence,notes
+WIN-GL-001,windows,0x0042B188,game_state_raw,32-bit scalar,high,established,"dispatcher transitions and other state paths","0x0040BA50 direct dispatcher + subordinate paths","Direct dispatcher selector; additional values 6/7/8/13/99 observed","Protocol semantics incomplete"
+WIN-GL-002,windows,0x0042B1B4,frame_limiter_enabled,32-bit scalar,high,established,"input/config path not yet mapped","0x00411456 pacing guard","When ==1 QPC busy wait is active","Possible relationship to documented Tab retrace-sync toggle remains unproven"
+WIN-GL-003,windows,0x00440DF8,qpc_buffer_ptr,pointer to >=8 bytes,high,established,"timer init/allocation","QueryPerformanceCounter call sites","8-byte allocation passed to QPC","Lifetime/ownership cleanup mapped only partially"
+WIN-GL-004,windows,0x004677E8,previous_qpc_low,32-bit scalar,high,established,"timer init/update","pacing delta calculation","Low 32 bits used as previous timestamp","Wrap behavior should be preserved if relevant"
+WIN-GL-005,windows,0x0045A140,current_qpc_low,32-bit scalar,medium,candidate,"gameplay QPC path","timing code","Updated from QPC buffer","Exact lifetime/secondary uses pending"
+WIN-GL-006,windows,0x0048003C,qpc_delta_low,32-bit scalar,high,established,"gameplay timing path","frame limiter/path consumers","current low32 - previous low32","Unsigned comparison to 15000 observed"
+WIN-GL-007,windows,0x004D9580,main_hwnd,HWND/pointer-sized 32-bit,high,established,"0x00404E30","platform/subsystem paths","Window handle saved by startup routine","Win32-only host state"
+WIN-GL-008,windows,0x004D9584,framebuffer_or_surface_pixels,32-bit pointer,medium,candidate,"DirectDraw lock/surface path","render/game update paths","Updated from locked DirectDraw surface data","Confirm all readers before stable rename"
+WIN-GL-009,windows,0x004DA780,framebuffer_pitch,32-bit scalar,medium,candidate,"DirectDraw surface descriptor path","render/game update paths","Updated from DirectDraw surface descriptor","Confirm units/signedness"

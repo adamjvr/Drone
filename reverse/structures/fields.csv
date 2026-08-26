@@ -1,0 +1,2 @@
+structure_id,offset,width,signedness,provisional_name,confidence,status,evidence
+WIN-STRUCT-001,0x00,unknown,unknown,unknown_00,low,open,"Field access corpus not yet assembled"
