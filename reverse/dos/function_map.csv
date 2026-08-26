@@ -1,0 +1,10 @@
+address,provisional_name,confidence,notes
+0x00067F1C,vga_palette_update,medium,"palette-side routine mapped during JBA work"
+0x00067F60,image_buffer_alloc,medium,"adjacent image setup"
+0x00067F90,load_fullscreen_jba,high,"matches Win32 JBA behavior"
+0x0007ECB4,hmi_sample_loader,medium,"DOS/HMI sound-side loader"
+0x0008A4A4,watcom_malloc_like,high,"runtime"
+0x0008A848,watcom_free_like,high,"runtime"
+0x0008A777,watcom_fopen_like,high,"runtime"
+0x0008AA2E,watcom_fclose_like,high,"runtime"
+0x0008BE83,watcom_fscanf_like,high,"runtime"

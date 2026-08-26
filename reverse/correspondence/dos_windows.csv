@@ -1,0 +1,4 @@
+id,dos_address,dos_name,windows_address,windows_name,relationship,confidence,status,evidence
+CORR-JBA-001,0x00067F90,load_fullscreen_jba,0x004012B0,load_fullscreen_jba,algorithm,high,established,"Both loaders read 256 RGB triples and perform the same 10-lane 64000-byte pixel deinterleave"
+CORR-PAL-001,0x00067F1C,vga_palette_update,0x004011E0,set_palette_range,behavioral,medium,candidate,"Both sit on the palette side of the JBA loading path; platform output mechanisms differ"
+CORR-AUD-001,0x0007ECB4,hmi_sample_loader,0x00406200,load_wav,behavioral,medium,candidate,"Both participate in sample loading for platform-specific audio paths; not claimed one-to-one function equivalents"

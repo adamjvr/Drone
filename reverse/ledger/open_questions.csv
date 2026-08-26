@@ -1,0 +1,12 @@
+id,priority,area,question,status,blocking,next_evidence
+Q-TIME-001,critical,timing,"What is the intended simulation cadence and update/render relationship?",open,"fixed-tick scheduler","Recover DOS timer source; runtime trace period behavior"
+Q-STATE-001,critical,state,"What do raw state values 0..8,13,99 mean and which are transitions/sentinels?",open,"state architecture","Map writers/readers, assets, input transitions"
+Q-ENTITY-001,critical,structures,"What object family uses the observed 0x14-byte cleanup stride?",open,"entity reconstruction","Find allocation/init/update consumers and DOS analogue"
+Q-INPUT-001,high,input,"What is the canonical input bit/action representation?",open,"player reconstruction","Trace DirectInput poll + aggregation and compare DOS controls"
+Q-FLY-001,high,formats/gameplay,"What do FLY int16,int16,int8 fields mean?",open,"trajectory/script reconstruction","Locate consumers and correlate runtime motion"
+Q-DEMO-001,high,demo,"What are the 14 demo fields?",open,"demo parity harness","Locate playback/recording consumers"
+Q-RENDER-001,high,rendering,"Which functions implement software blitting/HUD and what are coordinate/transparency rules?",open,"fidelity renderer","Map framebuffer consumers and asset frame metadata"
+Q-LEVEL-001,high,levels,"How are scrolling scenery, encounters, and level completion sequenced?",open,"shareware playthrough parity","Map level initialization/scripts/counters"
+Q-JBA-002,medium,formats,"What is the complete small-JBA embedded-PCX container format?",open,"complete asset import","Map small-JBA loader and surrounding metadata"
+Q-FULL-001,medium,evidence,"Which lawful full release becomes the canonical retail evidence set?",open,"levels 3-7 parity","Acquire/hash/version full release"
+Q-TIME-002,high,timing,"Does Win32 0x0042B1B4 correspond directly to the documented Tab vertical-retrace-sync toggle?",open,"timing/input interpretation","Trace Tab input writer and recover DOS retrace toggle path"

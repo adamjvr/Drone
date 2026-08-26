@@ -1,0 +1,18 @@
+/build/
+/build-*/
+/.reference/
+/.idea/
+/.vscode/
+.DS_Store
+*.user
+*.suo
+*.vcxproj.user
+__pycache__/
+*.pyc
+
+# Local reverse-engineering workspaces/databases
+/.ghidra/
+*.gpr
+*.rep/
+/reverse/work/
+/reverse/local/

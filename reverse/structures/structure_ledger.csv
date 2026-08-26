@@ -1,0 +1,2 @@
+id,platform,base_or_context,size_or_stride,provisional_name,confidence,status,evidence,next_step
+WIN-STRUCT-001,windows,"cleanup iteration in gameplay/shutdown research",0x14,unknown_stride_14,low,candidate,"Repeated 0x14-byte stride observed in cleanup context; semantic role not established","Find allocation/init and all non-cleanup consumers"

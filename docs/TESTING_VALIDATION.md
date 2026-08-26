@@ -1,0 +1,127 @@
+# Testing and Behavioral Validation Strategy
+
+## Goal
+
+A decompilation/remaster can compile and still be wrong. Drone therefore uses progressively stronger validation layers, from format-level unit tests to deterministic game-state and framebuffer comparisons against the original executables.
+
+## Validation classes
+
+### V0 — Build/static sanity
+
+Required on every supported development host:
+
+- CMake configure succeeds;
+- production sources build with warnings enabled;
+- test binary builds;
+- repository contains no required dependency on `.reference/` for ordinary compilation.
+
+### V1 — Synthetic unit tests
+
+Tests use project-created fixtures only. Current examples:
+
+- encode a known 320×200 pixel pattern into recovered JBA lane order, decode it, and require exact pixel equality;
+- verify RGB6 palette expansion behavior;
+- decode a synthetic CLV stream and verify exact frame count/downmix bytes;
+- parse FLY count/triples including negative values;
+- parse multiple 14-field demo records.
+
+Synthetic tests are publishable and must remain the baseline regression suite.
+
+### V2 — Local reference corpus checks
+
+Optional tests/tools operate on `.reference/` after package hash verification. They may check:
+
+- exact expected executable hashes;
+- inventory counts;
+- known file sizes;
+- JBA dimensions/decoded output hashes;
+- CLV↔WAV sample relationships;
+- FLY/DAT record counts and ranges.
+
+These tests must fail clearly when the evidence binary is not the expected hash rather than silently comparing a different release.
+
+### V3 — Cross-build algorithm correspondence
+
+Where DOS and Windows independently implement the same behavior, compare the recovered contracts. Examples already established:
+
+- JBA palette and 10-lane pixel decoding;
+- FLY storage layout family;
+- common asset namespaces;
+- DOS CLV / Windows WAV conversion relationship for compared assets.
+
+Cross-build agreement substantially raises confidence because compiler/platform-specific decompiler artifacts are less likely to match accidentally.
+
+### V4 — Runtime trace comparison
+
+Planned Phase 2+ infrastructure should record deterministic checkpoints from reference execution and the clean engine. Candidate trace fields:
+
+- simulation tick;
+- raw/normalized input mask;
+- top-level game state;
+- player position/state;
+- entity counts and selected entity fields;
+- score/lives/shield state;
+- Drone/probe/stinger state;
+- level/script cursor;
+- palette generation/change counter;
+- audio event IDs.
+
+Trace formats should be simple, versioned, and diffable. Never make pointer values or host timestamps part of the canonical clean trace.
+
+### V5 — Framebuffer comparison
+
+The fidelity renderer preserves a logical 320×200 indexed image. This gives us a strong output oracle.
+
+At chosen deterministic ticks:
+
+1. capture the 64,000 index bytes and active palette;
+2. compare exact hashes when the reconstructed path should be pixel-identical;
+3. if an intentional platform/presentation difference prevents full equality, compare documented regions or semantic masks rather than weakening the test globally.
+
+The remaster renderer is validated separately; it must not become the only way to inspect fidelity behavior.
+
+### V6 — Audio/event comparison
+
+Separate **gameplay audio events** from **host audio rendering**.
+
+Compatibility tests should first compare which sound is triggered and when. Where original sample data is user-supplied, decoded sample buffers can additionally be compared. Host mixer resampling, device buffering, and output latency must not be mistaken for simulation differences.
+
+### V7 — Demo-driven regression
+
+The original demo files are particularly valuable because they may provide deterministic input/state sequences. Once the 14 fields are understood, demo playback should become an automated parity harness for long stretches of gameplay.
+
+Until semantics are proven, the project must not design the clean demo format around guessed field names.
+
+## Parity gates
+
+A subsystem should not be marked reconstructed solely because it looks correct. Suggested gate:
+
+1. binary path documented;
+2. inputs/outputs specified;
+3. clean code implemented;
+4. synthetic edge tests added;
+5. at least one reference comparison performed when possible;
+6. discrepancies documented rather than normalized away.
+
+## Timing validation
+
+Timing is a first-order behavior. Before fixing a simulation rate:
+
+- recover the DOS timer source;
+- understand whether update and render cadence are coupled;
+- characterize the Win32 QPC threshold on representative period assumptions/runtime traces;
+- identify any accumulator/frame-skip behavior;
+- verify movement/projectile rates over multiple seconds, not one frame.
+
+## Numerical fidelity
+
+Preserve integer widths, truncation, signedness, overflow-sensitive behavior, and fixed-point operations until tests show they can be safely abstracted. Modern floating point should not replace original integer math merely for convenience in the fidelity core.
+
+## CI direction
+
+When Phase 2 host dependencies are introduced, CI should have two levels:
+
+- **public CI:** build + synthetic tests, no original game data;
+- **local/private reference suite:** same build plus user-supplied evidence comparisons.
+
+The public repository must remain testable without copyrighted original payloads.
