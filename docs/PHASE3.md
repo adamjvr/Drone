@@ -22,7 +22,7 @@ These contracts are inputs to Phase 3, not work to rediscover.
 ## Current Phase-3 work
 
 1. **Late dynamic-palette classification — COMPLETE.** `Q-RENDER-001` is resolved: the generic and purpose-built palette animators, their initialization state, DirectDraw range-upload primitive, and exact settled phase-sliced upload ranges are clean-tested. See [`reverse/PALETTE_EFFECTS.md`](reverse/PALETTE_EFFECTS.md).
-2. **Small-JBA container completion — NEXT.** Finish the Windows embedded-PCX family (`Q-JBA-002`) without conflating it with the already solved full-screen JBA format.
+2. **Small-JBA container completion — COMPLETE.** `Q-JBA-002` is resolved from all three canonical Windows members: byte-sized opaque preamble length, PCX at `1+N`, exact 128×128 single-plane 8-bit RLE, and markerless raw RGB8 palette trailer. The clean decoder remains separate from the 320×200 JBA path; canonical game-runtime ownership is not asserted.
 3. **Layering and composition.** Make remaining HUD ownership, world/object layering, palette transitions, and effect overlays explicit and testable.
 4. **Reference framebuffer fixtures.** Add lawful, metadata-oriented capture/comparison tooling so clean output can be compared against original-runtime frames without checking proprietary payloads into Git.
 5. **Native host validation.** Preserve the shared indexed-framebuffer boundary while validating presentation behavior on Linux first and later macOS/Windows; iPadOS production hosting remains a Phase-12 platform-completion concern.

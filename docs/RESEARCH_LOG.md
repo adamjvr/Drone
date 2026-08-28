@@ -208,3 +208,11 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Recovered `0x00403490` as the distinct generic late-game palette animation kernel over 64..170, 192..213 and 224..233, including negative channel clamp, blue-channel bound/stop priority and `rand()%100 < 2` inactive activation.
 - Established the settled state-2 DirectDraw upload schedule: phase 0 uploads 32..42 + 64..110; phase 1 uploads 111..156; phases 2/3 upload 157..170 + 192..213 + 224..234. Unsettled paths upload 0..255.
 - Added `fidelity/palette_effects` plus a dedicated `drone_fidelity` CTest target. Historical 0x44 records remain evidence only; clean code separates RGB, effect controls and host upload planning.
+
+## 2026-08-27 — Phase 3 small-JBA / embedded-PCX container
+
+- Resolved `Q-JBA-002` from all three canonical Windows-only small `.JBA` members (`Logo.jba`, `River.jba`, `Screen.jba`). Byte 0 is an opaque-preamble length `N`; the embedded PCX begins exactly at `1+N` (offsets 65, 5, and 39 respectively).
+- Established the common PCX contract: version 5, RLE, 8 bits/pixel, one plane, bounds 0..127 in both axes, 128 bytes/line, and exactly 16,384 decoded indices.
+- Established the trailer boundary exactly: after RLE completion, precisely 768 bytes remain and are a shared full-range RGB8 palette. The canonical files omit the conventional PCX `0x0C` 256-color palette marker.
+- Added a separate clean `load_small_jba_pcx128` decoder, PPM inspection support, synthetic markerless/RLE regression coverage, a metadata-only analyzer, and `manifests/small_jba_pcx.csv`. The ordinary 320×200 RGB6/lane-interleaved JBA loader remains separate.
+- A complete canonical Win32 executable string inventory contains many runtime `.jba` names but not `Logo.jba`, `River.jba`, or `Screen.jba`; this milestone therefore establishes physical format/import semantics without inventing a game-runtime owner.

@@ -13,7 +13,7 @@ The long-term goal is a documented, behaviorally validated reconstruction of the
 
 ## Current status
 
-**Phase 3 — Rendering & World Reconstruction is in progress.** Phase 2 is complete and remains the stable gameplay-architecture baseline: state orchestration, the Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, timing/input contracts, trajectory groups/templates, collision/projectile boundaries, scenery scrolling, mission progression, post-game flow, and multiple clean gameplay slices are recovered and regression-tested. Phase 3 now concentrates on renderer/world fidelity: the late dynamic-palette helper cluster is recovered and clean-tested; next are small-JBA container semantics, remaining HUD/effect layering, and reference framebuffer comparison.
+**Phase 3 — Rendering & World Reconstruction is in progress.** Phase 2 is complete and remains the stable gameplay-architecture baseline: state orchestration, the Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, timing/input contracts, trajectory groups/templates, collision/projectile boundaries, scenery scrolling, mission progression, post-game flow, and multiple clean gameplay slices are recovered and regression-tested. Phase 3 now concentrates on renderer/world fidelity: the late dynamic-palette helper cluster and the Windows small-JBA/embedded-PCX physical format are recovered and clean-tested; next are remaining HUD/effect/world layering and reference framebuffer comparison.
 
 Phase-2 closure is enforced by `scripts/check_phase2_exit.py`; it fails if a critical simulation-architecture question is reopened or the roadmap regresses. See [`docs/PHASE2.md`](docs/PHASE2.md), [`docs/PHASE3.md`](docs/PHASE3.md), [`docs/STATUS.md`](docs/STATUS.md), and [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -22,6 +22,7 @@ Phase-2 closure is enforced by `scripts/check_phase2_exit.py`; it fails if a cri
 | Area | Result |
 |---|---|
 | full-screen `.JBA` | 768-byte RGB6 palette + 64,000 indexed pixels; 320×200; 10-lane stored pixel order |
+| small Windows `.JBA` | byte-sized opaque-preamble length + 128×128 8-bit PCX RLE + markerless raw 256×RGB8 palette; separate physical family |
 | DOS `.CLV` | raw unsigned 8-bit stereo PCM at 22,050 Hz |
 | DOS→Windows audio relation | corresponding Win mono sample is integer floor-average of DOS stereo sample pair over compared common regions |
 | `.FLY` | `CURRENT.FLY` counted; runtime paths are raw `int16 x,int16 y,int8 aux` triples with hard-coded loader counts; X/Y semantics established |

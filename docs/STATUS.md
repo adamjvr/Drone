@@ -63,7 +63,7 @@
 | format | status | current result |
 |---|---|---|
 | full-screen JBA | CONFIRMED | 768-byte RGB6 palette + 64,000 pixels; 10-lane interleave; 320×200 |
-| small Windows JBA family | PARTIAL | embedded 128×128 8-bit PCX observed; container semantics open |
+| small Windows JBA family | CONFIRMED physical format | byte-0 preamble length; PCX at `1+N`; 128×128 8-bit single-plane RLE; final markerless 768-byte RGB8 palette; runtime owner not asserted |
 | CLV | CONFIRMED | 22,050 Hz unsigned 8-bit interleaved stereo PCM |
 | FLY | CONFIRMED core runtime semantics | dual physical encoding, X/Y, trajectory index/step/wrap, normal AUX frame control and canonical short-file reachability solved; special-family substitutions/producers remain |
 | demo DAT | CONFIRMED core semantics | 2,101 × 14 ASCII integers; all playback channel meanings mapped; trajectory-channel authoring provenance still open |
@@ -83,9 +83,9 @@
 
 ## Phase 3 current priorities
 
-1. Finish the small Windows JBA / embedded-PCX container family (`Q-JBA-002`); late dynamic-palette ownership is now resolved under `Q-RENDER-001`.
-2. Make the remaining HUD/effect/world layering and composition order explicit.
-3. Add reference framebuffer capture/comparison fixtures around the recovered 320×200 indexed + dynamic-palette pipeline.
+1. Make the remaining HUD/effect/world layering and composition order explicit; `Q-RENDER-001` and `Q-JBA-002` are now resolved.
+2. Add reference framebuffer capture/comparison fixtures around the recovered 320×200 indexed + dynamic-palette pipeline.
+3. Validate the shared presentation contracts through the native fidelity host without coupling them to platform-specific graphics APIs.
 4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.
 
 The supplied evidence set remains shareware. Full seven-level parity eventually requires a lawful full-game reference copy; missing retail behavior must not be invented.
