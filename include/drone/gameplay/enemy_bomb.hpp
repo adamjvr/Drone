@@ -1,5 +1,7 @@
 #pragma once
 
+#include <drone/gameplay/player.hpp>
+#include <drone/gameplay/player_lifecycle.hpp>
 #include <drone/gameplay/special_weapon.hpp>
 
 #include <array>
@@ -145,5 +147,36 @@ EnemyBombPlayerImpactResult resolve_enemy_bomb_player_impact(
     std::size_t index,
     bool player_shield_active,
     bool special_weapon_loaded);
+
+struct EnemyBombLateCollisionPassResult {
+    EnemyBombSpecialImpactResult special_impact{};
+    std::size_t player_hits = 0;
+    std::size_t shield_absorptions = 0;
+    std::optional<std::size_t> first_player_hit_index{};
+    bool loaded_special_auto_launched = false;
+    bool auto_launch_sound_requested = false;
+    bool player_hit_sfx_requested = false;
+    bool player_destruction_started = false;
+    bool player_death_effect_requested = false;
+    bool bomb_spawn_suppression_started = false;
+};
+
+// Reconstructs the ordered late Win32 bomb collision loop at
+// 0x0040F330..0x0040F5A3 for the now-established Probe/Stinger and player
+// targets. For each bomb that is active at loop entry, the special entity is
+// tested first and the player second. The original deliberately still performs
+// the player test after a same-iteration special hit cleared bomb activity, so
+// one overlapping bomb may affect both targets before active_count is decremented
+// once at the end of that bomb's iteration. Shielded player hits consume the
+// bomb as an absorption-effect source. The first unshielded hit auto-launches a
+// merely loaded special, deactivates the player, and drives the shared bomb-spawn
+// gate to -20*27 = -540; presentation/audio effects are returned as events.
+[[nodiscard]] EnemyBombLateCollisionPassResult process_enemy_bomb_late_collision_pass(
+    EnemyBombPool& pool,
+    SpecialWeaponState& special,
+    const PlayerMotionState& player,
+    PlayerLifecycleState& lifecycle,
+    bool player_shield_active,
+    EnemyBombSpawnGate& spawn_gate) noexcept;
 
 } // namespace drone::gameplay

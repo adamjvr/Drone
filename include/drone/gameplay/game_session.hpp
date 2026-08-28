@@ -99,6 +99,12 @@ struct GameSessionTargetContext {
     // original. Keep that gate explicit instead of assigning it a false name.
     bool redirect_bombs_to_attached_probe = false;
 
+    // The player-death presentation/effect pool is not yet owned by the clean
+    // simulation. The original respawn settlement tests its activity byte == 0.
+    // A host/fidelity owner may therefore expose only that exact semantic fact
+    // without forcing the gameplay core to invent the effect's pixel behavior.
+    bool player_death_effect_inactive = false;
+
     // Phase-4 encounter integration. Asset/path samples remain immutable input;
     // mutable 17-group lifecycle/actor state lives inside GameSession. A caller
     // may request one already-selected transient template activation at the
@@ -134,6 +140,19 @@ struct GameSessionTickResult {
     bool enemy_bomb_probe_impact_sound_requested = false;
     bool enemy_bomb_stinger_impact_effect_requested = false;
     bool enemy_bomb_stinger_impact_sound_requested = false;
+    std::size_t enemy_bomb_player_hits = 0;
+    std::size_t enemy_bomb_shield_absorptions = 0;
+    std::optional<std::size_t> enemy_bomb_first_player_hit_index{};
+    bool enemy_bomb_auto_launched_special = false;
+    bool enemy_bomb_auto_launch_sound_requested = false;
+    bool enemy_bomb_player_hit_sfx_requested = false;
+    bool player_destruction_started = false;
+    bool player_death_effect_requested = false;
+    bool player_bomb_spawn_suppression_started = false;
+    bool player_life_consumed = false;
+    bool player_respawned = false;
+    bool player_respawn_shield_reset = false;
+    bool player_game_over_banner_requested = false;
 
     bool trajectory_group_spawned = false;
     std::size_t trajectory_actors_activated = 0;

@@ -139,7 +139,7 @@ The following remain open without blocking the clean energy model:
 
 ## Bomb collision consequence
 
-The bomb/player branch at `0x0040F4BB..0x0040F589` independently proves the protection semantics of `player_shield_active`. A colliding bomb is consumed in both cases. With shield inactive, `bigexp3.wav` is played and the player destruction routine runs; with shield active, bomb motion is zeroed and the bomb is converted through `spawn_mini_explosion_sprite` without destroying the player. See [ENEMY_BOMBS.md](ENEMY_BOMBS.md).
+The bomb/player branch at `0x0040F4BB..0x0040F589` independently proves the protection semantics of `player_shield_active`. A colliding bomb is consumed in both cases. With shield inactive, `bigexp3.wav` is requested and the player destruction routine runs; with shield active, bomb motion is zeroed and the bomb is converted through `spawn_mini_explosion_sprite` without destroying the player. This decision and collision producer are now owned by the `GameSession` late bomb pass; rendering/audio remain presentation events. See [ENEMY_BOMBS.md](ENEMY_BOMBS.md).
 
 
 ## Presentation cross-reference

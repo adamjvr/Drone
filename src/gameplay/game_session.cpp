@@ -243,9 +243,32 @@ GameSessionTickResult step_game_session(
     result.lid_top_motion_stop_requested = boss_result.lid_top_motion_stop_requested;
 
     // Both recovered cooldown/gate scalars advance once per active state-2
-    // update before their producer paths can consume the ready values.
+    // update before their producer paths can consume the ready values. The
+    // bomb gate is also the exact post-death quiet-period counter.
     advance_enemy_bomb_spawn_gate(encounter.enemy_bomb_spawn_gate);
     advance_rapid_missile_cooldown(encounter.rapid_missiles);
+
+    // Player life consumption is deferred from collision time. The original
+    // settles only after the bomb gate rises above -356, the death presentation
+    // is inactive, the player is inactive, lives remain, and the Drone is not
+    // in destruction activity 2. Presentation inactivity remains an explicit
+    // fidelity-host fact until that effect pool is reconstructed.
+    const auto player_respawn = settle_player_death(
+        campaign.player_lifecycle,
+        encounter.player,
+        encounter.shield,
+        PlayerRespawnGate{
+            .bomb_spawn_gate_allows_settlement =
+                enemy_bomb_spawn_gate_allows_respawn(encounter.enemy_bomb_spawn_gate),
+            .death_effect_inactive = targets.player_death_effect_inactive,
+            .player_inactive = !campaign.player_lifecycle.player_active,
+            .drone_allows_respawn =
+                encounter.drone.activity != canonical_drone_destruction_activity,
+        });
+    result.player_life_consumed = player_respawn.consumed_life;
+    result.player_respawned = player_respawn.respawned;
+    result.player_respawn_shield_reset = player_respawn.shield_reset;
+    result.player_game_over_banner_requested = player_respawn.game_over;
 
     const bool player_active = campaign.player_lifecycle.player_active;
 
@@ -324,12 +347,19 @@ GameSessionTickResult step_game_session(
     result.enemy_bombs_retired =
         retire_enemy_bombs_below_bottom(encounter.enemy_bombs);
 
-    // The late state-2 bomb loop checks the Probe/Stinger before the later
-    // weapon-to-Drone producers. This owner now reproduces that collision
-    // directly, including the original phase-2-only decoder interruption rule.
-    const auto bomb_special_hit = collide_enemy_bombs_with_special_weapon(
+    // The original late bomb loop is per-slot, not two independent global
+    // passes: Probe/Stinger is tested first and the player second for each bomb.
+    // It even retains the same bomb coordinates for the player test after a
+    // special hit cleared bomb activity, allowing one overlapping bomb to affect
+    // both targets before active_count is decremented once.
+    const auto bomb_collision = process_enemy_bomb_late_collision_pass(
         encounter.enemy_bombs,
-        encounter.special_weapon);
+        encounter.special_weapon,
+        encounter.player,
+        campaign.player_lifecycle,
+        encounter.shield.active,
+        encounter.enemy_bomb_spawn_gate);
+    const auto& bomb_special_hit = bomb_collision.special_impact;
     result.enemy_bomb_hit_special_weapon = bomb_special_hit.hit;
     result.enemy_bomb_special_hit_index = bomb_special_hit.bomb_index;
     result.enemy_bomb_probe_decode_reset = bomb_special_hit.probe_decode_reset;
@@ -345,6 +375,21 @@ GameSessionTickResult step_game_session(
         bomb_special_hit.stinger_impact_effect_requested;
     result.enemy_bomb_stinger_impact_sound_requested =
         bomb_special_hit.stinger_impact_sound_requested;
+    result.enemy_bomb_player_hits = bomb_collision.player_hits;
+    result.enemy_bomb_shield_absorptions = bomb_collision.shield_absorptions;
+    result.enemy_bomb_first_player_hit_index = bomb_collision.first_player_hit_index;
+    result.enemy_bomb_auto_launched_special =
+        bomb_collision.loaded_special_auto_launched;
+    result.enemy_bomb_auto_launch_sound_requested =
+        bomb_collision.auto_launch_sound_requested;
+    result.enemy_bomb_player_hit_sfx_requested =
+        bomb_collision.player_hit_sfx_requested;
+    result.player_destruction_started = bomb_collision.player_destruction_started;
+    result.player_death_effect_requested = bomb_collision.player_death_effect_requested;
+    result.player_bomb_spawn_suppression_started =
+        bomb_collision.bomb_spawn_suppression_started;
+    result.special_launched = result.special_launched ||
+        bomb_collision.loaded_special_auto_launched;
 
     // The original rapid-missile pool is checked before the common special
     // projectile. Both Drone interactions use 0x00401F60 point-vs-hitbox, not

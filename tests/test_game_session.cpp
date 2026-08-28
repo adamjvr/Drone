@@ -636,6 +636,134 @@ int main() {
         assert(session.encounter.special_weapon.probe_decode.phase2_elapsed == 0);
     }
 
+
+    // Shielded bomb/player collision is owned by the continuous session. Bomb Y
+    // advances by two before the late pass, so 164 -> 166 and the collision
+    // helper tests y+9 == the canonical player Y 175.
+    {
+        GameSession session{};
+        assert(spawn_live_enemy_bomb(
+            session.encounter.enemy_bombs,
+            session.encounter.player.x,
+            164,
+            0));
+
+        GameplayInputFrame input{};
+        input.shield = true;
+        const auto result = step_game_session(session, input);
+        assert(result.enemy_bomb_player_hits == 1);
+        assert(result.enemy_bomb_shield_absorptions == 1);
+        assert(result.enemy_bomb_first_player_hit_index == 0);
+        assert(!result.player_destruction_started);
+        assert(session.campaign.player_lifecycle.player_active);
+        assert(session.campaign.player_lifecycle.lives == 3);
+        assert(session.encounter.enemy_bombs.active_count == 0);
+    }
+
+    // An unshielded player hit auto-launches a merely loaded special before
+    // entering player destruction and drives the shared bomb spawn/respawn gate
+    // to the canonical -540 value in the same update.
+    {
+        GameSession session{};
+        session.encounter.special_weapon.activity =
+            SpecialWeaponActivity::LoadedTracking;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Probe;
+        assert(spawn_live_enemy_bomb(
+            session.encounter.enemy_bombs,
+            session.encounter.player.x,
+            164,
+            0));
+
+        const auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.enemy_bomb_player_hits == 1);
+        assert(result.enemy_bomb_auto_launched_special);
+        assert(result.enemy_bomb_auto_launch_sound_requested);
+        assert(result.enemy_bomb_player_hit_sfx_requested);
+        assert(result.player_destruction_started);
+        assert(result.player_death_effect_requested);
+        assert(result.player_bomb_spawn_suppression_started);
+        assert(result.special_launched);
+        assert(!session.campaign.player_lifecycle.player_active);
+        assert(session.campaign.player_lifecycle.lives == 3);
+        assert(session.encounter.special_weapon.activity ==
+               SpecialWeaponActivity::LaunchedHoming);
+        assert(session.encounter.enemy_bomb_spawn_gate.counter == -540);
+    }
+
+    // Life consumption is deferred until the shared bomb gate has advanced
+    // above -356 and the fidelity host reports the player death effect inactive.
+    // The life is consumed before the positive-life test, then shield/frame/
+    // position are reset and the surviving player becomes active again.
+    {
+        GameSession session{};
+        session.campaign.player_lifecycle.lives = 3;
+        session.campaign.player_lifecycle.player_active = false;
+        session.encounter.player.x = 12;
+        session.encounter.player.y = 34;
+        session.encounter.player.frame = 7;
+        session.encounter.shield.energy = 1234;
+        session.encounter.enemy_bomb_spawn_gate.counter = -356;
+
+        GameSessionTargetContext targets{};
+        targets.player_death_effect_inactive = true;
+        const auto result = step_game_session(
+            session, GameplayInputFrame{}, targets);
+        assert(result.player_life_consumed);
+        assert(result.player_respawned);
+        assert(result.player_respawn_shield_reset);
+        assert(!result.player_game_over_banner_requested);
+        assert(session.campaign.player_lifecycle.lives == 2);
+        assert(session.campaign.player_lifecycle.player_active);
+        assert(session.encounter.player.frame == 0);
+        assert(session.encounter.player.x == canonical_respawn_x);
+        assert(session.encounter.player.y == canonical_respawn_y);
+        assert(session.encounter.shield.energy == shield_nominal_max_energy);
+        assert(session.encounter.enemy_bomb_spawn_gate.counter == -355);
+    }
+
+    // The last life follows the same reset ordering but remains inactive and
+    // requests the already-recovered game-over banner path.
+    {
+        GameSession session{};
+        session.campaign.player_lifecycle.lives = 1;
+        session.campaign.player_lifecycle.player_active = false;
+        session.encounter.enemy_bomb_spawn_gate.counter = -356;
+        session.encounter.shield.energy = 1;
+
+        GameSessionTargetContext targets{};
+        targets.player_death_effect_inactive = true;
+        const auto result = step_game_session(
+            session, GameplayInputFrame{}, targets);
+        assert(result.player_life_consumed);
+        assert(!result.player_respawned);
+        assert(result.player_respawn_shield_reset);
+        assert(result.player_game_over_banner_requested);
+        assert(session.campaign.player_lifecycle.lives == 0);
+        assert(!session.campaign.player_lifecycle.player_active);
+        assert(session.encounter.player.x == canonical_respawn_x);
+        assert(session.encounter.player.y == canonical_respawn_y);
+        assert(session.encounter.shield.energy == shield_nominal_max_energy);
+    }
+
+    // Drone destruction activity 2 blocks player-life settlement even when the
+    // other recovered gates are ready.
+    {
+        GameSession session{};
+        session.campaign.player_lifecycle.lives = 2;
+        session.campaign.player_lifecycle.player_active = false;
+        session.encounter.enemy_bomb_spawn_gate.counter = -356;
+        session.encounter.drone.activity = canonical_drone_destruction_activity;
+
+        GameSessionTargetContext targets{};
+        targets.player_death_effect_inactive = true;
+        const auto result = step_game_session(
+            session, GameplayInputFrame{}, targets);
+        assert(!result.player_life_consumed);
+        assert(!result.player_respawned);
+        assert(session.campaign.player_lifecycle.lives == 2);
+        assert(!session.campaign.player_lifecycle.player_active);
+    }
+
     std::cout << "Drone continuous game-session tests passed\n";
     return 0;
 }

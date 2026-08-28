@@ -9,10 +9,10 @@
 
 | area | status | current result |
 |---|---|---|
-| continuous `GameSession` ownership | ESTABLISHED first contract | clean campaign-vs-encounter state split; full/encounter reset; active-state-only deterministic tick; player, rapid missile, special weapon, shield, existing enemy bombs, four-phase cadence, world scroll and one-extra-life conversion integrated |
+| continuous `GameSession` ownership | ESTABLISHED first contract | clean campaign-vs-encounter state split; full/encounter reset; active-state-only deterministic tick; player, rapid missile, special weapon, shield, enemy-bomb movement plus ordered late special/player collisions, deferred player respawn settlement, four-phase cadence, world scroll and one-extra-life conversion integrated |
 | whole-session regression oracle | CONFIRMED clean oracle | asset-free `drone_session_probe` executes a fixed 120-update semantic input script and is checked exactly by CTest |
 | encounter actor integration | CURRENT | all 17 trajectory groups plus shareware-reachable Lid/Top/Gemini lifecycle/score tails are session-owned; random/template selection, exact collision producers, boss movement/attacks, remaining non-trajectory enemies and Drone transition execution remain to be connected |
-| death/restart/post-game continuity | OPEN Phase-4 integration | recovered narrow helpers exist independently; continuous session transitions still need integration |
+| death/restart/post-game continuity | PARTIAL Phase-4 integration | bomb-driven player destruction entry, -540 spawn quiet period and exact deferred life-consumption/respawn/game-over gate are session-owned; death-effect presentation and remaining results execution are still external |
 | session → fidelity presentation handoff | OPEN Phase-4 integration | Phase-3 renderer contracts are complete; complete semantic presentation inputs are not yet generated from `GameSession` each frame |
 
 ## Status legend
@@ -53,7 +53,7 @@
 | Probe/Stinger special weapon | CONFIRMED core lifecycle + Drone interaction | shared 3x8 entity, load/cycle/launch/homing mapped; Probe-vs-Drone point-hitbox attachment, +10 award, exact live/demo two-stage thresholds, decode status 0→3→1, +500 completion and same-update Drone release are clean-integrated; enemy-bomb knockoff and exact phase-2-only decoder interruption are integrated; red Stinger-vs-Drone starts the destruction countdown; hostile target priority and downstream state-4 Mothership details remain partial |
 | demo replay system | CONFIRMED core semantics | playback/recording flags and all 14 channels mapped; DOS/Win share zero-reset, one-preincrement-per-gameplay-update and 0x82F terminal clock; four shared demos byte-identical |
 | six-Drone objective outcomes | CONFIRMED core semantics | six-entry ledger 0 unresolved / 1 disarmed / 2 detonated; normal Y=201 commit plus 60-slow-tick settlement gate recovered; `0x0041D220` detonation path, per-objective good/bad + mission interstitial, and final result art/music reductions clean-tested |
-| enemy bomb gameplay slice | CONFIRMED core lifecycle | 10-slot 1x9 pool; live steering magnitude rand()%3, replay steering forced 0, Y+=2 update, 3-frame animation, visibility/lifetime, player-impact consequences, and shared spawn-gate/death quiet-period counter reconstructed |
+| enemy bomb gameplay slice | CONFIRMED core lifecycle | 10-slot 1x9 pool; live steering magnitude rand()%3, replay steering forced 0, Y+=2 update, 3-frame animation, visibility/lifetime, ordered Probe/Stinger→player late collision loop, shield/lethal consequences, and shared spawn-gate/death quiet-period counter reconstructed |
 | scoring / extra lives | CONFIRMED core semantics | total score and rolling extra-life progress separated; signed awards/penalties, one 500-point life conversion per update, Drone special penalty, negative floor and 9999 HUD quirk recovered; clean-tested |
 | high scores / post-game results | CONFIRMED core semantics | lives<=0 results entry, six numeric result statistics, 58-present confirmation lock, Ordering Information handoff, 10-entry qualification/insertion, slot-0 no-save quirk, demo/L-cheat gates, final state1/state4 behavior and perfect-run credits are clean-tested |
 | Lid/Top boss family | CONFIRMED core encounter slice | `lid.jba`/`top.jba` resource pair, 9+1 frames, init/update/release routines, bomb/weapon interaction, 25-count destruction progression and exact +100 boss reward established |
@@ -91,7 +91,7 @@
 | fidelity framebuffer | CONFIRMED | indexed 320×200 core-owned contract |
 | world/effect subpass catalog | CONFIRMED Win32 order | 28 evidence-backed subpasses resolve boss composites, direct point particles, Gemini procedural effect, explosion/debris routing and actor/projectile tail before scaled overlays |
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
-| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state, all 17 trajectory groups, exact Probe attachment/decode/disarm state, rapid-missile/Stinger Drone-hit producers, normal Drone objective X/Y travel/hover/disarm/settlement, the exact timeout-driven pre-detonation countdown, outcome-2/-1000 detonation commit, logical effect settlement, Drone life-loss/restart/EndRun ordering, automatic Y=-200 shareware boss dispatch, and Lid/Top/Gemini lifecycle/score tails alongside player, shield, bombs, cadence and world scroll; hostile Stinger selection, trajectory/boss collision producers, direct detonation visuals, boss movement/attacks and remaining non-trajectory actors remain Phase-4 work |
+| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state, all 17 trajectory groups, exact Probe attachment/decode/disarm state, attached-Probe bomb interruption, ordered bomb→player shield/lethal handling, player destruction entry and deferred respawn/game-over settlement, rapid-missile/Stinger Drone-hit producers, normal Drone objective X/Y travel/hover/disarm/settlement, the exact timeout-driven pre-detonation countdown, outcome-2/-1000 detonation commit, logical effect settlement, Drone life-loss/restart/EndRun ordering, automatic Y=-200 shareware boss dispatch, and Lid/Top/Gemini lifecycle/score tails; hostile Stinger selection, death-effect presentation, trajectory/boss collision producers, direct detonation visuals, boss movement/attacks and remaining non-trajectory actors remain Phase-4 work |
 
 ## Phase 3 closure / Phase 4 priorities
 
@@ -100,8 +100,8 @@ Phase 3 is complete. The renderer/world architecture now includes the corrected 
 Phase 4 priorities are now:
 
 1. Extend established continuous `GameSession` ownership from trajectories, Drone/Probe interaction and shareware boss lifecycle into the remaining non-trajectory encounter actors and boss movement/attack producers.
-2. Recover and integrate the enemy path that can shoot an attached Probe off, including the exact decoder-reset/vulnerability gates, and finish hostile Stinger target priority without inventing unavailable retail behavior.
-3. Continue whole-frame integration into trajectory/boss collision producers and death/restart/game-over continuity without pulling retail-only unknowns forward from Phase 8.
+2. Finish hostile Stinger target priority and the remaining non-trajectory collision producers without inventing unavailable retail behavior.
+3. Continue whole-frame integration into trajectory/boss collision producers, reconstruct the player-death presentation producer behind the now-integrated respawn gate, and complete results continuity without pulling retail-only unknowns forward from Phase 8.
 4. Feed the Phase-3 fidelity presentation contracts from clean session state while preserving the simulation/presentation boundary.
 
 Exact original-runtime trace parity remains Phase 6; end-to-end shareware discrepancy closure remains Phase 7.

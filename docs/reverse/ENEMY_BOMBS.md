@@ -131,7 +131,9 @@ The player branch at `0x0040F4BB..0x0040F589` is established separately:
 
 This proves that `player_shield_active` is gameplay protection, not merely a render flag. It also preserves a small but important original rule: an unshielded lethal bomb hit auto-launches a special weapon that was only loaded/tracking before the player's death sequence begins.
 
-`resolve_enemy_bomb_player_impact()` reconstructs the consequence decision as a platform-neutral event result. Collision detection, DirectSound playback, player-death effects, and mini-explosion rendering remain owned by their respective higher-level systems.
+`process_enemy_bomb_late_collision_pass()` now reconstructs the original per-slot late loop inside the portable gameplay layer. Each bomb active at loop entry tests the Probe/Stinger first and the player second; critically, the player test still runs on the same coordinates even when the special hit has already cleared the bomb activity byte. The 22×22 player entity contributes the common-init inclusive 18×18 extents. Shielded hits consume the bomb as a stationary absorption-effect source; the first unshielded hit may auto-launch a loaded special, deactivates the player, requests the death presentation/audio events, and writes the shared spawn gate to the canonical -540 suppression value. Active-count retirement occurs once after both target tests.
+
+`GameSession` also invokes the independently recovered deferred player-life settlement using this same gate. DirectSound playback, mini-explosion rendering, and the internal player-death effect animation remain presentation responsibilities; the session currently accepts only the established semantic fact that the death-effect actor is inactive.
 
 ## Clean implementation
 
@@ -159,3 +161,4 @@ No proprietary pixels or replay records are required by the unit tests.
 - Which original enemy families feed each live bomb-spawn path and what are their exact scheduler probabilities?
 - Which remaining Probe/Stinger states 4/10 have additional bomb-collision consequences beyond the now-integrated ordinary nonzero-state consumption path?
 - Which original enemy families feed every remaining bomb/special collision consequence and how do those outcomes interact with special states 4/10?
+- What is the exact clean presentation model for the player-death effect actor whose activity byte gates deferred life settlement?

@@ -60,7 +60,7 @@ The independently written reconstruction lives in:
 - `include/drone/gameplay/player_lifecycle.hpp`
 - `src/gameplay/player_lifecycle.cpp`
 
-Regression coverage proves both the 3→2 respawn case and the 1→0 game-over case, including the original reset ordering.
+Regression coverage proves both the 3→2 respawn case and the 1→0 game-over case, including the original reset ordering. `GameSession` now owns this settlement continuously: it advances the shared enemy-bomb gate, combines its `> -356` result with player/Drone state, and consumes one explicit presentation-side fact—whether the player-death effect activity is zero. The death-effect actor itself remains a fidelity/presentation reconstruction task rather than being approximated in gameplay code.
 
 ## `gameover.jba` entity
 

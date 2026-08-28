@@ -26,6 +26,11 @@ inline constexpr std::int32_t player_max_x = 297;
 inline constexpr std::int32_t player_min_y = 120;
 inline constexpr std::int32_t player_max_y = 175;
 inline constexpr std::int32_t player_ship_frame_count = 15;
+inline constexpr std::int16_t player_sprite_width = 22;
+inline constexpr std::int16_t player_sprite_height = 22;
+// Common-entity initialization derives collision extents as int(size * 0.85).
+inline constexpr std::int16_t player_collision_width_extent = 18;
+inline constexpr std::int16_t player_collision_height_extent = 18;
 
 // Reconstructs the directional-control portion of Win32 state-2 gameplay.
 //

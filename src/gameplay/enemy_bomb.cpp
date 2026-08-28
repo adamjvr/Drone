@@ -31,6 +31,47 @@ void mark_spawned(
     ++pool.active_count;
 }
 
+EnemyBombSpecialImpactResult apply_special_impact_without_count_change(
+    EnemyBombState& bomb,
+    const std::size_t index,
+    SpecialWeaponState& special) noexcept {
+
+    EnemyBombSpecialImpactResult result{};
+    result.hit = true;
+    result.bomb_index = index;
+    result.previous_activity = special.activity;
+    result.kind = special.kind;
+    result.launch_sound_stop_requested =
+        special.activity == SpecialWeaponActivity::LaunchedHoming;
+
+    bomb.active = false;
+
+    auto& decode = special.probe_decode;
+    if (decode.status != ProbeDecodeStatus::Complete &&
+        decode.phase2_elapsed > 0 &&
+        special.activity == SpecialWeaponActivity::ProbeAttachedDecoding) {
+        decode.status = ProbeDecodeStatus::Phase1Decoding;
+        decode.phase1_elapsed = 0;
+        decode.phase2_elapsed = 0;
+        result.probe_decode_reset = true;
+        result.probe_phase2_interrupt_signal_requested = true;
+    }
+
+    special.activity = SpecialWeaponActivity::Inactive;
+    special.motion_y = 1;
+
+    if (special.kind == SpecialWeaponKind::Stinger) {
+        special.motion_x = 0;
+        special.motion_y = 0;
+        result.stinger_impact_effect_requested = true;
+        result.stinger_impact_sound_requested = true;
+    } else {
+        result.probe_impact_effect_requested = true;
+        result.probe_impact_sound_requested = true;
+    }
+    return result;
+}
+
 } // namespace
 
 
@@ -167,41 +208,8 @@ EnemyBombSpecialImpactResult collide_enemy_bombs_with_special_weapon(
             continue;
         }
 
-        result.hit = true;
-        result.bomb_index = index;
-        result.previous_activity = special.activity;
-        result.kind = special.kind;
-        result.launch_sound_stop_requested =
-            special.activity == SpecialWeaponActivity::LaunchedHoming;
-
-        (void)deactivate_enemy_bomb(pool, index);
-
-        auto& decode = special.probe_decode;
-        if (decode.status != ProbeDecodeStatus::Complete &&
-            decode.phase2_elapsed > 0 &&
-            special.activity == SpecialWeaponActivity::ProbeAttachedDecoding) {
-            decode.status = ProbeDecodeStatus::Phase1Decoding;
-            decode.phase1_elapsed = 0;
-            decode.phase2_elapsed = 0;
-            result.probe_decode_reset = true;
-            result.probe_phase2_interrupt_signal_requested = true;
-        }
-
-        // The original writes state 0 before branching on Probe vs Stinger and
-        // transiently writes +0x14=1. The Stinger branch subsequently zeros
-        // both motion fields; the Probe branch retains motion_y=1 while inactive.
-        special.activity = SpecialWeaponActivity::Inactive;
-        special.motion_y = 1;
-
-        if (special.kind == SpecialWeaponKind::Stinger) {
-            special.motion_x = 0;
-            special.motion_y = 0;
-            result.stinger_impact_effect_requested = true;
-            result.stinger_impact_sound_requested = true;
-        } else {
-            result.probe_impact_effect_requested = true;
-            result.probe_impact_sound_requested = true;
-        }
+        result = apply_special_impact_without_count_change(bomb, index, special);
+        if (pool.active_count > 0) --pool.active_count;
         return result;
     }
 
@@ -237,6 +245,86 @@ EnemyBombPlayerImpactResult resolve_enemy_bomb_player_impact(
     result.destroy_player = true;
     result.play_player_hit_sfx = true; // 20-voice bigexp3.wav pool @ 0x4603A8
     result.launch_loaded_special = special_weapon_loaded;
+    return result;
+}
+
+
+EnemyBombLateCollisionPassResult process_enemy_bomb_late_collision_pass(
+    EnemyBombPool& pool,
+    SpecialWeaponState& special,
+    const PlayerMotionState& player,
+    PlayerLifecycleState& lifecycle,
+    const bool player_shield_active,
+    EnemyBombSpawnGate& spawn_gate) noexcept {
+
+    EnemyBombLateCollisionPassResult result{};
+    const CollisionEntityView player_hitbox{
+        .x = player.x,
+        .y = player.y,
+        .sprite_width = player_sprite_width,
+        .sprite_height = player_sprite_height,
+        .hitbox_width = player_collision_width_extent,
+        .hitbox_height = player_collision_height_extent,
+    };
+
+    for (std::size_t index = 0; index < pool.bombs.size(); ++index) {
+        auto& bomb = pool.bombs[index];
+        if (!bomb.active) continue;
+
+        // The original remembers that this slot entered the late collision loop
+        // active and decrements active_count only once after both target tests.
+        const bool active_at_loop_entry = true;
+
+        if (special.activity != SpecialWeaponActivity::Inactive) {
+            const CollisionEntityView special_hitbox{
+                .x = special.x,
+                .y = special.y,
+                .sprite_width = 3,
+                .sprite_height = 8,
+                .hitbox_width = canonical_special_weapon_collision_width_extent,
+                .hitbox_height = canonical_special_weapon_collision_height_extent,
+            };
+            if (point_plus_y9_in_hitbox(Point{bomb.x, bomb.y}, special_hitbox)) {
+                const auto impact = apply_special_impact_without_count_change(
+                    bomb, index, special);
+                if (!result.special_impact.hit) result.special_impact = impact;
+            }
+        }
+
+        // Fidelity quirk: do not re-check bomb.activity here. Win32 falls
+        // through from the special-hit branch and tests the same coordinates
+        // against the active player even though +0x142 has already been cleared.
+        if (lifecycle.player_active &&
+            point_plus_y9_in_hitbox(Point{bomb.x, bomb.y}, player_hitbox)) {
+            ++result.player_hits;
+            if (!result.first_player_hit_index.has_value()) {
+                result.first_player_hit_index = index;
+            }
+            bomb.active = false;
+
+            if (player_shield_active) {
+                bomb.horizontal_step = 0;
+                ++result.shield_absorptions;
+            } else {
+                if (special.activity == SpecialWeaponActivity::LoadedTracking) {
+                    special.activity = SpecialWeaponActivity::LaunchedHoming;
+                    result.loaded_special_auto_launched = true;
+                    result.auto_launch_sound_requested = true;
+                }
+                result.player_hit_sfx_requested = true;
+                result.player_destruction_started = true;
+                result.player_death_effect_requested = true;
+                lifecycle.player_active = false;
+                suppress_enemy_bomb_spawns_for_player_destruction(spawn_gate);
+                result.bomb_spawn_suppression_started = true;
+            }
+        }
+
+        if (active_at_loop_entry && !bomb.active && pool.active_count > 0) {
+            --pool.active_count;
+        }
+    }
+
     return result;
 }
 

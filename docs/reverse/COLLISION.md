@@ -91,3 +91,5 @@ That workflow is the standard for player/projectile/enemy reconstruction going f
 ## Enemy-bomb to special-weapon use of `0x00402000`
 
 The late state-2 bomb loop at `0x0040F35F..0x0040F4B8` independently confirms that `0x00402000` is not player-specific: it tests bomb `(x,y+9)` against the shared 3x8 Probe/Stinger common entity. The special entity's 0.85-derived collision extents are therefore 2x6, with the routine's established inclusive right/bottom comparisons. This producer is now integrated in `GameSession` and drives the attached-Probe decoder interruption path documented in `SPECIAL_WEAPONS.md`.
+
+The same per-slot loop then falls through to the player test at `0x0040F4BB` without re-reading the bomb activity byte. Therefore a bomb that has just hit and consumed the special entity can still hit an overlapping active player in that same iteration, and the bomb pool active count is decremented only once afterward. The player `ship.jba` entity is 22×22, yielding common-init inclusive 18×18 collision extents. This ordering is now regression-tested in the clean late-collision owner.
