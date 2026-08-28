@@ -15,7 +15,7 @@ The long-term goal is a documented, behaviorally validated reconstruction of the
 
 Phase 3 now includes an evidence-backed 28-subpass Win32 world/effect catalog beneath the corrected 19-pass outer renderer contract, plus scaled explosion/objective-debris routing, startup palette fade, and complete late HUD/outcome-cursor presentation.
 
-**Phase 4 — Complete Game Simulation is in progress.** Phase 3 is complete: the fidelity renderer/world architecture now has a corrected 19-pass Win32 presentation contract, detailed world/effect and scaled-overlay ownership, startup palette fade, HUD/special/shield/outcome-cursor semantics, framebuffer comparison tooling, and validated Linux capture plumbing. Phase 4 now assembles the recovered gameplay subsystems into one continuous clean session while preserving the Phase-3 simulation/presentation boundary.
+**Phase 4 — Complete Game Simulation is in progress.** Phase 3 is complete. The first Phase-4 integration contract is now live: `GameSession` separates campaign and encounter ownership, preserves full-vs-encounter reset semantics, and continuously ticks the recovered player, rapid-fire, special-weapon, shield, enemy-bomb, phase-cadence, world-scroll and extra-life helpers. A deterministic asset-free 120-update whole-session oracle is under CTest. Encounter actor creation, trajectory collections, collisions/destruction, Drone transitions and death/post-game continuity remain the current Phase-4 integration work.
 
 Phase-2 closure is enforced by `scripts/check_phase2_exit.py`; it fails if a critical simulation-architecture question is reopened or the roadmap regresses. See [`docs/PHASE2.md`](docs/PHASE2.md), [`docs/PHASE3.md`](docs/PHASE3.md), [`docs/STATUS.md`](docs/STATUS.md), and [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -124,3 +124,4 @@ The repository contains independently written project code, tools, specification
 - Phase 3 gameplay HUD reconstruction: see `docs/reverse/HUD_PRESENTATION.md`.
 - Phase 3 scaled-overlay reconstruction: see `docs/reverse/SCALED_OVERLAYS.md`.
 - Phase 4 integration plan: see `docs/PHASE4.md`.
+- Continuous session ownership and deterministic state oracle: see `docs/GAME_SESSION.md`.

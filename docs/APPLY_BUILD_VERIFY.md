@@ -226,3 +226,13 @@ python3 scripts/check_phase3_exit.py
 ```
 
 At the Phase-3 closure checkpoint both must pass. Phase 4 may add new integration tests without weakening these completed-phase invariants.
+
+## Phase-4 continuous-session probe
+
+The first complete-session integration milestone has an asset-free deterministic state oracle:
+
+```bash
+./build-debug/drone_session_probe 120
+```
+
+CTest runs the same probe through `drone_game_session_probe`. This validation is independent of the proprietary reference bootstrap.

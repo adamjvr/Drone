@@ -5,6 +5,16 @@
 **Primary decompilation reference:** canonical 1999 Win32 shareware executable (`BIN-WIN-SW-01`)  
 **Independent cross-check:** canonical 1997 DOS shareware executable (`BIN-DOS-SW-01`)
 
+## Phase 4 current integration
+
+| area | status | current result |
+|---|---|---|
+| continuous `GameSession` ownership | ESTABLISHED first contract | clean campaign-vs-encounter state split; full/encounter reset; active-state-only deterministic tick; player, rapid missile, special weapon, shield, existing enemy bombs, four-phase cadence, world scroll and one-extra-life conversion integrated |
+| whole-session regression oracle | CONFIRMED clean oracle | asset-free `drone_session_probe` executes a fixed 120-update semantic input script and is checked exactly by CTest |
+| encounter actor integration | CURRENT | trajectory actors/spawn producers, encounter-specific enemies/bosses, collision/destruction dispatch and Drone transition execution remain to be connected to session ownership |
+| death/restart/post-game continuity | OPEN Phase-4 integration | recovered narrow helpers exist independently; continuous session transitions still need integration |
+| session → fidelity presentation handoff | OPEN Phase-4 integration | Phase-3 renderer contracts are complete; complete semantic presentation inputs are not yet generated from `GameSession` each frame |
+
 ## Status legend
 
 - **CONFIRMED** — directly established by binary evidence, independent correspondence, or exact reproduction.

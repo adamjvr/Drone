@@ -224,3 +224,11 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Corrected the presentation catalog from 18 to 19 passes by restoring the startup palette fade at `0x00410E9D..0x00410F34`; recovered x87 truncate-toward-zero conversion of `255-counter*4.19` and phase-2 counter progression 0..62.
 - Identified the former auxiliary HUD sprite as `square.jba`, a 13x18 current Drone-outcome cursor whose target moves upward by 19 pixels per committed outcome and disappears after the sixth outcome.
 - Phase 3 exit criteria are now met: renderer/world architecture is deterministic and comparison-ready. Roadmap advances to Phase 4 complete-game simulation; exact original-runtime trace parity remains Phase 6.
+
+## 2026-08-28 — Phase 4 continuous session ownership
+
+- Added clean `GameSession` campaign/encounter ownership instead of recreating original global-memory ABI.
+- Implemented full-campaign versus encounter-only reset boundary using the recovered reset scope.
+- Integrated continuous active-gameplay ticking for phase cadence, player input/motion, rapid missiles, Probe/Stinger state, shield, existing enemy bombs, cleanup, world scroll and one-extra-life conversion.
+- Kept encounter target/redirect facts explicit until actor collections and encounter producers are integrated.
+- Added dedicated C++ session tests plus an asset-free deterministic 120-update `drone_session_probe` oracle.

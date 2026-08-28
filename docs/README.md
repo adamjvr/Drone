@@ -82,6 +82,7 @@ Machine-readable research ledgers live under `reverse/ledger/`, `reverse/corresp
 - [`PHASE2.md`](PHASE2.md)
 - [`PHASE3.md`](PHASE3.md) — completed rendering/world reconstruction and Phase 4 handoff.
 - [`PHASE4.md`](PHASE4.md) — current complete-game-simulation integration scope and exit direction.
+- [`GAME_SESSION.md`](GAME_SESSION.md) — Phase-4 campaign/encounter ownership split, continuous tick boundary, reset semantics, and headless session oracle.
 
 Every future phase should add or update its own milestone document and update `STATUS.md`, `ROADMAP.md`, `RESEARCH_LOG.md`, and the relevant machine-readable ledgers in the same commit.
 

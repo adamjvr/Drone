@@ -141,3 +141,7 @@ The normal CTest suite includes repository-level architecture gates:
 - `scripts/check_phase3_exit.py` — requires the resolved Phase-3 renderer blockers, corrected 19-pass presentation contract, scaled/HUD/framebuffer/host artifacts, and roadmap advancement to Phase 4.
 
 These gates intentionally do not demand later exact trace parity, retail-only content, or production platform hardening. Those requirements belong to their later roadmap phases.
+
+## Phase-4 whole-session oracle
+
+`drone_game_session` tests reset/ownership and continuous tick semantics directly. `drone_game_session_probe` runs an asset-free 120-update script and compares the complete semantic-state summary exactly. This is the first regression gate above isolated subsystem tests; it does not replace later Phase-6 original-runtime trace parity.

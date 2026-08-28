@@ -48,6 +48,7 @@ add_library(drone_core
     src/gameplay/world_scroll.cpp
     src/gameplay/gameplay_update_order.cpp
     src/gameplay/game_state.cpp
+    src/gameplay/game_session.cpp
 )
 
 target_include_directories(drone_core PUBLIC include)
@@ -67,6 +68,9 @@ target_link_libraries(drone_gameplay_probe PRIVATE drone_core)
 
 add_executable(drone_framecheck tools/drone_framecheck.cpp)
 target_link_libraries(drone_framecheck PRIVATE drone_core)
+
+add_executable(drone_session_probe tools/drone_session_probe.cpp)
+target_link_libraries(drone_session_probe PRIVATE drone_core)
 
 option(DRONE_BUILD_FIDELITY_HOST "Build the native indexed-framebuffer fidelity host" ON)
 
@@ -100,6 +104,10 @@ if(DRONE_BUILD_TESTS)
     target_link_libraries(drone_gameplay_tests PRIVATE drone_core)
     add_test(NAME drone_gameplay COMMAND drone_gameplay_tests)
 
+    add_executable(drone_game_session_tests tests/test_game_session.cpp)
+    target_link_libraries(drone_game_session_tests PRIVATE drone_core)
+    add_test(NAME drone_game_session COMMAND drone_game_session_tests)
+
     add_executable(drone_fidelity_tests tests/test_fidelity.cpp)
     target_link_libraries(drone_fidelity_tests PRIVATE drone_core)
     add_test(NAME drone_fidelity COMMAND drone_fidelity_tests)
@@ -117,6 +125,10 @@ if(DRONE_BUILD_TESTS)
         add_test(
             NAME drone_phase3_exit
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase3_exit.py
+        )
+        add_test(
+            NAME drone_game_session_probe
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_game_session_probe.py $<TARGET_FILE:drone_session_probe>
         )
         add_test(
             NAME drone_framebuffer_fixture_tool

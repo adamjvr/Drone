@@ -25,10 +25,8 @@ Phase 4 begins with:
 
 ## Current Phase-4 work
 
-1. **Continuous session ownership** — replace isolated subsystem probes with one
-   clean game-session state that owns update order, entities/pools, mission
-   state and presentation inputs without copying original global-memory ABI.
-2. **Whole-frame simulation integration** — connect player, projectiles,
+1. **Continuous session ownership — ESTABLISHED FIRST CONTRACT** — `GameSession` now separates campaign and encounter state, implements full-vs-encounter reset, and continuously composes the recovered player/weapon/shield/bomb/cadence/scroll/extra-life helpers. A deterministic asset-free 120-update session oracle is under CTest.
+2. **Whole-frame simulation integration — CURRENT** — connect player, projectiles,
    trajectory enemies, collisions, destruction effects, score/lives, mission
    progression and encounter transitions under the established logical cadence.
 3. **Encounter completeness** — fill the remaining shareware-reachable enemy,
@@ -54,3 +52,7 @@ shareware simulation continuously—from game start through encounters,
 death/restart and game-over/results—without calling the original executable.
 Later phases measure exact parity, finish audio, and drive discrepancies toward
 zero.
+
+## First Phase-4 integration milestone
+
+The initial `GameSession` contract is documented in [`GAME_SESSION.md`](GAME_SESSION.md). It intentionally leaves encounter-specific actor creation, trajectory collections, collision/destruction dispatch, Drone resolution and post-game continuity to subsequent Phase-4 milestones rather than assigning guessed producer semantics.
