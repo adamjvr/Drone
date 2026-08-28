@@ -199,3 +199,12 @@ This file records major findings and engineering decisions chronologically. It i
 Phase 2 closes after `Q-ENTITY-002` established the field-level Win32 `0x154` ↔ DOS `0x14F` common entity correspondence. The machine-readable queue has no unresolved critical simulation-architecture question. The roadmap now advances to Phase 3 rather than retaining renderer completeness, complete-game simulation, deterministic trace parity, or retail-only evidence as artificial Phase-2 blockers.
 
 A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Phase 3 begins from the existing indexed-framebuffer, sprite blit/extraction, world viewport, FONT2, debris/effect, and simulation→presentation ordering contracts.
+
+
+## 2026-08-27 — Phase 3 dynamic palette presentation
+
+- Closed `Q-RENDER-001` by classifying the late Win32 presentation cluster. `0x004011E0` is now `upload_directdraw_palette_range`, an inclusive DirectDraw `SetEntries` wrapper over a biased 0x44-stride palette source.
+- Recovered `0x0041EFE0` / `0x0041EE90` as initializer/updater pairs for four purpose-built mutable bands: sparse flashes 110..112, red breathing 96..102, timed yellow/olive 128..148, and timed green 103..109. Exact random-consumption order, colors, clamp/reversal values, periods and toggles are clean-tested.
+- Recovered `0x00403490` as the distinct generic late-game palette animation kernel over 64..170, 192..213 and 224..233, including negative channel clamp, blue-channel bound/stop priority and `rand()%100 < 2` inactive activation.
+- Established the settled state-2 DirectDraw upload schedule: phase 0 uploads 32..42 + 64..110; phase 1 uploads 111..156; phases 2/3 upload 157..170 + 192..213 + 224..234. Unsettled paths upload 0..255.
+- Added `fidelity/palette_effects` plus a dedicated `drone_fidelity` CTest target. Historical 0x44 records remain evidence only; clean code separates RGB, effect controls and host upload planning.

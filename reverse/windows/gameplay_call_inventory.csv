@@ -8,7 +8,7 @@ target_address,provisional_name,static_call_sites,scope_start,scope_stop
 0x004018F0,wait_vertical_blank_thunk,11,0x0040BAB9,0x00411D86
 0x00402900,play_explosion_sfx_variant,10,0x0040BAB9,0x00411D86
 0x00406780,directsound_set_volume,9,0x0040BAB9,0x00411D86
-0x004011E0,set_palette_range,8,0x0040BAB9,0x00411D86
+0x004011E0,upload_directdraw_palette_range,8,0x0040BAB9,0x00411D86
 0x00401E60,spawn_mini_explosion_sprite,8,0x0040BAB9,0x00411D86
 0x00402050,emit_composite_explosion_effect,8,0x0040BAB9,0x00411D86
 0x004298B0,,8,0x0040BAB9,0x00411D86
@@ -41,7 +41,7 @@ target_address,provisional_name,static_call_sites,scope_start,scope_stop
 0x00402EF0,update_secondary_debris_particle_group,1,0x0040BAB9,0x00411D86
 0x004032C0,update_junk_wheel_debris_sprites,1,0x0040BAB9,0x00411D86
 0x004033D0,compose_scrolling_world_viewport,1,0x0040BAB9,0x00411D86
-0x00403490,,1,0x0040BAB9,0x00411D86
+0x00403490,advance_generic_gameplay_palette_animation,1,0x0040BAB9,0x00411D86
 0x00403650,update_bomber_boss,1,0x0040BAB9,0x00411D86
 0x00404350,initialize_bomber_boss,1,0x0040BAB9,0x00411D86
 0x00404720,run_completion_credits,1,0x0040BAB9,0x00411D86
@@ -71,8 +71,8 @@ target_address,provisional_name,static_call_sites,scope_start,scope_stop
 0x0041E420,animate_game_over_banner_slide,1,0x0040BAB9,0x00411D86
 0x0041E4D0,,1,0x0040BAB9,0x00411D86
 0x0041E6D0,render_player_shield_effect,1,0x0040BAB9,0x00411D86
-0x0041EE90,,1,0x0040BAB9,0x00411D86
-0x0041EFE0,,1,0x0040BAB9,0x00411D86
+0x0041EE90,advance_gameplay_palette_effect_bands,1,0x0040BAB9,0x00411D86
+0x0041EFE0,initialize_gameplay_palette_effect_bands,1,0x0040BAB9,0x00411D86
 0x00420090,normalize_joystick_gameplay_actions,1,0x0040BAB9,0x00411D86
 0x00421D20,crt_free_like,1,0x0040BAB9,0x00411D86
 0x00421D70,crt_malloc_like,1,0x0040BAB9,0x00411D86

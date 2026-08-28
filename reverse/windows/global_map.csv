@@ -123,3 +123,5 @@ address,provisional_name,confidence,notes
 0x00446078,alien_ships_total,high,"mission-wide alien total; Results Total, Missed and Percentage Hit denominator"
 0x00466C90,font2_glyph_table,high,64 x 0x14 FONT2 descriptors indexed by ASCII-0x20
 0x0042EFD0,font2_glyph_cache_initialized,high,lazy FONT2 table initialization flag
+0x00441C20,base_palette_upload_base,high,biased source passed to 0x004011E0; corresponding 0x44-stride RGB records begin at +8
+0x00455B80,working_palette_upload_base,high,state-2 mutable palette upload source; dynamic 0x44-stride RGB/control records begin at 0x00455B88

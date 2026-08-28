@@ -18,6 +18,7 @@ add_library(drone_core
     src/fidelity/sprite_blit.cpp
     src/fidelity/font2.cpp
     src/fidelity/world_viewport.cpp
+    src/fidelity/palette_effects.cpp
     src/gameplay/collision.cpp
     src/gameplay/debris_effects.cpp
     src/gameplay/player.cpp
@@ -89,6 +90,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_gameplay_tests tests/test_gameplay.cpp)
     target_link_libraries(drone_gameplay_tests PRIVATE drone_core)
     add_test(NAME drone_gameplay COMMAND drone_gameplay_tests)
+
+    add_executable(drone_fidelity_tests tests/test_fidelity.cpp)
+    target_link_libraries(drone_fidelity_tests PRIVATE drone_core)
+    add_test(NAME drone_fidelity COMMAND drone_fidelity_tests)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)

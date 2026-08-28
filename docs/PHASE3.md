@@ -21,11 +21,11 @@ These contracts are inputs to Phase 3, not work to rediscover.
 
 ## Current Phase-3 work
 
-1. **Late presentation helper classification** — resolve remaining palette/HUD/effect helpers tracked by `Q-RENDER-001`, especially the late `0x00403490`, `0x0041EE90`, and `0x0041EFE0` region.
-2. **Small-JBA container completion** — finish the Windows embedded-PCX family (`Q-JBA-002`) without conflating it with the already solved full-screen JBA format.
-3. **Layering and composition** — make draw ordering, HUD ownership, palette transitions, world/object layering, and effect overlays explicit and testable.
-4. **Reference framebuffer fixtures** — add lawful, metadata-oriented capture/comparison tooling so clean output can be compared against original-runtime frames without checking proprietary payloads into Git.
-5. **Native host validation** — preserve the shared indexed-framebuffer boundary while validating presentation behavior on Linux first and later macOS/Windows; iPadOS production hosting remains a Phase-12 platform-completion concern.
+1. **Late dynamic-palette classification — COMPLETE.** `Q-RENDER-001` is resolved: the generic and purpose-built palette animators, their initialization state, DirectDraw range-upload primitive, and exact settled phase-sliced upload ranges are clean-tested. See [`reverse/PALETTE_EFFECTS.md`](reverse/PALETTE_EFFECTS.md).
+2. **Small-JBA container completion — NEXT.** Finish the Windows embedded-PCX family (`Q-JBA-002`) without conflating it with the already solved full-screen JBA format.
+3. **Layering and composition.** Make remaining HUD ownership, world/object layering, palette transitions, and effect overlays explicit and testable.
+4. **Reference framebuffer fixtures.** Add lawful, metadata-oriented capture/comparison tooling so clean output can be compared against original-runtime frames without checking proprietary payloads into Git.
+5. **Native host validation.** Preserve the shared indexed-framebuffer boundary while validating presentation behavior on Linux first and later macOS/Windows; iPadOS production hosting remains a Phase-12 platform-completion concern.
 
 ## Non-goals
 

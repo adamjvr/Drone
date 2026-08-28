@@ -33,6 +33,7 @@
 | bitmap UI text | CONFIRMED cross-build | Win32 `0x00401470` and DOS `0x000809B0` share a 64×0x14 FONT2 descriptor cache; exact 16×4 / 7×5 mask geometry, ASCII-0x20 lookup, mask extraction/render semantics and clean safe extractor are established |
 | explosion/effects cluster | CONFIRMED core debris lifecycle | mini/large/composite emitters and sound variants mapped; 0x18 particle groups plus secondary bank have motion/gravity/lifetime/teardown rules clean-tested; three 15-entry sprite-debris pools identified as junk1/junk2/wheel and their shared updater recovered |
 | native fidelity framebuffer | CONFIRMED | clean 320×200 indexed buffer + palette/RGBA conversion |
+| dynamic Win32 palette effects | CONFIRMED | `0x004011E0` inclusive DirectDraw uploads; generic `0x00403490`; purpose-built `0x0041EFE0`/`0x0041EE90` bands; exact settled four-phase upload ranges clean-tested |
 | player reconstruction | CONFIRMED core slice | player root `0x00466B18`; 22x22/15-frame ship bank, Left/Right + A/Z motion, exact bounds and banking mapped; lives are deferred until death settlement; 3-life init, respawn and game-over transition are clean-tested |
 | gameplay input aggregation | CONFIRMED semantic boundary | Win32 keyboard + normalized DirectInput joystick, DOS keyboard/game-port convergence, exact six-channel demo replacement, live vertical overlay and portable `GameplayInputFrame` are recovered and clean-tested |
 | rapid-fire missiles | CONFIRMED core slice | Ctrl path; 8-slot 1x9 pool, 3 frames, cooldown/spawn/update/top cleanup, missile.wav voice pool and rendering chain mapped; clean module tested |
@@ -82,9 +83,9 @@
 
 ## Phase 3 current priorities
 
-1. Classify the remaining late palette/HUD/effect presentation helpers and make their ordering explicit (`Q-RENDER-001`).
-2. Finish the small Windows JBA / embedded-PCX container family (`Q-JBA-002`).
-3. Add reference framebuffer capture/comparison fixtures around the already recovered 320×200 indexed pipeline.
+1. Finish the small Windows JBA / embedded-PCX container family (`Q-JBA-002`); late dynamic-palette ownership is now resolved under `Q-RENDER-001`.
+2. Make the remaining HUD/effect/world layering and composition order explicit.
+3. Add reference framebuffer capture/comparison fixtures around the recovered 320×200 indexed + dynamic-palette pipeline.
 4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.
 
 The supplied evidence set remains shareware. Full seven-level parity eventually requires a lawful full-game reference copy; missing retail behavior must not be invented.

@@ -22,6 +22,7 @@ This directory is the durable engineering record for the **Drone** reverse-engin
 - [`reverse/ENTITY_LAYOUT.md`](reverse/ENTITY_LAYOUT.md) — established Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, contextual overlays, combat tail, and clean-engine boundary.
 - [`reverse/COLLISION.md`](reverse/COLLISION.md) — recovered collision primitives and clean semantic implementation.
 - [`reverse/FRAMEBUFFER_PIPELINE.md`](reverse/FRAMEBUFFER_PIPELINE.md) — software framebuffer, DirectDraw surface, palette/text, and present path.
+- [`reverse/PALETTE_EFFECTS.md`](reverse/PALETTE_EFFECTS.md) — working/base palette ownership, dynamic gameplay bands, generic animation kernel, and exact phase-sliced DirectDraw upload schedule.
 - [`reverse/BITMAP_FONT.md`](reverse/BITMAP_FONT.md) — exact DOS/Win32 FONT2 glyph cache, 0x14-byte descriptor, sheet geometry, ASCII mapping, and clean extraction boundary.
 - [`reverse/GAMEPLAY_EFFECTS.md`](reverse/GAMEPLAY_EFFECTS.md) — explosion/debris pools and effect/audio relationships.
 - [`reverse/SPRITE_SHEETS.md`](reverse/SPRITE_SHEETS.md) — recovered JBA sprite-grid extraction and canonical frame evidence.

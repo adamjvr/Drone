@@ -119,3 +119,12 @@ A second sprite path is now classified. Wrapper `0x00403460` reads entity X/Y pl
 This promotes common-entity `+0x24/+0x26` to established `render_width` / `render_height` fields. The ordinary unscaled path still uses source `+0x20/+0x22` dimensions.
 
 The state-2 render block calls the wrapper for active special entities when their family-specific render-enable condition is satisfied. This path belongs to fidelity presentation; it does not alter gameplay state.
+
+
+## Dynamic palette presentation
+
+Phase 3 establishes that the late `0x00403490`, `0x0041EE90`, and `0x0041EFE0` helper cluster is palette presentation state rather than an unknown sprite/HUD subsystem. The Windows port owns a base palette upload source and a separate mutable working palette, then uses `0x004011E0` to push inclusive ranges into the DirectDraw palette object.
+
+Once state 2 is settled, palette traffic is phase-sliced rather than fully uploaded every update; transition/destruction paths fall back to a full `0..255` upload. The clean fidelity layer reproduces the recovered palette algorithms and upload-range plan independently of DirectDraw.
+
+See [`PALETTE_EFFECTS.md`](PALETTE_EFFECTS.md) for exact animated bands, random initialization, generic animation controls, gating, and upload ranges.

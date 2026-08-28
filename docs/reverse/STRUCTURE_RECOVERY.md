@@ -66,6 +66,16 @@ The floating constant used to derive collision extents at `0x0042A000` is exactl
 
 This gives the clean fidelity renderer a concrete original contract rather than an inferred sprite API.
 
+## Win32 dynamic palette record
+
+**Status:** core palette-effect fields established / context-specific controls intentionally separated in clean code.
+
+The mutable Win32 gameplay palette is traversed at a `0x44` stride from RGB origin `0x00455B88`. `0x004011E0` receives a biased upload base `0x00455B80`, so its RGB reads at source `+0x08/+0x0C/+0x10` select the same record RGB words. The three recovered animation routines reuse later record fields contextually.
+
+Established relative-to-RGB-origin fields include current R/G/B at `+0x00/+0x04/+0x08`; the generic `0x00403490` path additionally uses stop blue `+0x14`, active `+0x18`, channel steps `+0x20/+0x2C/+0x38`, and blue upper/lower bounds `+0x3C/+0x40`. The purpose-built `0x0041EE90/0x0041EFE0` bands reuse `+0x18/+0x20/+0x2C` as flash phase, toggle, timer, step, or period depending on palette band.
+
+Because those fields are demonstrably context-specific, the clean fidelity layer does not reproduce one monolithic historical struct. See [`PALETTE_EFFECTS.md`](PALETTE_EFFECTS.md).
+
 ## Win32 trajectory-group descriptor
 
 **Status:** core lifecycle established / template-specific layout partial.
