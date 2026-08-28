@@ -131,9 +131,9 @@ See [`PALETTE_EFFECTS.md`](PALETTE_EFFECTS.md) for exact animated bands, random 
 
 ## Canonical gameplay presentation order
 
-Phase 3 now records the complete ordinary state-2 presentation ordering from the world compositor at `0x004100D8` through the final framebuffer copy at `0x004115A5`. In particular, debris-particle pixels and Drone detonation radial noise are inserted between separate ordinary-sprite spans; scaled overlays follow those world/effect spans; HUD/shield/status layers are later still; palette mutation and host palette upload happen only after indexed-framebuffer drawing is complete.
+Phase 3 now records the complete ordinary state-2 presentation ordering from the world compositor at `0x004100D8` through the final framebuffer copy at `0x004115A5`. In particular, debris-particle pixels and Drone detonation radial noise are inserted between separate ordinary-sprite spans; scaled overlays follow those world/effect spans; the initial gameplay palette fade then updates the working palette before HUD/shield/status indices are written; later dynamic palette animation occurs after all framebuffer drawing, followed by host pacing, palette upload and present. The corrected outer contract has 19 passes.
 
-See [`PRESENTATION_ORDER.md`](PRESENTATION_ORDER.md) and `drone::fidelity::canonical_win32_gameplay_presentation_order()`.
+See [`PRESENTATION_ORDER.md`](PRESENTATION_ORDER.md), [`SCALED_OVERLAYS.md`](SCALED_OVERLAYS.md), and `drone::fidelity::canonical_win32_gameplay_presentation_order()`.
 
 ## Reference snapshot boundary
 

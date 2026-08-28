@@ -14,6 +14,29 @@ namespace drone::fidelity {
 using WorkingPalette = std::array<formats::Rgb8, 256>;
 using RandomIntSource = std::function<std::int32_t()>;
 
+// Initial state-2 palette reveal. The counter advances only on gameplay phase
+// 2 until 62. Rendering applies the subtractive fade while the counter is
+// 0..60; counter 61 is the handoff point that initializes the dedicated
+// gameplay palette-effect bands and counter 62 is settled.
+inline constexpr std::int32_t gameplay_palette_fade_last_render_counter = 60;
+inline constexpr std::int32_t gameplay_palette_fade_effect_init_counter = 61;
+inline constexpr std::int32_t gameplay_palette_fade_settled_counter = 62;
+
+[[nodiscard]] std::int32_t gameplay_palette_fade_subtract(
+    std::int32_t counter) noexcept;
+
+// Returns true when a fade palette was written. For counter > 60, the working
+// palette is left untouched. Base and working palettes are deliberately
+// separate because the original subtracts from the immutable loaded palette.
+[[nodiscard]] bool apply_gameplay_palette_fade_from_base(
+    const WorkingPalette& base_palette,
+    WorkingPalette& working_palette,
+    std::int32_t counter) noexcept;
+
+void advance_gameplay_palette_fade_counter(
+    std::int32_t& counter,
+    std::uint8_t gameplay_phase) noexcept;
+
 // Inclusive palette-index interval consumed by the original DirectDraw
 // SetEntries wrapper at Win32 0x004011E0.
 struct PaletteUploadRange {

@@ -51,6 +51,32 @@ values. Canonical shareware gameplay currently establishes only outcome values
 0 unresolved / 1 disarmed / 2 detonated; raw value 3 is retained as a renderer
 capability because the third frame is loaded and explicitly selectable.
 
+## Current Drone-outcome cursor
+
+The formerly generic auxiliary HUD sprite at `0x0042F040` is loaded from
+`square.jba`. The asset is a 13x18 green outline. Session initialization places
+it at `(2,159)` and enables it through byte `0x0042F182`.
+
+Its target Y is stored in the entity-family contextual word at `+0x1E`. The
+initial target is 159. Every committed Drone outcome subtracts exactly 19 from
+that target, matching the mini-probe strip spacing. During state-2 rendering,
+only gameplay phase 2 moves current Y, one pixel upward while `y > target_y`.
+The resulting cursor encloses the current unresolved outcome slot one pixel
+above/left of the corresponding mini-probe anchor.
+
+```text
+processed 0 -> target y 159
+processed 1 -> target y 140
+processed 2 -> target y 121
+processed 3 -> target y 102
+processed 4 -> target y 83
+processed 5 -> target y 64
+```
+
+When the sixth outcome is committed, `0x0042F182` is cleared and the cursor is
+no longer rendered. The next mathematical target would be 45, but it is not a
+visible seventh mission slot.
+
 ## Special-weapon target reticle
 
 The 17x13 `target.jba` common entity at `0x004666E8` is rendered only while the
@@ -130,6 +156,8 @@ The semantic presentation helpers live in:
 - `src/fidelity/hud_presentation.cpp`
 
 They do not duplicate the historical common-entity ABI and do not own score,
-lives, mission outcome, or special-weapon simulation transitions. Their purpose
+lives, mission outcome, or special-weapon simulation transitions. The same
+module also exposes the `square.jba` outcome-cursor target/movement plan so the
+late HUD can be reproduced without importing original globals. Their purpose
 is to make the original HUD geometry and presentation-only timers testable for
 future framebuffer comparisons.

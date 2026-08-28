@@ -214,3 +214,15 @@ python3 scripts/framebuffer_fixture.py verify /path/to/metadata.json /path/to/re
 ```
 
 See `docs/FRAMEBUFFER_VALIDATION.md` for the `DRONEFB1` format and provenance requirements.
+
+
+## Phase architecture gates
+
+After a normal build/test run, the durable phase-exit checks can also be invoked directly:
+
+```bash
+python3 scripts/check_phase2_exit.py
+python3 scripts/check_phase3_exit.py
+```
+
+At the Phase-3 closure checkpoint both must pass. Phase 4 may add new integration tests without weakening these completed-phase invariants.

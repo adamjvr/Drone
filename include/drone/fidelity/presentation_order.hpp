@@ -17,9 +17,10 @@ enum class GameplayPresentationPass : std::uint8_t {
     DroneDetonationRadialNoise,
     TransparentSpriteBatchAfterDetonation,
     ScaledTransparentOverlays,
+    GameplayPaletteFadeIn,
     HudScoreAndLivesText,
     DroneOutcomeStrip,
-    HudAuxiliarySprite,
+    DroneOutcomeCursor,
     SpecialTargetOverlay,
     ShieldMeter,
     PlayerShieldOverlay,
@@ -44,7 +45,7 @@ struct GameplayPresentationPassDescriptor {
     bool conditional{};
 };
 
-inline constexpr std::size_t canonical_win32_presentation_pass_count = 18;
+inline constexpr std::size_t canonical_win32_presentation_pass_count = 19;
 
 [[nodiscard]] const std::array<GameplayPresentationPassDescriptor,
                                canonical_win32_presentation_pass_count>&

@@ -57,12 +57,12 @@ if missing:
 roadmap = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8")
 if "## Phase 2 — Gameplay Reconstruction — COMPLETE" not in roadmap:
     fail("ROADMAP.md does not mark Phase 2 complete")
-if "## Phase 3 — Rendering & World Reconstruction — IN PROGRESS" not in roadmap:
-    fail("ROADMAP.md does not mark Phase 3 in progress")
+if "## Phase 3 — Rendering & World Reconstruction" not in roadmap:
+    fail("ROADMAP.md has not advanced beyond Phase 2")
 
 status = (ROOT / "docs/STATUS.md").read_text(encoding="utf-8")
-if "**Current engineering phase:** Phase 3 — Rendering & World Reconstruction" not in status:
-    fail("STATUS.md has not advanced the current engineering phase to Phase 3")
+if "**Current engineering phase:** Phase 2 — Gameplay Reconstruction" in status:
+    fail("STATUS.md still reports Phase 2 as current")
 
 phase2 = (ROOT / "docs/PHASE2.md").read_text(encoding="utf-8")
 if "**Status:** complete." not in phase2:
@@ -70,5 +70,5 @@ if "**Status:** complete." not in phase2:
 
 print(
     "phase2 exit OK: no unresolved critical architecture questions; "
-    "core gameplay contracts present; roadmap advanced to Phase 3"
+    "core gameplay contracts present; roadmap advanced beyond Phase 2"
 )

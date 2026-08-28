@@ -1,7 +1,7 @@
 # Project Status
 
 **Repository:** `Drone`  
-**Current engineering phase:** Phase 3 — Rendering & World Reconstruction  
+**Current engineering phase:** Phase 4 — Complete Game Simulation  
 **Primary decompilation reference:** canonical 1999 Win32 shareware executable (`BIN-WIN-SW-01`)  
 **Independent cross-check:** canonical 1997 DOS shareware executable (`BIN-DOS-SW-01`)
 
@@ -83,13 +83,15 @@
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
 | simulation reconstruction | PARTIAL implementation | player, lifecycle, missiles, shield, Probe/Stinger, bombs, scoring/high scores, collision, semantic input/replay, trajectory groups/templates, four-phase scheduler, game-state protocol, world scroll, and objective/encounter mission progression now exist as independently written tested `drone_core` modules |
 
-## Phase 3 current priorities
+## Phase 3 closure / Phase 4 priorities
 
-1. Continue Phase-3 renderer/world closure from the now-recovered 28-subpass world/effect catalog; remaining work is limited to finer scaled/special ownership and original-runtime framebuffer evidence rather than opaque A/B/C sprite batches.
-2. Acquire lawful original-runtime framebuffer captures and use the completed `DRONEFB1`/region-hash tooling to localize discrepancies.
-3. Continue validating the shared presentation contracts through native fidelity hosts without coupling them to platform-specific graphics APIs.
-4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.
+Phase 3 is complete. The renderer/world architecture now includes the corrected 19-pass Win32 presentation order, detailed world/effect and scaled-overlay catalogs, startup palette fade, complete late HUD/outcome-cursor contracts, framebuffer comparison tooling, and Linux headless capture validation.
 
-The supplied evidence set remains shareware. Full seven-level parity eventually requires a lawful full-game reference copy; missing retail behavior must not be invented.
+Phase 4 priorities are now:
 
-- Boss dispatcher is now family-classified for all six slots: Lid/Top, Gemini, registered-slot-2 unknown, Spidey, Lid/Top reused, Bomber. Gemini resources are present in shareware; later registered boss resources are tracked as absent/unidentified rather than assumed.
+1. Build continuous clean game-session ownership around the recovered subsystem contracts.
+2. Integrate whole-frame player/enemy/projectile/collision/destruction/score/life/mission update flow under the established cadence.
+3. Complete shareware-reachable encounter interactions and death/restart/game-over continuity without pulling retail-only unknowns forward from Phase 8.
+4. Feed the Phase-3 fidelity presentation contracts from clean session state while preserving the simulation/presentation boundary.
+
+Exact original-runtime trace parity remains Phase 6; end-to-end shareware discrepancy closure remains Phase 7.

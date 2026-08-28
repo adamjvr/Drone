@@ -23,6 +23,7 @@ add_library(drone_core
     src/fidelity/world_viewport.cpp
     src/fidelity/palette_effects.cpp
     src/fidelity/presentation_order.cpp
+    src/fidelity/scaled_overlay_presentation.cpp
     src/fidelity/world_presentation_subpasses.cpp
     src/gameplay/collision.cpp
     src/gameplay/debris_effects.cpp
@@ -112,6 +113,10 @@ if(DRONE_BUILD_TESTS)
         add_test(
             NAME drone_phase2_exit
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase2_exit.py
+        )
+        add_test(
+            NAME drone_phase3_exit
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase3_exit.py
         )
         add_test(
             NAME drone_framebuffer_fixture_tool

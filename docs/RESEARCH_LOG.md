@@ -216,3 +216,11 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Established the trailer boundary exactly: after RLE completion, precisely 768 bytes remain and are a shared full-range RGB8 palette. The canonical files omit the conventional PCX `0x0C` 256-color palette marker.
 - Added a separate clean `load_small_jba_pcx128` decoder, PPM inspection support, synthetic markerless/RLE regression coverage, a metadata-only analyzer, and `manifests/small_jba_pcx.csv`. The ordinary 320×200 RGB6/lane-interleaved JBA loader remains separate.
 - A complete canonical Win32 executable string inventory contains many runtime `.jba` names but not `Logo.jba`, `River.jba`, or `Screen.jba`; this milestone therefore establishes physical format/import semantics without inventing a game-runtime owner.
+
+## 2026-08-28 — Phase 3 closure: scaled overlays, startup fade, outcome cursor
+
+- Resolved the scaled state-2 block `0x00410C15..0x00410E9D`: active `miniexp1` and `explode1` pool members with contextual `+0x14E == 1` use the scaled route, followed by a shared `debris1/debris2a/debris3` objective-destruction effect.
+- Established that the three scaled debris sprites are shared by Mothership destruction and Drone detonation, including source dimensions/frame counts, initial velocities, phase-2 symmetric growth and exact visibility prefilters.
+- Corrected the presentation catalog from 18 to 19 passes by restoring the startup palette fade at `0x00410E9D..0x00410F34`; recovered x87 truncate-toward-zero conversion of `255-counter*4.19` and phase-2 counter progression 0..62.
+- Identified the former auxiliary HUD sprite as `square.jba`, a 13x18 current Drone-outcome cursor whose target moves upward by 19 pixels per committed outcome and disappears after the sixth outcome.
+- Phase 3 exit criteria are now met: renderer/world architecture is deterministic and comparison-ready. Roadmap advances to Phase 4 complete-game simulation; exact original-runtime trace parity remains Phase 6.

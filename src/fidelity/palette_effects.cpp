@@ -32,6 +32,39 @@ void set_rgb(WorkingPalette& palette, std::size_t index,
 
 } // namespace
 
+std::int32_t gameplay_palette_fade_subtract(const std::int32_t counter) noexcept {
+    if (counter < 0) return 255;
+    if (counter > gameplay_palette_fade_last_render_counter) return 0;
+    // Win32 0x00410EAA..0x00410EC1 uses x87 and the helper at 0x00421E90,
+    // which temporarily sets round-toward-zero before converting to integer.
+    const double subtract = 255.0 - static_cast<double>(counter) * 4.19;
+    return static_cast<std::int32_t>(subtract);
+}
+
+bool apply_gameplay_palette_fade_from_base(
+    const WorkingPalette& base_palette,
+    WorkingPalette& working_palette,
+    const std::int32_t counter) noexcept {
+    if (counter > gameplay_palette_fade_last_render_counter) return false;
+    const std::int32_t subtract = gameplay_palette_fade_subtract(counter);
+    for (std::size_t i = 0; i < working_palette.size(); ++i) {
+        working_palette[i] = {
+            as_palette_byte(std::max(0, static_cast<std::int32_t>(base_palette[i].r) - subtract)),
+            as_palette_byte(std::max(0, static_cast<std::int32_t>(base_palette[i].g) - subtract)),
+            as_palette_byte(std::max(0, static_cast<std::int32_t>(base_palette[i].b) - subtract)),
+        };
+    }
+    return true;
+}
+
+void advance_gameplay_palette_fade_counter(
+    std::int32_t& counter,
+    const std::uint8_t gameplay_phase) noexcept {
+    if (gameplay_phase == 2 && counter < gameplay_palette_fade_settled_counter) {
+        ++counter;
+    }
+}
+
 void initialize_gameplay_palette_effect_bands(
     WorkingPalette& palette,
     GameplayPaletteEffectState& state,

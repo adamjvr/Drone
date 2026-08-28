@@ -7,7 +7,7 @@ boss composites, a fixed-point one-pixel particle bank, a Gemini procedural
 surface effect, ordinary sprite pools, and two explosion families with explicit
 unscaled/scaled routing.
 
-This document refines that evidence without replacing the stable 18-pass outer
+This document refines that evidence without replacing the corrected 19-pass outer
 presentation contract in [`PRESENTATION_ORDER.md`](PRESENTATION_ORDER.md).
 The clean engine records semantic subpasses; it does not reproduce the original
 global-memory layout or infer a scene graph that the executable did not have.

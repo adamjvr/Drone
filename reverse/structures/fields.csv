@@ -63,7 +63,7 @@ WIN-STRUCT-002,0x141,1,signed/byte,frame_count,high,established,0x00401820 itera
 WIN-STRUCT-002,0x142,1,byte enum,activity_state,medium,partial,"values 0,1,3 observed; many update paths gate on ==1"
 WIN-STRUCT-002,0x143,1,byte,out_of_bounds_flag,high,established,0x00401D20/0x00401E60/effect helpers set 0/1 from screen-bound checks
 WIN-STRUCT-002,0x14C,2,word,legacy_initializer_word,high,established,0x00401780 initializes to 1; no live direct consumer found in canonical Win32 corpus; DOS counterpart +0x14A also initialized to 1
-WIN-STRUCT-002,0x14E,1,byte enum/flag,family_flag_14e,high,partial,effect entities use as growth/expansion flag; Probe/Stinger special entity reuses as target-lock/attachment state; DOS counterpart +0x14C shows same contextual reuse
+WIN-STRUCT-002,0x14E,1,byte enum/flag,family_flag_14e,high,partial,effect entities use as established scaled-render routing flag when value==1; Probe/Stinger special entity reuses as target-lock/attachment state; DOS counterpart +0x14C shows same contextual reuse
 WIN-STRUCT-002,0x14F,1,unsigned byte,destruction_burst_count,high,established,generic destruction paths branch/loop on +0x14F to emit one or N bursts; DOS counterpart +0x14D behaves identically
 WIN-STRUCT-002,0x150,1,signed byte,score_value,high,established,trajectory/common destruction adds signed +0x150 to score and extra-life progress; retirement paths may subtract it; DOS counterpart +0x14E adds to both score/progress
 WIN-STRUCT-002,0x151,3,opaque bytes,win_tail_padding_151_153,high,established,no direct consumers in canonical Win32 disassembly; these bytes account for final three bytes of 0x154 versus DOS 0x14F stride

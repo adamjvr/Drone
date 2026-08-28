@@ -27,6 +27,45 @@ The fourth `PALETTEENTRY` byte is initialized to `4` by the original wrapper. Di
 
 This promotes the old provisional `set_palette_range` name to an established DirectDraw palette-upload primitive.
 
+## Initial gameplay palette fade-in
+
+The ordinary state-2 presentation path contains a previously omitted palette
+pass at `0x00410E9D..0x00410F34`, after scaled overlays and before HUD drawing.
+The counter at `0x004D95FC` starts at 0 and advances only on gameplay phase 2
+until it reaches 62.
+
+For counter values `0..60`, the renderer derives the working palette from the
+loaded base palette using:
+
+```text
+subtract = trunc_toward_zero(255.0 - counter * 4.19)
+working.r = max(0, base.r - subtract)
+working.g = max(0, base.g - subtract)
+working.b = max(0, base.b - subtract)
+```
+
+The x87 conversion helper at `0x00421E90` explicitly switches the FPU control
+word to round toward zero before `fistp`, so the clean implementation uses
+truncation rather than nearest rounding. Representative subtract values are:
+
+```text
+counter 0  -> 255  (black)
+counter 1  -> 250
+counter 60 ->   3  (nearly full palette)
+```
+
+Counter 61 is no longer rendered by this subtractive pass. It is the one-shot
+handoff that initializes the dedicated gameplay palette-effect bands at
+`0x0041EFE0`; the caller then advances the counter to 62. Counter 62 is settled.
+Because the counter changes only at phase 2, the fade evolves once per
+four-phase gameplay cycle.
+
+Clean helpers:
+
+- `gameplay_palette_fade_subtract`
+- `apply_gameplay_palette_fade_from_base`
+- `advance_gameplay_palette_fade_counter`
+
 ## `0x0041EFE0` — `initialize_gameplay_palette_effect_bands`
 
 This routine initializes four purpose-built mutable palette bands. It consumes CRT `rand()` values in a stable order; the clean helper accepts an injected nonnegative random source so tests and replay tools do not depend on a C runtime PRNG implementation.
@@ -174,7 +213,7 @@ This is a **presentation workload schedule**, not a gameplay scheduler. The four
 
 The surrounding state-2 code reinforces the distinction between base and working palette state:
 
-- an earlier transition block derives darkened working RGB values from the base palette while a settlement timer is `<=60`;
+- the initial gameplay fade derives the working RGB values from the base palette while `0x004D95FC <= 60`;
 - pause/quit/cheat modal entry saves current working RGB and subtracts 40 per channel with a zero clamp, then uploads the full working palette;
 - modal exit restores the saved working RGB and refreshes saved/reference values from the base palette;
 - Mothership resource/palette setup owns a separate flag at `0x004D95D0`; while it is nonzero, the generic `0x00403490` kernel is skipped.

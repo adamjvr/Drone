@@ -3,6 +3,7 @@
 #include <drone/fidelity/hud_presentation.hpp>
 #include <drone/fidelity/palette_effects.hpp>
 #include <drone/fidelity/presentation_order.hpp>
+#include <drone/fidelity/scaled_overlay_presentation.hpp>
 #include <drone/fidelity/world_presentation_subpasses.hpp>
 
 #include <cassert>
@@ -196,6 +197,39 @@ int main() {
     }
 
     {
+        WorkingPalette base{};
+        WorkingPalette working{};
+        base[0] = {255, 128, 10};
+        base[255] = {7, 6, 5};
+
+        assert(gameplay_palette_fade_subtract(0) == 255);
+        assert(gameplay_palette_fade_subtract(1) == 250);
+        assert(gameplay_palette_fade_subtract(60) == 3);
+        assert(gameplay_palette_fade_subtract(61) == 0);
+
+        assert(apply_gameplay_palette_fade_from_base(base, working, 0));
+        assert(working[0].r == 0 && working[0].g == 0 && working[0].b == 0);
+        assert(apply_gameplay_palette_fade_from_base(base, working, 60));
+        assert(working[0].r == 252 && working[0].g == 125 && working[0].b == 7);
+        assert(working[255].r == 4 && working[255].g == 3 && working[255].b == 2);
+        const auto before0 = working[0];
+        const auto before255 = working[255];
+        assert(!apply_gameplay_palette_fade_from_base(base, working, 61));
+        assert(working[0].r == before0.r && working[0].g == before0.g && working[0].b == before0.b);
+        assert(working[255].r == before255.r && working[255].g == before255.g && working[255].b == before255.b);
+
+        std::int32_t counter = 60;
+        advance_gameplay_palette_fade_counter(counter, 1);
+        assert(counter == 60);
+        advance_gameplay_palette_fade_counter(counter, 2);
+        assert(counter == 61);
+        advance_gameplay_palette_fade_counter(counter, 2);
+        assert(counter == 62);
+        advance_gameplay_palette_fade_counter(counter, 2);
+        assert(counter == 62);
+    }
+
+    {
         assert(score_text_placement(0).x == 309);
         assert(score_text_placement(9).x == 309);
         assert(score_text_placement(10).x == 301);
@@ -216,6 +250,24 @@ int main() {
         assert(markers[3].visible && markers[3].frame_index == 2 && markers[3].y == 103);
         assert(!markers[4].visible && markers[4].y == 84);
         assert(markers[5].visible && markers[5].frame_index == 0 && markers[5].y == 65);
+
+        assert(drone_outcome_cursor_target_y(0) == 159);
+        assert(drone_outcome_cursor_target_y(1) == 140);
+        assert(drone_outcome_cursor_target_y(5) == 64);
+        assert(drone_outcome_cursor_target_y(6) == 45);
+        assert(drone_outcome_cursor_target_y(9) == 45);
+        auto cursor = plan_drone_outcome_cursor(2, 121);
+        assert(cursor.visible && cursor.x == 2 && cursor.y == 121 && cursor.target_y == 121);
+        cursor = plan_drone_outcome_cursor(6, 64);
+        assert(!cursor.visible && cursor.target_y == 45);
+        std::int32_t cursor_y = 159;
+        advance_drone_outcome_cursor_y(cursor_y, 140, 1);
+        assert(cursor_y == 159);
+        advance_drone_outcome_cursor_y(cursor_y, 140, 2);
+        assert(cursor_y == 158);
+        cursor_y = 140;
+        advance_drone_outcome_cursor_y(cursor_y, 140, 2);
+        assert(cursor_y == 140);
 
         SpecialWeaponHudTimers timers{};
         auto miss = plan_special_weapon_status({.activity_state = 0}, timers);
@@ -284,7 +336,13 @@ int main() {
             GameplayPresentationPass::ScaledTransparentOverlays));
         assert(canonical_win32_gameplay_presentation_precedes(
             GameplayPresentationPass::ScaledTransparentOverlays,
+            GameplayPresentationPass::GameplayPaletteFadeIn));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::GameplayPaletteFadeIn,
             GameplayPresentationPass::HudScoreAndLivesText));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::DroneOutcomeStrip,
+            GameplayPresentationPass::DroneOutcomeCursor));
         assert(canonical_win32_gameplay_presentation_precedes(
             GameplayPresentationPass::ShieldMeter,
             GameplayPresentationPass::PlayerShieldOverlay));
@@ -299,15 +357,54 @@ int main() {
             GameplayPresentationPass::PresentFramebuffer));
 
         assert(order[0].domain == GameplayPresentationDomain::IndexedFramebuffer);
-        assert(order[14].domain == GameplayPresentationDomain::WorkingPalette);
-        assert(order[15].domain == GameplayPresentationDomain::Host);
+        assert(order[7].domain == GameplayPresentationDomain::WorkingPalette);
+        assert(order[15].domain == GameplayPresentationDomain::WorkingPalette);
+        assert(order[16].domain == GameplayPresentationDomain::Host);
         assert(!order[0].conditional);
         assert(order[1].conditional);
-        assert(!order[11].conditional); // shield meter is always invoked
-        assert(!order[16].conditional); // some upload range is always emitted
-        assert(!order[17].conditional);
+        assert(order[7].conditional); // startup fade only while counter <= 60
+        assert(!order[12].conditional); // shield meter is always invoked
+        assert(!order[17].conditional); // some upload range is always emitted
+        assert(!order[18].conditional);
     }
 
+
+    {
+        const auto& scaled = canonical_win32_scaled_overlay_subpasses();
+        assert(scaled.size() == canonical_win32_scaled_overlay_subpass_count);
+        assert(scaled[0].subpass == ScaledOverlaySubpass::MiniExplosionScaledPool);
+        assert(scaled[0].entity_root == 0x00480318u && scaled[0].fixed_element_count == 110);
+        assert(scaled[1].entity_root == 0x00446FC8u && scaled[1].fixed_element_count == 165);
+        assert(scaled[0].requires_active_state && scaled[0].requires_scaled_family_flag);
+        assert(scaled[2].requires_objective_debris_flag);
+        assert(effect_entity_uses_scaled_render_route(1, 1));
+        assert(!effect_entity_uses_scaled_render_route(0, 1));
+        assert(!effect_entity_uses_scaled_render_route(1, 0));
+
+        const auto& debris = objective_scaled_debris_descriptors();
+        assert(debris.size() == 3);
+        assert(debris[0].entity_root == 0x00441928u && debris[0].source_width == 25 && debris[0].source_height == 18);
+        assert(debris[0].frame_count == 8 && debris[0].initial_velocity_x == -3 && debris[0].initial_velocity_y == 4);
+        assert(debris[1].entity_root == 0x004417D0u && debris[1].frame_count == 16);
+        assert(debris[1].initial_velocity_x == -5 && debris[1].initial_velocity_y == -1);
+        assert(debris[2].entity_root == 0x00441AC8u && debris[2].source_width == 26 && debris[2].source_height == 20);
+        assert(debris[2].initial_velocity_x == 3 && debris[2].initial_velocity_y == 1);
+
+        ScaledOverlayGeometry geometry{100, 80, 25, 18};
+        advance_objective_scaled_debris_growth(geometry, 1);
+        assert((geometry == ScaledOverlayGeometry{100, 80, 25, 18}));
+        advance_objective_scaled_debris_growth(geometry, 2);
+        assert((geometry == ScaledOverlayGeometry{99, 79, 27, 20}));
+        assert((objective_scaled_debris_destination(geometry) ==
+                ScaledOverlayDestination{99, 79, 126, 99}));
+        assert(objective_scaled_debris_visible(geometry));
+        assert(!objective_scaled_debris_visible({-27, 0, 27, 20}));
+        assert(objective_scaled_debris_visible({-26, 0, 27, 20}));
+        assert(!objective_scaled_debris_visible({0, -20, 27, 20}));
+        assert(objective_scaled_debris_visible({0, -19, 27, 20}));
+        assert(!objective_scaled_debris_visible({319, 0, 27, 20}));
+        assert(!objective_scaled_debris_visible({0, 199, 27, 20}));
+    }
 
     {
         const auto& subpasses = canonical_win32_world_presentation_subpasses();

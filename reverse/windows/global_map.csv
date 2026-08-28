@@ -141,3 +141,13 @@ address,provisional_name,confidence,notes
 0x004605A0,secondary_impact_sprite_pool,medium,15 common entities with established update/render lifecycle; exact frame-source ownership open
 0x0047E288,paired_fixed_actor_pool_a,medium,six-record paired fixed actor family; identity open; rendered A then paired B per active slot
 0x0043F5F8,paired_fixed_actor_pool_b,medium,six-record paired fixed actor family; identity open; paired with 0x0047E288
+0x00480318,mini_explosion_effect_pool,high,110 common entities; +0x14E==1 routes active members through scaled blitter
+0x00446FC8,explosion_effect_pool,high,165 common entities; active +0x14E==1 members use scaled route
+0x00441A6A,objective_scaled_debris_active,high,shared Mothership/Drone destruction flag for debris1/debris2a/debris3 scaled effect
+0x00441928,objective_scaled_debris1_entity,high,"debris1.jba 25x18 8 frames; initial velocity -3,+4"
+0x004417D0,objective_scaled_debris2a_entity,high,"debris2a.jba 27x17 16 frames; initial velocity -5,-1"
+0x00441AC8,objective_scaled_debris3_entity,high,"debris3.jba 26x20 16 frames; initial velocity +3,+1"
+0x004D95FC,gameplay_palette_fade_counter,high,"phase2-only 0..62 startup palette settlement counter; 0..60 fade, 61 band init, 62 settled"
+0x0042F040,drone_outcome_cursor_entity,high,square.jba 13x18 current outcome-slot outline; x2 y follows contextual target +0x1E
+0x0042F182,drone_outcome_cursor_visible,high,HUD cursor render gate; cleared after sixth outcome
+0x0042B178,mini_explosion_entity_capacity,high,canonical 110-entry bound for pool 0x00480318

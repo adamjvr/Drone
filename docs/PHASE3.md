@@ -1,6 +1,6 @@
 # Phase 3 — Rendering & World Reconstruction
 
-**Status:** in progress.
+**Status:** complete.
 
 Phase 3 turns the Phase-2 gameplay/fidelity primitives into a documented original presentation pipeline. It does not broaden into complete game simulation; that belongs to Phase 4. The goal is to make original visual output reproducible enough for framebuffer-level comparison while keeping presentation separate from `drone_core` gameplay rules.
 
@@ -21,13 +21,15 @@ These contracts are inputs to Phase 3, not work to rediscover.
 
 Current reconstruction also includes a detailed evidence-backed decomposition of the old world-sprite batches into boss composites, direct point-particle writes, the Gemini procedural effect, explosion/debris routing, trajectory/projectile/player layers, and late impact sprites; see [`reverse/WORLD_PRESENTATION_SUBPASSES.md`](reverse/WORLD_PRESENTATION_SUBPASSES.md).
 
-## Current Phase-3 work
+## Phase-3 closure result
 
-1. **Late dynamic-palette classification — COMPLETE.** `Q-RENDER-001` is resolved: the generic and purpose-built palette animators, their initialization state, DirectDraw range-upload primitive, and exact settled phase-sliced upload ranges are clean-tested. See [`reverse/PALETTE_EFFECTS.md`](reverse/PALETTE_EFFECTS.md).
-2. **Small-JBA container completion — COMPLETE.** `Q-JBA-002` is resolved from all three canonical Windows members: byte-sized opaque preamble length, PCX at `1+N`, exact 128×128 single-plane 8-bit RLE, and markerless raw RGB8 palette trailer. The clean decoder remains separate from the 320×200 JBA path; canonical game-runtime ownership is not asserted.
-3. **Layering and composition — IN PROGRESS / HUD CONTRACT COMPLETE.** The ordinary state-2 presentation chain is an explicit 18-pass contract. The late gameplay HUD is now semantically recovered and clean-tested: score/lives anchors, six-Drone mini-probe strip, Probe/Stinger status timers/text, target-reticle geometry/clamping, and shield-meter rows/colors. Remaining composition work is finer ownership inside the earlier world-sprite/effect batches and additional procedural-effect fidelity. See [`reverse/PRESENTATION_ORDER.md`](reverse/PRESENTATION_ORDER.md) and [`reverse/HUD_PRESENTATION.md`](reverse/HUD_PRESENTATION.md).
-4. **Reference framebuffer fixtures — TOOLING COMPLETE / CAPTURES PENDING.** `DRONEFB1`, `drone_framecheck`, SHA-256 metadata tooling, region comparisons, and public empty manifest schemas are implemented and clean-tested. No proprietary original-runtime frame is committed; lawful reference captures remain a local evidence task. See [`FRAMEBUFFER_VALIDATION.md`](FRAMEBUFFER_VALIDATION.md).
-5. **Native host validation — LINUX CAPTURE PATH COMPLETE / INTERACTIVE PARITY CONTINUES.** The X11 host now accepts clean `DRONEFB1` input, supports display-free landmark capture, and has an automated no-`DISPLAY` round-trip gate plus hash-metadata wrapper. Interactive X11 presentation remains available; macOS/Windows capture parity follows later. See [`LINUX_FIDELITY_HOST.md`](LINUX_FIDELITY_HOST.md).
+1. **Dynamic palette system — COMPLETE.** `Q-RENDER-001` is resolved: base/working palette ownership, startup fade-in, generic and purpose-built animators, and exact DirectDraw range-upload scheduling are clean-tested.
+2. **Small-JBA format — COMPLETE.** `Q-JBA-002` is resolved for the canonical Windows small family without inventing a runtime owner.
+3. **Layering/composition — COMPLETE for Phase-3 scope.** The ordinary state-2 path is a corrected 19-pass presentation contract. The world/effect region is decomposed into evidence-backed subpasses, scaled explosion/debris routing is explicit, the startup fade is restored to its correct position, and HUD/special/shield/outcome-cursor semantics are clean-tested.
+4. **Reference framebuffer validation — COMPLETE as tooling/boundary.** `DRONEFB1`, exact/region comparisons, metadata fingerprints and local-only capture workflow make clean output suitable for original-runtime comparison without checking proprietary captures into Git. Obtaining and driving exact original-runtime trace parity remains Phase 6 validation work.
+5. **Native host validation — COMPLETE for Phase-3 requirement.** Linux/X11 accepts the shared indexed-framebuffer snapshot contract and has automated display-free capture/round-trip validation. Production hardening across all targets remains Phase 12.
+
+**Exit achieved:** the clean project now has an evidence-backed original rendering/world pipeline capable of deterministic composition from clean state and suitable for framebuffer comparison. Remaining open research questions concern complete simulation, retail-only content, historical authoring/timing provenance or later exact-parity work; none requires keeping renderer/world architecture in Phase 3.
 
 ## Non-goals
 
@@ -36,6 +38,6 @@ Current reconstruction also includes a detailed evidence-backed decomposition of
 - Registered-only world/content reconstruction without a canonical lawful retail evidence set (Phase 8).
 - Modern high-resolution presentation or UX redesign (Phases 11–14).
 
-## Exit direction
+## Closure boundary
 
-Phase 3 should leave the project with an evidence-backed original rendering/world pipeline capable of deterministic composition from clean simulation state and suitable for reference framebuffer comparison. Exact Phase-3 closure will be recorded in the roadmap when those renderer/world contracts are complete rather than inferred from a fixed number of milestones.
+Phase 3 closes on renderer/world **architecture and deterministic comparison readiness**, not on perfect original-runtime trace equality. Exact state/frame/audio trace parity is explicitly Phase 6, end-to-end shareware discrepancy closure is Phase 7, registered-only world content is Phase 8, and production platform hardening is Phase 12. This prevents later validation/content work from artificially holding the renderer-reconstruction phase open.

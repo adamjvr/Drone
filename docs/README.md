@@ -23,6 +23,9 @@ This directory is the durable engineering record for the **Drone** reverse-engin
 - [`reverse/COLLISION.md`](reverse/COLLISION.md) — recovered collision primitives and clean semantic implementation.
 - [`reverse/FRAMEBUFFER_PIPELINE.md`](reverse/FRAMEBUFFER_PIPELINE.md) — software framebuffer, DirectDraw surface, palette/text, and present path.
 - [`reverse/PALETTE_EFFECTS.md`](reverse/PALETTE_EFFECTS.md) — working/base palette ownership, dynamic gameplay bands, generic animation kernel, and exact phase-sliced DirectDraw upload schedule.
+- [`reverse/SCALED_OVERLAYS.md`](reverse/SCALED_OVERLAYS.md) — scaled explosion-pool routing, shared objective-destruction debris geometry/growth, and exact visibility prefilters.
+- [`reverse/PRESENTATION_ORDER.md`](reverse/PRESENTATION_ORDER.md) — corrected 19-pass Win32 gameplay presentation order and renderer/host boundary.
+- [`reverse/HUD_PRESENTATION.md`](reverse/HUD_PRESENTATION.md) — score/lives, six-Drone strip/cursor, special-target/status and shield presentation contracts.
 - [`reverse/BITMAP_FONT.md`](reverse/BITMAP_FONT.md) — exact DOS/Win32 FONT2 glyph cache, 0x14-byte descriptor, sheet geometry, ASCII mapping, and clean extraction boundary.
 - [`reverse/GAMEPLAY_EFFECTS.md`](reverse/GAMEPLAY_EFFECTS.md) — explosion/debris pools and effect/audio relationships.
 - [`reverse/SPRITE_SHEETS.md`](reverse/SPRITE_SHEETS.md) — recovered JBA sprite-grid extraction and canonical frame evidence.
@@ -77,7 +80,8 @@ Machine-readable research ledgers live under `reverse/ledger/`, `reverse/corresp
 - [`PHASE1.md`](PHASE1.md) — Phase 1 completed work and Phase 2 handoff.
 - [`PHASE1_DOCUMENTATION_HARDENING.md`](PHASE1_DOCUMENTATION_HARDENING.md) — documentation/ledger hardening applied before Phase 2.
 - [`PHASE2.md`](PHASE2.md)
-- [`PHASE3.md`](PHASE3.md) — current gameplay-reconstruction findings, validation state, and remaining Phase 2 work.
+- [`PHASE3.md`](PHASE3.md) — completed rendering/world reconstruction and Phase 4 handoff.
+- [`PHASE4.md`](PHASE4.md) — current complete-game-simulation integration scope and exit direction.
 
 Every future phase should add or update its own milestone document and update `STATUS.md`, `ROADMAP.md`, `RESEARCH_LOG.md`, and the relevant machine-readable ledgers in the same commit.
 

@@ -131,3 +131,13 @@ When Phase 2 host dependencies are introduced, CI should have two levels:
 - **local/private reference suite:** same build plus user-supplied evidence comparisons.
 
 The public repository must remain testable without copyrighted original payloads.
+
+
+## Durable phase-exit gates
+
+The normal CTest suite includes repository-level architecture gates:
+
+- `scripts/check_phase2_exit.py` — preserves the completed gameplay-architecture baseline even after later phases advance;
+- `scripts/check_phase3_exit.py` — requires the resolved Phase-3 renderer blockers, corrected 19-pass presentation contract, scaled/HUD/framebuffer/host artifacts, and roadmap advancement to Phase 4.
+
+These gates intentionally do not demand later exact trace parity, retail-only content, or production platform hardening. Those requirements belong to their later roadmap phases.

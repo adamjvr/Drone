@@ -218,6 +218,16 @@ globals_ = {
     0x004605A0: "secondary_impact_sprite_pool",
     0x0047E288: "paired_fixed_actor_pool_a",
     0x0043F5F8: "paired_fixed_actor_pool_b",
+    0x00480318: "mini_explosion_effect_pool",
+    0x00446FC8: "explosion_effect_pool",
+    0x00441A6A: "objective_scaled_debris_active",
+    0x00441928: "objective_scaled_debris1_entity",
+    0x004417D0: "objective_scaled_debris2a_entity",
+    0x00441AC8: "objective_scaled_debris3_entity",
+    0x004D95FC: "gameplay_palette_fade_counter",
+    0x0042F040: "drone_outcome_cursor_entity",
+    0x0042F182: "drone_outcome_cursor_visible",
+    0x0042B178: "mini_explosion_entity_capacity",
 }
 for addr,name in labels.items():
     a=toAddr(addr); f=getFunctionAt(a)

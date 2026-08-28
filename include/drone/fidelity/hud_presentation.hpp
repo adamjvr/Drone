@@ -31,6 +31,37 @@ inline constexpr std::size_t drone_outcome_marker_count = 6;
 [[nodiscard]] std::array<DroneOutcomeMarker, drone_outcome_marker_count>
 plan_drone_outcome_markers(const std::array<std::uint8_t, drone_outcome_marker_count>& raw_outcomes) noexcept;
 
+// square.jba is a 13x18 green outline used as the current six-Drone outcome
+// slot cursor. It starts at (2,159), one pixel above/left of the first mini-
+// probe marker, and its destination moves upward by the same 19-pixel spacing
+// whenever an outcome is committed. Current Y chases target Y by one pixel on
+// gameplay phase 2 only. After all six outcomes are processed, the renderer
+// disables the cursor.
+inline constexpr std::int32_t drone_outcome_cursor_x = 2;
+inline constexpr std::int32_t drone_outcome_cursor_initial_y = 159;
+inline constexpr std::int32_t drone_outcome_cursor_spacing = 19;
+inline constexpr std::int16_t drone_outcome_cursor_width = 13;
+inline constexpr std::int16_t drone_outcome_cursor_height = 18;
+
+struct DroneOutcomeCursorPlan {
+    bool visible{};
+    std::int32_t x{drone_outcome_cursor_x};
+    std::int32_t y{drone_outcome_cursor_initial_y};
+    std::int32_t target_y{drone_outcome_cursor_initial_y};
+};
+
+[[nodiscard]] std::int32_t drone_outcome_cursor_target_y(
+    std::uint8_t processed_outcomes) noexcept;
+
+[[nodiscard]] DroneOutcomeCursorPlan plan_drone_outcome_cursor(
+    std::uint8_t processed_outcomes,
+    std::int32_t current_y) noexcept;
+
+void advance_drone_outcome_cursor_y(
+    std::int32_t& current_y,
+    std::int32_t target_y,
+    std::uint8_t gameplay_phase) noexcept;
+
 enum class SpecialWeaponHudStatus : std::uint8_t {
     Hidden,
     Miss,

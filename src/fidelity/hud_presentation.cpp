@@ -37,6 +37,32 @@ plan_drone_outcome_markers(
     return result;
 }
 
+std::int32_t drone_outcome_cursor_target_y(
+    const std::uint8_t processed_outcomes) noexcept {
+    const auto bounded = std::min<std::uint8_t>(processed_outcomes, drone_outcome_marker_count);
+    return drone_outcome_cursor_initial_y -
+           static_cast<std::int32_t>(bounded) * drone_outcome_cursor_spacing;
+}
+
+DroneOutcomeCursorPlan plan_drone_outcome_cursor(
+    const std::uint8_t processed_outcomes,
+    const std::int32_t current_y) noexcept {
+    DroneOutcomeCursorPlan plan{};
+    plan.visible = processed_outcomes < drone_outcome_marker_count;
+    plan.y = current_y;
+    plan.target_y = drone_outcome_cursor_target_y(processed_outcomes);
+    return plan;
+}
+
+void advance_drone_outcome_cursor_y(
+    std::int32_t& current_y,
+    const std::int32_t target_y,
+    const std::uint8_t gameplay_phase) noexcept {
+    if (gameplay_phase == 2 && current_y > target_y) {
+        --current_y;
+    }
+}
+
 SpecialWeaponHudPlan plan_special_weapon_status(
     const SpecialWeaponHudInputs& inputs,
     SpecialWeaponHudTimers timers) noexcept {
