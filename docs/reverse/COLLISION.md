@@ -53,6 +53,17 @@ It then tests that rectangle against the **full sprite rectangle** of the second
 
 The clean name is `entity_hitbox_overlaps_sprite_rect()`, making the asymmetry explicit rather than pretending this is a generic symmetric AABB helper.
 
+## Drone weapon callsites
+
+Re-reading the late state-2 collision region resolves an important producer distinction. Both normal rapid missiles (`0x0040F206..`) and a launched Probe/Stinger (`0x0040F62D..`) test the active Drone through **`0x00401F60`**, so these paths do **not** require a Drone opaque-pixel mask. Drone root `0x00446080` is a 15×38 entity; the standard `0.85` collision initialization yields extents 12×32. The inclusive contract is therefore:
+
+```text
+drone.x <= projectile.x <= drone.x + 12
+drone.y <= projectile.y <= drone.y + 32
+```
+
+Both destructive paths additionally require Drone activity 1 and destruction countdown `0x00491CAC > 99`. A rapid missile or red Stinger starts the shared countdown at zero. A blue Probe instead enters attached/decode state 2, awards +10 and initializes the exact two-stage decoder. This corrects the earlier project assumption that the weapon-to-Drone producer belonged to the opaque-pixel workstream; **trajectory actor hits still do require their extracted-frame sprite masks.**
+
 ## Clean implementation
 
 `include/drone/gameplay/collision.hpp` and `src/gameplay/collision.cpp` provide:

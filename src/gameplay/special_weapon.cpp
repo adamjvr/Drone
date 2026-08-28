@@ -134,4 +134,75 @@ bool settle_special_weapon_terminal_state(SpecialWeaponState& state) {
     return true;
 }
 
+void initialize_probe_decode_timing(
+    ProbeDecodeState& decode,
+    const DifficultyLevel difficulty,
+    const bool demo_playback_mode,
+    OriginalRandomState& random) noexcept {
+    decode.status = ProbeDecodeStatus::Phase1Decoding;
+    decode.phase1_elapsed = 0;
+    decode.phase2_elapsed = 0;
+
+    if (demo_playback_mode) {
+        decode.phase1_threshold = 210;
+        decode.phase2_threshold = 150;
+        return;
+    }
+
+    const auto multiplier = difficulty_multiplier(difficulty);
+    decode.phase1_threshold = static_cast<std::uint16_t>(
+        (original_random_mod(random, 70) + 450u) * multiplier);
+    decode.phase2_threshold = static_cast<std::uint16_t>(
+        (original_random_mod(random, 70) + 300u) * multiplier);
+}
+
+ProbeDecodeTickResult step_probe_decode(
+    SpecialWeaponState& state,
+    OriginalRandomState& random,
+    ScoreState& score) noexcept {
+    ProbeDecodeTickResult result{};
+    auto& decode = state.probe_decode;
+
+    if (state.activity != SpecialWeaponActivity::ProbeAttachedDecoding ||
+        decode.status == ProbeDecodeStatus::Complete) {
+        return result;
+    }
+
+    if (decode.status == ProbeDecodeStatus::Phase1Decoding) {
+        ++decode.phase1_elapsed;
+        if (decode.phase1_elapsed == decode.phase1_threshold) {
+            decode.status = ProbeDecodeStatus::Phase2Disarming;
+            decode.phase2_elapsed = 0;
+            result.phase1_completed = true;
+        }
+    }
+
+    // Deliberately not `else if`: the Win32 block falls through after writing
+    // status 3, so phase 2 advances from zero to one on the same update.
+    if (decode.status == ProbeDecodeStatus::Phase2Disarming) {
+        ++decode.phase2_elapsed;
+        if (decode.phase2_elapsed == decode.phase2_threshold) {
+            result.completion_effect_random = static_cast<std::uint16_t>(
+                original_random_mod(random, 60) + 40u);
+            apply_score_delta(score, drone_disarm_score_award);
+            decode.status = ProbeDecodeStatus::Complete;
+            result.disarm_completed = true;
+            result.score_delta = drone_disarm_score_award;
+        }
+    }
+
+    return result;
+}
+
+bool clear_completed_probe_decode(SpecialWeaponState& state) noexcept {
+    auto& decode = state.probe_decode;
+    if (decode.status != ProbeDecodeStatus::Complete) {
+        return false;
+    }
+    decode.status = ProbeDecodeStatus::Phase1Decoding;
+    decode.phase1_elapsed = 0;
+    decode.phase2_elapsed = 0;
+    return true;
+}
+
 } // namespace drone::gameplay

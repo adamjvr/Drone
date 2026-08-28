@@ -73,6 +73,12 @@ The same pass then tests the missile against several gameplay targets through th
 
 At the end of the iteration, if a missile that entered the collision pass active is now inactive, the original decrements global **`0x00440274`** (active missile count).
 
+### Drone collision
+
+The late collision chain contains an exact Drone-specific branch. When the Drone is active (`activity == 1`) and its shared destruction countdown `0x00491CAC` is idle (`>99`), each active rapid missile is tested against Drone root `0x00446080` through **`0x00401F60` point-vs-hitbox**, not the opaque-pixel routine. The 15×38 Drone's `0.85` extents are therefore an inclusive **12×32** collision region.
+
+On the first colliding missile in ascending pool order the original deactivates that slot, emits eight explosion/effect requests around temporary Drone jitter, restores the Drone position and writes the shared destruction countdown to zero. The normal end-of-missile-iteration active-count decrement then applies. Because countdown zero no longer passes the `>99` gate, later missile/special Drone hits in that update are suppressed. Clean ownership lives in `gameplay/drone_weapon_interaction.*`.
+
 Several early targets in this collision chain are already tied to specific entity families (including the `gemhead.jba`/Gemini-related objects), but their complete enemy/boss semantics are still being decomposed before clean gameplay names are promoted.
 
 ## Rendering

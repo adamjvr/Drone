@@ -5,6 +5,8 @@
 namespace drone::gameplay {
 
 inline constexpr std::int32_t extra_life_points = 500;
+inline constexpr std::int32_t probe_attachment_score_award = 10;
+inline constexpr std::int32_t drone_disarm_score_award = 500;
 inline constexpr std::int32_t drone_detonation_penalty = 1000;
 inline constexpr std::int32_t score_display_wrap_value = 9999;
 

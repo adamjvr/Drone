@@ -187,15 +187,24 @@ phase2_threshold = (rand() % 70 + 300) * difficulty
 
 Demo playback mode (`0x00440594 == 1`) uses fixed thresholds **210** and **150** instead of the live randomized/difficulty-scaled values. This is now understood as part of the original deterministic-replay strategy rather than an alternate difficulty/input mode.
 
-While special state remains 2, a separate probe-decode status byte advances through its own phases. When phase 1 reaches its threshold the game emits an effect at the Drone and advances the decode status. At phase 2 completion it:
+The separate status byte at `0x0045BEEA` is now established exactly:
 
-- emits another Drone-related effect;
-- adds `500` to each of two score-like globals observed in the state path;
-- changes sound state;
-- marks the decode-status byte complete;
-- derives an effect position from the Drone entity.
+```text
+0 = phase 1 decoding
+3 = phase 2 disarming
+1 = complete
+```
 
-This is strong executable confirmation of the README's “probe attaches, decodes and disarms the Drone” mechanic. Exact HUD status text/icons, Drone state mutation, scoring ownership, and post-disarm transition are still being separated before the complete disarm system is implemented.
+On a successful blue-Probe collision the game first awards **+10** to both total score and extra-life progress, enters special state 2, clears both elapsed counters and initializes the thresholds above. While state 2 is active and status is not 1, the decoder advances **once per gameplay update** (not only on a four-phase animation tick).
+
+At the exact phase-1 threshold the original writes status 3 and resets phase-2 elapsed to zero. The control flow deliberately falls through into the status-3 block in the **same update**, so phase-2 elapsed becomes 1 immediately. At the exact phase-2 threshold it:
+
+- emits the completion effect at the Drone;
+- consumes one `rand()%60 + 40` value for an effect/sound parameter;
+- awards **+500** to total score and extra-life progress;
+- writes status 1 (complete).
+
+The normal Drone owner later observes status 1 on the same gameplay update, releases the Y=45 hold, commits the normal outcome at Y=201, and clears the completed decoder status/counters after the Drone passes Y=230. This completes the executable-backed normal attach/decode/disarm chain. Enemy attacks that can knock an attached Probe off remain a separate collision producer to recover/integrate.
 
 ## Red Stinger impacts
 
@@ -230,12 +239,15 @@ The clean module currently implements only behavior with direct evidence:
 - Y `-= 2` movement;
 - one-pixel X homing toward a caller-selected target;
 - exact normal Stinger and Probe target-X formulas;
-- frame-0 state-3 -> state-2 attachment transition;
+- frame-0 state-3 -> state-2 Drone attachment through the recovered inclusive point-hitbox producer;
+- exact +10 attachment award and live/demo threshold initialization;
+- exact decoder status protocol 0 -> 3 -> 1, including same-update phase-2 tick 1;
+- exact +500 completion award and completion-effect PRNG consumption;
 - state-2 horizontal pin to `Drone.x + 5`;
 - state-3 -> state-4 hole-interaction transition;
 - state-10 -> state-0 terminal settlement.
 
-It intentionally does **not** yet encode the complete Mothership subassembly/core state machine reached through the state-4 path, enemy target priority, the full Probe decode/disarm status machine, or difficulty timing in wall-clock units. Those remain active reverse-engineering targets.
+The clean implementation also carries the exact MSVC CRT 15-bit PRNG used by this path (`original_random.*`) so live threshold draws are deterministic when seeded. It intentionally does **not** yet encode the complete Mothership subassembly/core state machine reached through the state-4 path, hostile Stinger target priority, or the enemy collision producer that can knock an attached Probe off. Those remain active reverse-engineering targets.
 
 
 ## Presentation cross-reference

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <drone/gameplay/difficulty.hpp>
+#include <drone/gameplay/original_random.hpp>
 #include <drone/gameplay/player.hpp>
+#include <drone/gameplay/scoring.hpp>
 
 #include <cstdint>
 
@@ -27,6 +30,33 @@ enum class SpecialWeaponActivity : std::uint8_t {
     ImpactConsumed = 10,
 };
 
+// Separate global decode status byte 0x0045BEEA. The values are intentionally
+// non-sequential because they are original protocol values consumed directly by
+// the state-2 decoder and HUD paths.
+enum class ProbeDecodeStatus : std::uint8_t {
+    Phase1Decoding = 0,
+    Complete = 1,
+    Phase2Disarming = 3,
+};
+
+struct ProbeDecodeState {
+    ProbeDecodeStatus status = ProbeDecodeStatus::Phase1Decoding;
+    std::uint16_t phase1_elapsed = 0;
+    std::uint16_t phase1_threshold = 0;
+    std::uint16_t phase2_elapsed = 0;
+    std::uint16_t phase2_threshold = 0;
+};
+
+struct ProbeDecodeTickResult {
+    bool phase1_completed = false;
+    bool disarm_completed = false;
+    std::int32_t score_delta = 0;
+    // The original consumes rand()%60+40 on completion for an effect/sound
+    // parameter. Keeping the draw visible preserves shared RNG sequencing even
+    // though presentation owns the downstream effect.
+    std::uint16_t completion_effect_random = 0;
+};
+
 // Narrow semantic reconstruction of the special projectile entity rooted at
 // Win32 0x0045A148. The original is a full 0x154-byte common entity; only
 // established fields needed by the reconstructed input/homing lifecycle are
@@ -44,6 +74,11 @@ struct SpecialWeaponState {
     // switch debounce/progress counter and threshold while state == 1.
     std::int16_t switch_progress = 0;
     std::int16_t switch_threshold = 12;
+
+    // These counters/status bytes are separate globals in the original, but
+    // semantically belong to the one active Probe decoder and therefore live
+    // beside the clean special-weapon state rather than in a raw global table.
+    ProbeDecodeState probe_decode{};
 };
 
 // While loaded/tracking, the original increments +0x36 until it reaches the
@@ -110,5 +145,28 @@ bool enter_special_weapon_hole_interaction(SpecialWeaponState& state);
 // next-update dispatcher stops the launch sound and immediately writes state 0.
 // This helper models only that proven state transition.
 bool settle_special_weapon_terminal_state(SpecialWeaponState& state);
+
+// Initialize the exact two-stage Probe timing after a frame-0 Drone collision.
+// Demo playback uses fixed 210/150 thresholds. Live play consumes two values
+// from the recovered MSVC CRT RNG and applies (rand()%70+450/300)*difficulty.
+void initialize_probe_decode_timing(
+    ProbeDecodeState& decode,
+    DifficultyLevel difficulty,
+    bool demo_playback_mode,
+    OriginalRandomState& random) noexcept;
+
+// Advance the attached Probe decoder once per active gameplay update. Phase 1
+// completion writes status 3, resets phase-2 elapsed, and then phase 2 advances
+// to tick 1 in the same update. Final completion awards +500 to both score
+// accumulators, writes status 1, and consumes the original completion RNG draw.
+[[nodiscard]] ProbeDecodeTickResult step_probe_decode(
+    SpecialWeaponState& state,
+    OriginalRandomState& random,
+    ScoreState& score) noexcept;
+
+// The normal Drone settlement path clears status 1 and both elapsed counters
+// once the objective has moved beyond Y=230. Thresholds are left intact, like
+// the original globals, until the next attachment overwrites them.
+[[nodiscard]] bool clear_completed_probe_decode(SpecialWeaponState& state) noexcept;
 
 } // namespace drone::gameplay

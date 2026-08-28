@@ -64,6 +64,7 @@ struct DroneObjectiveTickResult {
     bool boss_approach_boundary_reached = false;
     bool disarm_committed = false;
     bool settlement_tick_reset = false;
+    bool disarm_completion_cleared = false;
     bool resolution_transition_ready = false;
     bool hover_timeout_reached = false;
     bool destruction_countdown_started = false;

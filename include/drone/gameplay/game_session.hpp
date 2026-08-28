@@ -1,12 +1,15 @@
 #pragma once
 
 #include <drone/gameplay/boss_encounter.hpp>
+#include <drone/gameplay/difficulty.hpp>
+#include <drone/gameplay/drone_weapon_interaction.hpp>
 #include <drone/gameplay/drone_objective.hpp>
 #include <drone/gameplay/enemy_bomb.hpp>
 #include <drone/gameplay/game_state.hpp>
 #include <drone/gameplay/input.hpp>
 #include <drone/gameplay/mission_outcome.hpp>
 #include <drone/gameplay/mission_progression.hpp>
+#include <drone/gameplay/original_random.hpp>
 #include <drone/gameplay/player.hpp>
 #include <drone/gameplay/player_lifecycle.hpp>
 #include <drone/gameplay/rapid_missile.hpp>
@@ -40,6 +43,12 @@ struct GameCampaignState {
     std::int32_t alien_ships_total = 0;
 };
 
+
+struct GameRuntimeOptions {
+    DifficultyLevel difficulty = DifficultyLevel::Beginner;
+    bool demo_playback_mode = false;
+};
+
 // State rebuilt for every encounter by the recovered reset architecture.
 struct GameEncounterState {
     PlayerMotionState player{};
@@ -62,8 +71,13 @@ struct GameSession {
     GameSession();
 
     GameState state = GameState::ActiveGameplay;
+    GameRuntimeOptions runtime{};
     GameCampaignState campaign{};
     GameEncounterState encounter{};
+
+    // The original CRT RNG is process-global and is seeded once at startup, so
+    // neither encounter-only nor full-campaign gameplay resets reseed it.
+    OriginalRandomState original_random{};
 
     // Clean diagnostic counter for the whole run. This is intentionally not an
     // assertion about an original scalar/global.
@@ -76,11 +90,10 @@ struct SpecialTargetGeometry {
 };
 
 // Encounter-owned producer facts not yet reconstructed inside GameSession.
-// Drone position is now continuously owned; only the completed Probe-decode
-// event remains external until the exact decoder is integrated.
+// Drone weapon collisions and Probe decode/disarm are now owned; hostile-target
+// selection for Stingers remains external until enemy selection is integrated.
 struct GameSessionTargetContext {
     std::optional<SpecialTargetGeometry> stinger_target{};
-    bool drone_disarm_completed = false;
 
     // Bomb redirection has an independently recovered external gate in the
     // original. Keep that gate explicit instead of assigning it a false name.
@@ -128,8 +141,20 @@ struct GameSessionTickResult {
     std::int32_t boss_score_delta = 0;
     bool lid_top_motion_stop_requested = false;
 
+    bool probe_decode_phase1_completed = false;
+    bool probe_decode_completed = false;
+    bool probe_decode_cleared = false;
+    std::int32_t probe_decode_score_delta = 0;
+    std::uint16_t probe_decode_completion_effect_random = 0;
+    bool rapid_missile_hit_drone = false;
+    std::optional<std::size_t> rapid_missile_drone_hit_index{};
+    bool special_weapon_hit_drone = false;
+    bool probe_attached_to_drone = false;
+    bool stinger_hit_drone = false;
+    std::int32_t probe_attachment_score_delta = 0;
+    std::uint8_t drone_weapon_hit_explosion_spawns_requested = 0;
+
     bool drone_moved = false;
-    bool drone_disarm_completion_accepted = false;
     bool drone_disarm_committed = false;
     bool drone_settlement_tick_reset = false;
     bool drone_hover_timeout_reached = false;
@@ -166,12 +191,13 @@ struct GameSessionTickResult {
 void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 
 // Execute one continuous active-gameplay update using only behavior that has
-// already been recovered and independently tested. Trajectory groups, normal
-// Drone objective travel/settlement, the timeout/countdown/detonation/life-loss
-// path, and the shareware Lid/Top/Gemini lifecycle tails are now continuously
-// owned. Transient formation selection, exact Probe decode production, direct
-// detonation visuals, boss movement/attacks and sprite-mask collision producers
-// remain explicit boundaries for later Phase-4 milestones.
+// already been recovered and independently tested. Trajectory groups, Probe
+// attachment/decode/disarm timing, rapid-missile/Stinger Drone-hit producers,
+// normal Drone objective travel/settlement, the timeout/countdown/detonation/
+// life-loss path, and the shareware Lid/Top/Gemini lifecycle tails are now
+// continuously owned. Transient formation selection, hostile Stinger target
+// selection, direct detonation visuals, boss movement/attacks and remaining
+// enemy collision producers remain explicit boundaries for later Phase 4.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,

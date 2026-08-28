@@ -318,18 +318,22 @@ int main() {
     {
         GameSession session{};
         GameSessionTargetContext targets{};
-        targets.drone_disarm_completed = true;
+        // This block begins from an already completed decoder so it continues
+        // to isolate the downstream Y=201/230/231 settlement path. Probe
+        // attachment/decode itself is covered by the integration block below.
+        session.encounter.drone.disarm_completed = true;
+        session.encounter.special_weapon.activity =
+            SpecialWeaponActivity::ProbeAttachedDecoding;
+        session.encounter.special_weapon.probe_decode.status = ProbeDecodeStatus::Complete;
         session.encounter.drone.y = 200;
         session.encounter.gameplay_substep_phase = 1;
 
         auto result = step_game_session(session, GameplayInputFrame{}, targets);
-        assert(result.drone_disarm_completion_accepted);
         assert(result.drone_disarm_committed);
         assert(session.campaign.mission.processed_count == 1);
         assert(session.campaign.mission.outcomes[0] == DroneOutcome::Disarmed);
         assert(session.encounter.drone.y == canonical_drone_post_disarm_y);
 
-        targets.drone_disarm_completed = false;
         session.encounter.drone.y = 229;
         session.encounter.drone.disarm_completed = true;
         session.encounter.gameplay_substep_phase = 1;
@@ -358,6 +362,62 @@ int main() {
         assert(session.encounter.drone.y == -1200);
         assert(session.encounter.drone_settlement_tick == canonical_drone_settlement_tick_cap);
         assert(!session.encounter.boss.family.has_value());
+    }
+
+    // Probe attachment, decode and release are now continuous session behavior.
+    // Demo mode makes the two attachment thresholds deterministic (210/150);
+    // the completion-only random draw remains live because Win32 consumes it
+    // for an effect parameter even during replay.
+    {
+        GameSession session{};
+        session.runtime.demo_playback_mode = true;
+        session.encounter.drone.x = 100;
+        session.encounter.drone.y = 45;
+        session.encounter.gameplay_substep_phase = 0;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Probe;
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
+        session.encounter.special_weapon.x = 104;
+        // Common homing runs before collision and moves Y upward by two.
+        session.encounter.special_weapon.y = 47;
+
+        auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.special_weapon_hit_drone);
+        assert(result.probe_attached_to_drone);
+        assert(result.probe_attachment_score_delta == probe_attachment_score_award);
+        assert(session.campaign.score.total == 10);
+        assert(session.campaign.score.extra_life_progress == 10);
+        assert(session.encounter.special_weapon.activity ==
+               SpecialWeaponActivity::ProbeAttachedDecoding);
+        assert(session.encounter.special_weapon.probe_decode.phase1_threshold == 210);
+        assert(session.encounter.special_weapon.probe_decode.phase2_threshold == 150);
+        assert(session.original_random.draws == 0);
+
+        session.encounter.special_weapon.probe_decode.phase1_elapsed = 209;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(result.probe_decode_phase1_completed);
+        assert(!result.probe_decode_completed);
+        assert(session.encounter.special_weapon.probe_decode.status ==
+               ProbeDecodeStatus::Phase2Disarming);
+        assert(session.encounter.special_weapon.probe_decode.phase2_elapsed == 1);
+
+        session.encounter.special_weapon.probe_decode.phase2_elapsed = 149;
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(result.probe_decode_completed);
+        assert(result.probe_decode_score_delta == drone_disarm_score_award);
+        assert(result.probe_decode_completion_effect_random != 0);
+        assert(session.encounter.special_weapon.probe_decode.status ==
+               ProbeDecodeStatus::Complete);
+        // Decode completes before normal Drone phase-2 movement, so Y=45 is
+        // released to 46 on this same update.
+        assert(session.encounter.drone.disarm_completed);
+        assert(session.encounter.drone.y == 46);
+        assert(session.campaign.score.total == 510);
+        // +500 crosses exactly one extra-life threshold later in this update.
+        assert(result.extra_life_awarded);
+        assert(session.campaign.player_lifecycle.lives == canonical_starting_lives + 1);
+        assert(session.campaign.score.extra_life_progress == 10);
+        assert(session.original_random.draws == 1);
     }
 
     // Objective 2 is the compiled shareware termination branch. It zeroes lives

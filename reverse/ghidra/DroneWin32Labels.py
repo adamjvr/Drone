@@ -93,6 +93,7 @@ labels = {
     0x00404720: "run_completion_credits",
 }
 globals_ = {
+    0x0042C0F4: "crt_random_state",
     0x00466C90: "font2_glyph_table",
     0x0042EFD0: "font2_glyph_cache_initialized",
     0x004D95A0: "joystick_input_active",

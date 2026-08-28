@@ -120,6 +120,23 @@ GameSessionTickResult step_game_session(
         }
     }
 
+    // Probe decode progression is an early state-2 subsystem, before normal
+    // Drone movement. This is crucial on the completion update: status 0->3 can
+    // start phase 2 immediately, and status 3->1 releases the Drone later in the
+    // same gameplay update rather than one update late.
+    const auto probe_decode_result = step_probe_decode(
+        encounter.special_weapon,
+        session.original_random,
+        campaign.score);
+    result.probe_decode_phase1_completed = probe_decode_result.phase1_completed;
+    result.probe_decode_completed = probe_decode_result.disarm_completed;
+    result.probe_decode_score_delta = probe_decode_result.score_delta;
+    result.probe_decode_completion_effect_random =
+        probe_decode_result.completion_effect_random;
+    if (probe_decode_result.disarm_completed) {
+        (void)mark_drone_disarm_completed(encounter.drone);
+    }
+
     // The recovered state-2 formation producer runs before trajectory updates.
     // This milestone keeps random/template selection external but owns the
     // actual mode-2 activation and all subsequent group/actor lifecycle here.
@@ -158,13 +175,6 @@ GameSessionTickResult step_game_session(
     result.drone_detonation_settlement_advanced =
         detonation_effect_result.settlement_advanced;
 
-    // Probe decode timing is still owned by the special-weapon reconstruction,
-    // but once completion is proven the Drone objective itself is session state.
-    if (targets.drone_disarm_completed) {
-        result.drone_disarm_completion_accepted =
-            mark_drone_disarm_completed(encounter.drone);
-    }
-
     // Canonical ordering places normal Drone objective motion/settlement after
     // trajectory and detonation-effect updates and before boss dispatch.
     const auto drone_result = step_drone_objective_normal(
@@ -178,6 +188,10 @@ GameSessionTickResult step_game_session(
     result.drone_hover_timeout_reached = drone_result.hover_timeout_reached;
     result.drone_destruction_countdown_started =
         drone_result.destruction_countdown_started;
+    if (drone_result.disarm_completion_cleared) {
+        result.probe_decode_cleared = clear_completed_probe_decode(
+            encounter.special_weapon);
+    }
 
     if (drone_result.resolution_transition_ready) {
         result.mission_interstitial = mission_interstitial_plan(campaign.mission);
@@ -310,12 +324,44 @@ GameSessionTickResult step_game_session(
     result.enemy_bombs_retired =
         retire_enemy_bombs_below_bottom(encounter.enemy_bombs);
 
-    // Collision detection itself still owns the original extracted-frame mask.
-    // Once a hit is proven, destruction/score/group teardown belongs to the
-    // continuously owned trajectory encounter and is dispatched here. Exact
-    // rapid/special collision producers that can start the Drone destruction
-    // countdown remain a later collision milestone; timeout now owns the same
-    // internal countdown transition without approximating those masks.
+    // The original rapid-missile pool is checked before the common special
+    // projectile. Both Drone interactions use 0x00401F60 point-vs-hitbox, not
+    // the opaque-pixel primitive. The first destructive hit changes countdown
+    // 100->0, naturally suppressing later Drone hits in the same update.
+    const auto rapid_drone_hit = collide_rapid_missiles_with_drone(
+        encounter.rapid_missiles,
+        encounter.drone);
+    result.rapid_missile_hit_drone = rapid_drone_hit.hit;
+    result.rapid_missile_drone_hit_index = rapid_drone_hit.missile_index;
+    result.drone_destruction_countdown_started =
+        result.drone_destruction_countdown_started ||
+        rapid_drone_hit.destruction_countdown_started;
+    result.drone_weapon_hit_explosion_spawns_requested =
+        rapid_drone_hit.explosion_spawns_requested;
+
+    const auto special_drone_hit = collide_special_weapon_with_drone(
+        encounter.special_weapon,
+        encounter.drone,
+        session.runtime.difficulty,
+        session.runtime.demo_playback_mode,
+        session.original_random,
+        campaign.score);
+    result.special_weapon_hit_drone = special_drone_hit.hit;
+    result.probe_attached_to_drone = special_drone_hit.probe_attached;
+    result.stinger_hit_drone = special_drone_hit.stinger_hit;
+    result.probe_attachment_score_delta = special_drone_hit.score_delta;
+    result.drone_destruction_countdown_started =
+        result.drone_destruction_countdown_started ||
+        special_drone_hit.destruction_countdown_started;
+    result.drone_weapon_hit_explosion_spawns_requested = static_cast<std::uint8_t>(
+        result.drone_weapon_hit_explosion_spawns_requested +
+        special_drone_hit.explosion_spawns_requested);
+
+    // Collision detection for trajectory actors still owns their extracted-frame
+    // masks. Drone weapon entry producers above are now internal because their
+    // canonical paths use the already-recovered point/hitbox primitive. Once a
+    // trajectory hit is proven, destruction/score/group teardown belongs to the
+    // continuously owned trajectory encounter and is dispatched here.
     for (const auto& hit : targets.trajectory_hits) {
         const auto hit_result = apply_trajectory_hit(encounter.trajectories, hit, campaign.score);
         if (!hit_result.destroyed) continue;

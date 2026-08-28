@@ -55,7 +55,7 @@ Documented behavior:
 - enemy ships can shoot an attached probe off, requiring another probe;
 - the targeting/communication system handles only one active probe-or-stinger interaction at a time, so an attached probe prevents simultaneous stinger use.
 
-Exact attachment conditions, decode/disarm timers, difficulty scaling, probe vulnerability, and special-weapon state machine remain to be recovered.
+Executable recovery now establishes the normal Drone attachment condition, exact two-stage decode/disarm timers, difficulty scaling, demo substitutions and status protocol. The remaining high-value gap in this documented behavior is the enemy path that shoots an already-attached probe off, plus the broader hostile-target/state-4 interactions.
 
 ## Drone interaction
 
@@ -137,7 +137,7 @@ The DOS README notes materially different performance under pure DOS versus runn
 | `BHV-WPN-001` | Ctrl/Fire launches normal rapid-fire weapon | Win32 path recovered: 8-slot 1x9 missile pool, cooldown/spawn/update/top cleanup implemented; target collision semantics still expanding |
 | `BHV-SHIELD-001` | Space consumes rechargeable protection energy | Win32 75-unit high-word accumulator, recharge/drain ordering, active flag, bomb protection and sound cadence mapped; clean state model tested |
 | `BHV-WPN-002` | Down loads/cycles special type; Up launches | Win32 lifecycle mapped and clean reconstruction tested |
-| `BHV-PROBE-001` | probe targets Drone and can attach/disarm | Win32 target/attach/decode timing and demo-mode thresholds mapped; later disarm consequences still partial |
+| `BHV-PROBE-001` | probe targets Drone and can attach/disarm | Win32 point-hitbox attachment, +10 award, exact live/demo two-stage thresholds, 0→3→1 decoder, +500 completion, same-update Drone release and downstream normal mission transition are clean-integrated; enemy shoot-off vulnerability remains |
 | `BHV-STING-001` | stinger targets hostile and homes | frame-1 homing and generic impact-consumed lifecycle mapped; per-enemy damage consequences partial |
 | `BHV-TARGET-001` | only one probe/stinger targeting communication active | documented; implementation pending |
 | `BHV-HUD-001` | six Drone indicators with current/disarmed/detonated states | executable outcome ledger now maps raw 0/1/2 as unresolved/disarmed/detonated; renderer details still pending |

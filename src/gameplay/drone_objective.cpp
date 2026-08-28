@@ -168,6 +168,7 @@ DroneObjectiveTickResult step_drone_objective_normal(
     // beyond 230. This intentionally freezes Y at 231 while the shared
     // settlement scalar continues toward its exact 60-tick transition gate.
     if (state.y > canonical_drone_transition_min_y) {
+        result.disarm_completion_cleared = state.disarm_completed;
         state.disarm_completed = false;
     }
 
