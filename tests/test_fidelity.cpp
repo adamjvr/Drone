@@ -1,4 +1,5 @@
 #include <drone/fidelity/palette_effects.hpp>
+#include <drone/fidelity/presentation_order.hpp>
 
 #include <cassert>
 #include <cstdint>
@@ -187,6 +188,49 @@ int main() {
             rejected = true;
         }
         assert(rejected);
+    }
+
+    {
+        const auto& order = canonical_win32_gameplay_presentation_order();
+        assert(order.size() == canonical_win32_presentation_pass_count);
+        assert(order.front().pass == GameplayPresentationPass::ComposeWorldViewport);
+        assert(order.front().evidence_start == 0x004100D8u);
+        assert(order.back().pass == GameplayPresentationPass::PresentFramebuffer);
+        assert(order.back().evidence_start == 0x004115A5u);
+
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::TransparentSpriteBatchBeforeDebris,
+            GameplayPresentationPass::DebrisParticlePixels));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::DebrisParticlePixels,
+            GameplayPresentationPass::DroneDetonationRadialNoise));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::DroneDetonationRadialNoise,
+            GameplayPresentationPass::ScaledTransparentOverlays));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::ScaledTransparentOverlays,
+            GameplayPresentationPass::HudScoreAndLivesText));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::ShieldMeter,
+            GameplayPresentationPass::PlayerShieldOverlay));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::SpecialWeaponStatusText,
+            GameplayPresentationPass::PaletteAnimation));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::HostPacing,
+            GameplayPresentationPass::PaletteUpload));
+        assert(canonical_win32_gameplay_presentation_precedes(
+            GameplayPresentationPass::PaletteUpload,
+            GameplayPresentationPass::PresentFramebuffer));
+
+        assert(order[0].domain == GameplayPresentationDomain::IndexedFramebuffer);
+        assert(order[14].domain == GameplayPresentationDomain::WorkingPalette);
+        assert(order[15].domain == GameplayPresentationDomain::Host);
+        assert(!order[0].conditional);
+        assert(order[1].conditional);
+        assert(!order[11].conditional); // shield meter is always invoked
+        assert(!order[16].conditional); // some upload range is always emitted
+        assert(!order[17].conditional);
     }
 
     std::cout << "fidelity tests passed\n";

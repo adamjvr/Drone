@@ -83,7 +83,7 @@
 
 ## Phase 3 current priorities
 
-1. Make the remaining HUD/effect/world layering and composition order explicit; `Q-RENDER-001` and `Q-JBA-002` are now resolved.
+1. Refine per-actor HUD/effect ownership and begin framebuffer fixtures; the ordinary 18-pass state-2 presentation order is now explicit, and `Q-RENDER-001` / `Q-JBA-002` are resolved.
 2. Add reference framebuffer capture/comparison fixtures around the recovered 320×200 indexed + dynamic-palette pipeline.
 3. Validate the shared presentation contracts through the native fidelity host without coupling them to platform-specific graphics APIs.
 4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.

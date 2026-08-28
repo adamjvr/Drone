@@ -19,6 +19,7 @@ add_library(drone_core
     src/fidelity/font2.cpp
     src/fidelity/world_viewport.cpp
     src/fidelity/palette_effects.cpp
+    src/fidelity/presentation_order.cpp
     src/gameplay/collision.cpp
     src/gameplay/debris_effects.cpp
     src/gameplay/player.cpp

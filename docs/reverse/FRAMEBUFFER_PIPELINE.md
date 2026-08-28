@@ -128,3 +128,9 @@ Phase 3 establishes that the late `0x00403490`, `0x0041EE90`, and `0x0041EFE0` h
 Once state 2 is settled, palette traffic is phase-sliced rather than fully uploaded every update; transition/destruction paths fall back to a full `0..255` upload. The clean fidelity layer reproduces the recovered palette algorithms and upload-range plan independently of DirectDraw.
 
 See [`PALETTE_EFFECTS.md`](PALETTE_EFFECTS.md) for exact animated bands, random initialization, generic animation controls, gating, and upload ranges.
+
+## Canonical gameplay presentation order
+
+Phase 3 now records the complete ordinary state-2 presentation ordering from the world compositor at `0x004100D8` through the final framebuffer copy at `0x004115A5`. In particular, debris-particle pixels and Drone detonation radial noise are inserted between separate ordinary-sprite spans; scaled overlays follow those world/effect spans; HUD/shield/status layers are later still; palette mutation and host palette upload happen only after indexed-framebuffer drawing is complete.
+
+See [`PRESENTATION_ORDER.md`](PRESENTATION_ORDER.md) and `drone::fidelity::canonical_win32_gameplay_presentation_order()`.
