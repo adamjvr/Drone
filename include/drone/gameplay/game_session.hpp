@@ -1,6 +1,7 @@
 #pragma once
 
 #include <drone/gameplay/boss_encounter.hpp>
+#include <drone/gameplay/drone_objective.hpp>
 #include <drone/gameplay/enemy_bomb.hpp>
 #include <drone/gameplay/game_state.hpp>
 #include <drone/gameplay/input.hpp>
@@ -49,10 +50,11 @@ struct GameEncounterState {
     EnemyBombSpawnGate enemy_bomb_spawn_gate{};
     TrajectoryEncounterState trajectories{};
     BossEncounterState boss{};
+    DroneObjectiveState drone{};
 
     std::int32_t gameplay_substep_phase = 0;
     std::int32_t world_scroll_row = canonical_world_scroll_initial_row;
-    std::int32_t drone_settlement_tick = 0;
+    std::int32_t drone_settlement_tick = canonical_drone_settlement_tick_cap;
     std::uint64_t gameplay_updates = 0;
 };
 
@@ -73,12 +75,12 @@ struct SpecialTargetGeometry {
     std::int16_t width = 0;
 };
 
-// Encounter-owned target facts needed by already-recovered common projectile
-// updates. Later Phase-4 encounter integration will produce this context from
-// the session's reconstructed actor/object collections.
+// Encounter-owned producer facts not yet reconstructed inside GameSession.
+// Drone position is now continuously owned; only the completed Probe-decode
+// event remains external until the exact decoder is integrated.
 struct GameSessionTargetContext {
-    std::int32_t drone_x = canonical_drone_session_initial_x;
     std::optional<SpecialTargetGeometry> stinger_target{};
+    bool drone_disarm_completed = false;
 
     // Bomb redirection has an independently recovered external gate in the
     // original. Keep that gate explicit instead of assigning it a false name.
@@ -94,12 +96,6 @@ struct GameSessionTargetContext {
     std::int16_t trajectory_spawn_x_offset = 0;
     std::int16_t trajectory_spawn_y_offset = 0;
     std::span<const TrajectoryHitEvent> trajectory_hits{};
-
-    // Drone-position ownership is a later milestone. For now the exact Drone
-    // objective producer emits this boundary event when Y == -200. Session
-    // ownership then selects and initializes the canonical shareware boss for
-    // the number of already-processed Drone outcomes.
-    bool boss_approach_boundary_reached = false;
 
     // Exact boss-local collision/damage remains outside this owner. These are
     // already-validated destruction transitions, not broad-phase/raw hits.
@@ -132,6 +128,15 @@ struct GameSessionTickResult {
     std::int32_t boss_score_delta = 0;
     bool lid_top_motion_stop_requested = false;
 
+    bool drone_moved = false;
+    bool drone_disarm_completion_accepted = false;
+    bool drone_disarm_committed = false;
+    bool drone_settlement_tick_reset = false;
+    bool drone_hover_timeout_reached = false;
+    bool drone_resolution_transition_started = false;
+    std::optional<MissionInterstitialPlan> mission_interstitial{};
+    std::optional<EncounterTransitionPlan> encounter_transition{};
+
     bool special_loaded = false;
     bool special_cycled = false;
     bool special_launched = false;
@@ -148,13 +153,11 @@ struct GameSessionTickResult {
 void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 
 // Execute one continuous active-gameplay update using only behavior that has
-// already been recovered and independently tested. Trajectory groups are now
-// continuously owned and advanced when immutable path samples are supplied;
-// transient formation selection and opaque-pixel hit detection remain explicit
-// producers. The session now also owns the lifecycle/score tail of the two
-// canonical shareware boss families after an external Drone-Y=-200 boundary
-// event; boss movement/attacks and exact boss-local collisions remain explicit
-// producers. Drone resolution follows in later Phase-4 milestones.
+// already been recovered and independently tested. Trajectory groups, normal
+// Drone objective travel/settlement, and the shareware Lid/Top/Gemini lifecycle
+// tails are now continuously owned. Transient formation selection, exact Probe
+// decode production, Drone detonation, boss movement/attacks and sprite-mask
+// collision producers remain explicit boundaries for later Phase-4 milestones.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,

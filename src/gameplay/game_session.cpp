@@ -44,6 +44,13 @@ GameSessionTickResult step_game_session(
         advance_win32_gameplay_substep_phase(encounter.gameplay_substep_phase);
     const bool animation_tick = is_win32_phase2(encounter.gameplay_substep_phase);
 
+    // The shared Drone settlement scalar advances in the early phase-2 block,
+    // before trajectory and Drone-objective work later in state 2. A Drone
+    // reaching Y=230 can therefore reset this increment back to zero below.
+    encounter.drone_settlement_tick = advance_drone_settlement_tick(
+        encounter.drone_settlement_tick,
+        encounter.gameplay_substep_phase);
+
     // The recovered state-2 formation producer runs before trajectory updates.
     // This milestone keeps random/template selection external but owns the
     // actual mode-2 activation and all subsequent group/actor lifecycle here.
@@ -68,11 +75,57 @@ GameSessionTickResult step_game_session(
         result.trajectory_score_delta += trajectory_result.escape_score_delta;
     }
 
-    // Canonical state-2 ordering places boss dispatch/update after trajectory
-    // groups (and the still-external Drone-detonation slice) but before the
-    // later general collision/destruction stage. Drone motion itself is not
-    // session-owned yet, so consume the proven Y == -200 boundary as an event.
-    if (targets.boss_approach_boundary_reached) {
+    // Probe decode timing is still owned by the special-weapon reconstruction,
+    // but once completion is proven the Drone objective itself is session state.
+    if (targets.drone_disarm_completed) {
+        result.drone_disarm_completion_accepted =
+            mark_drone_disarm_completed(encounter.drone);
+    }
+
+    // Canonical ordering places normal Drone objective motion/settlement after
+    // trajectory updates and before boss dispatch. The exact destructive Drone
+    // countdown/effect slice is intentionally still external in this milestone.
+    const auto drone_result = step_drone_objective_normal(
+        encounter.drone,
+        encounter.gameplay_substep_phase,
+        campaign.mission,
+        encounter.drone_settlement_tick);
+    result.drone_moved = drone_result.moved;
+    result.drone_disarm_committed = drone_result.disarm_committed;
+    result.drone_settlement_tick_reset = drone_result.settlement_tick_reset;
+    result.drone_hover_timeout_reached = drone_result.hover_timeout_reached;
+
+    bool end_run_transition = false;
+    if (drone_result.resolution_transition_ready) {
+        result.mission_interstitial = mission_interstitial_plan(campaign.mission);
+        if (result.mission_interstitial.has_value()) {
+            result.encounter_transition = win32_post_drone_transition_plan(
+                result.mission_interstitial->processed_count,
+                result.mission_interstitial->detonated_count);
+        }
+
+        if (result.encounter_transition.has_value()) {
+            const auto processed_count = campaign.mission.processed_count;
+            end_run_transition =
+                result.encounter_transition->disposition ==
+                EncounterTransitionDisposition::EndRun;
+            if (end_run_transition) {
+                // Canonical shareware objective 2 explicitly zeroes lives before
+                // its encounter-only rebuild so the next gameplay dispatch enters
+                // the already-recovered post-game/results path.
+                campaign.player_lifecycle.lives = 0;
+            }
+
+            reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
+            encounter.drone.y = drone_reentry_y_for_processed_count(processed_count);
+            result.drone_resolution_transition_started = true;
+        }
+    }
+
+    // Boss selection no longer consumes an external boundary event: the owned
+    // Drone path emits exact Y == -200 after its phase-2 movement. Registered-
+    // only dispatch slots are still rejected by the shareware boss owner.
+    if (drone_result.boss_approach_boundary_reached) {
         result.boss_activated = activate_shareware_boss_for_processed_drones(
             encounter.boss,
             campaign.mission.processed_count);
@@ -130,10 +183,10 @@ GameSessionTickResult step_game_session(
     // target-selection/encounter producer remains outside this first session
     // milestone rather than inventing enemy-selection semantics.
     if (encounter.special_weapon.activity == SpecialWeaponActivity::ProbeAttachedDecoding) {
-        (void)pin_attached_probe_to_drone(encounter.special_weapon, targets.drone_x);
+        (void)pin_attached_probe_to_drone(encounter.special_weapon, encounter.drone.x);
     } else if (encounter.special_weapon.activity == SpecialWeaponActivity::LoadedTracking ||
                encounter.special_weapon.activity == SpecialWeaponActivity::LaunchedHoming) {
-        std::int32_t target_x = probe_drone_target_x(targets.drone_x);
+        std::int32_t target_x = probe_drone_target_x(encounter.drone.x);
         if (encounter.special_weapon.kind == SpecialWeaponKind::Stinger &&
             targets.stinger_target.has_value()) {
             target_x = stinger_target_x(
@@ -190,7 +243,7 @@ GameSessionTickResult step_game_session(
         encounter.gameplay_substep_phase);
 
     // Original state 2 converts at most one 500-point threshold per update.
-    if (consume_one_extra_life_threshold(campaign.score)) {
+    if (!end_run_transition && consume_one_extra_life_threshold(campaign.score)) {
         ++campaign.player_lifecycle.lives;
         result.extra_life_awarded = true;
     }

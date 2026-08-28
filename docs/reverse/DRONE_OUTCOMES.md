@@ -22,6 +22,16 @@ Established values are:
 
 The scalar **`0x00433B54`** is the number/index of Drone objectives whose progression has advanced far enough to be included in the result ledger. Result-selection code loops only over this count rather than blindly reading all six entries.
 
+## Normal objective travel and hover
+
+The normal state-2 Drone route is now partitioned tightly enough to execute in clean code. A full campaign reset initializes the `drone.jba` entity at **X=155, Y=-850** and initializes shared settlement scalar `0x004D9600` to **61**. Normal travel is gated to gameplay phase 2.
+
+Before Probe completion, Drone Y advances by one while it is below 45. Two approach sound/effect landmarks do not persist as end-of-update positions: reaching **-117** is immediately replaced by **-116**, and reaching **-40** is immediately replaced by **-39**. At Y=44 the 16-bit hold counter at `0x004460B6` is reset; when the unresolved Drone reaches **Y=45**, that counter advances once per phase-2 update and the Drone holds in place. The exact timeout comparison is **4200** phase-2 hold ticks. That timeout starts the separate destructive countdown path; clean Phase 4 exposes the timeout event but does not yet fold the detonation lifecycle into the normal objective owner.
+
+Completed Probe decode is represented by status value 1 at `0x0045BEEA`. On that path the Drone receives its single phase-2 Y increment in the later branch, allowing it to leave Y=45. After the normal Y=201 commit described below, it continues to Y=230, which resets settlement to zero. The next completed-disarm phase-2 movement reaches **Y=231**; because the original clears the completed-decode status once Y is greater than 230, Y then remains fixed at 231 while settlement continues toward 60.
+
+The pre-boss dispatch occurs later in the same state-2 region and compares the owned Drone Y directly against **-200**. Boss activation can therefore be derived from Drone motion itself rather than supplied as an external event.
+
 ## Outcome commits
 
 Two particularly clear producers establish the status roles:
@@ -124,7 +134,8 @@ The independently written representation lives in:
 
 - `include/drone/gameplay/mission_outcome.hpp` / `src/gameplay/mission_outcome.cpp` for final-results reduction;
 - `include/drone/gameplay/mission_progression.hpp` / `src/gameplay/mission_progression.cpp` for objective commit, settlement, interstitial, reset-scope, and encounter-transition contracts;
-- synthetic cases in `tests/test_gameplay.cpp`.
+- `include/drone/gameplay/drone_objective.hpp` / `src/gameplay/drone_objective.cpp` for the normal phase-2 Drone travel, Y=45 hold/timeout landmark, completed-disarm departure and settlement gate;
+- synthetic cases in `tests/test_gameplay.cpp`, `tests/test_drone_objective.cpp`, and `tests/test_game_session.cpp`.
 
 The clean model exposes:
 
@@ -143,5 +154,5 @@ The surrounding Win32 region beginning at `0x004115BE` is now partitioned at the
 ## Open questions
 
 - Complete semantics of Mothership core-target states other than the established state-2 destruction outcome; see [`MOTHERSHIP.md`](MOTHERSHIP.md).
-- Exact score mutations and timing associated with committing disarmed versus detonated outcomes.
+- Complete integration of the already-recovered destructive timeout/countdown/detonation/life-loss branch into `GameSession`.
 - DOS-side storage/selection correspondence for the same six objective outcomes.

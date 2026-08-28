@@ -41,6 +41,9 @@ int main() {
         assert(session.encounter.player.x == canonical_respawn_x);
         assert(session.encounter.player.y == canonical_respawn_y);
         assert(session.encounter.world_scroll_row == canonical_world_scroll_initial_row);
+        assert(session.encounter.drone.x == canonical_drone_session_initial_x);
+        assert(session.encounter.drone.y == canonical_drone_session_initial_y);
+        assert(session.encounter.drone_settlement_tick == canonical_drone_settlement_tick_cap);
         assert(session.encounter.enemy_bomb_spawn_gate.counter == -450);
         assert(session.encounter.rapid_missiles.fire_cooldown == RapidMissilePool::cooldown_ready);
         assert(!session.encounter.boss.family.has_value());
@@ -187,7 +190,7 @@ int main() {
         session.encounter.special_weapon.activity = SpecialWeaponActivity::ProbeAttachedDecoding;
         session.encounter.special_weapon.x = 0;
         assert(spawn_live_enemy_bomb(session.encounter.enemy_bombs, 100, 50, 2));
-        targets.drone_x = 80;
+        session.encounter.drone.x = 80;
         targets.redirect_bombs_to_attached_probe = true;
         (void)step_game_session(session, GameplayInputFrame{}, targets);
         assert(session.encounter.special_weapon.x == 85); // Drone.x + 5
@@ -230,28 +233,29 @@ int main() {
         assert(session.encounter.trajectories.active_group_count == 1);
     }
 
-    // Shareware boss dispatch now crosses the GameSession ownership boundary.
-    // The Drone actor still emits the exact Y == -200 event externally; once
-    // received, session state selects the boss from processed Drone count and
-    // owns the proven lifecycle/score tail without pulling registered slots in.
+    // Drone travel is now continuously owned. Reaching -200 on the recovered
+    // phase-2 cadence directly dispatches the shareware boss selected by the
+    // number of already processed Drone outcomes.
     {
         GameSession session{};
+        session.encounter.drone.y = -201;
+        session.encounter.gameplay_substep_phase = 1;
         GameSessionTargetContext targets{};
-        targets.boss_approach_boundary_reached = true;
 
         auto result = step_game_session(session, GameplayInputFrame{}, targets);
-        assert(result.advanced && result.boss_activated);
+        assert(result.advanced && result.drone_moved);
+        assert(session.encounter.drone.y == canonical_drone_boss_approach_y);
+        assert(result.boss_activated);
         assert(result.boss_activated_family == BossFamily::LidTop);
         assert(session.encounter.boss.family == BossFamily::LidTop);
         assert(session.encounter.boss.lid_top.top_activity == boss_activity_active);
         assert(session.encounter.boss.lid_top.lid_activity == lid_top_initial_lid_activity);
 
-        // Repeating the boundary signal cannot reinitialize an owned encounter.
+        // Remaining at/after the boundary cannot reinitialize an owned boss.
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(!result.boss_activated);
 
         const std::array lid_hit{SharewareBossDestructionTrigger::LidTopLid};
-        targets.boss_approach_boundary_reached = false;
         targets.boss_destruction_triggers = lid_hit;
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(result.boss_destruction_transitions == 1);
@@ -275,9 +279,11 @@ int main() {
     {
         GameSession session{};
         session.campaign.mission.processed_count = 1;
+        session.campaign.mission.outcomes[0] = DroneOutcome::Disarmed;
+        session.encounter.drone.y = -201;
+        session.encounter.gameplay_substep_phase = 1;
 
         GameSessionTargetContext targets{};
-        targets.boss_approach_boundary_reached = true;
         auto result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(result.boss_activated);
         assert(result.boss_activated_family == BossFamily::Gemini);
@@ -286,7 +292,6 @@ int main() {
             SharewareBossDestructionTrigger::GeminiSideA,
             SharewareBossDestructionTrigger::GeminiSideB,
         };
-        targets.boss_approach_boundary_reached = false;
         targets.boss_destruction_triggers = both;
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(result.boss_destruction_transitions == 2);
@@ -299,11 +304,83 @@ int main() {
         // The canonical shareware stop never initializes dispatch slot 2.
         reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
         session.campaign.mission.processed_count = 2;
+        session.encounter.drone.y = -201;
+        session.encounter.gameplay_substep_phase = 1;
         targets.boss_destruction_triggers = {};
-        targets.boss_approach_boundary_reached = true;
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(!result.boss_activated);
         assert(!session.encounter.boss.family.has_value());
+    }
+
+    // The normal disarm route is now a continuous GameSession transition: a
+    // completed Probe release commits at Y=201, resets settlement at Y=230,
+    // waits at Y=231 for tick 60, then performs the encounter-only transition.
+    {
+        GameSession session{};
+        GameSessionTargetContext targets{};
+        targets.drone_disarm_completed = true;
+        session.encounter.drone.y = 200;
+        session.encounter.gameplay_substep_phase = 1;
+
+        auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.drone_disarm_completion_accepted);
+        assert(result.drone_disarm_committed);
+        assert(session.campaign.mission.processed_count == 1);
+        assert(session.campaign.mission.outcomes[0] == DroneOutcome::Disarmed);
+        assert(session.encounter.drone.y == canonical_drone_post_disarm_y);
+
+        targets.drone_disarm_completed = false;
+        session.encounter.drone.y = 229;
+        session.encounter.drone.disarm_completed = true;
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.drone_settlement_tick_reset);
+        assert(session.encounter.drone.y == 230);
+        assert(session.encounter.drone_settlement_tick == 0);
+
+        // Reconstruct the exact settled state just before the final phase-2
+        // increment: Y is frozen at 231 after decode status is cleared.
+        session.encounter.drone.y = 231;
+        session.encounter.drone.disarm_completed = false;
+        session.encounter.drone_settlement_tick = 59;
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.drone_resolution_transition_started);
+        assert(result.mission_interstitial);
+        assert(result.mission_interstitial->briefing == MissionBriefingCard::Mission1);
+        assert(result.encounter_transition);
+        assert(result.encounter_transition->target == EncounterTransitionTarget::Gemini);
+        assert(result.encounter_transition->disposition ==
+               EncounterTransitionDisposition::ContinueCampaign);
+        assert(session.campaign.player_lifecycle.lives == canonical_starting_lives);
+        assert(session.campaign.player_lifecycle.player_active);
+        assert(session.encounter.drone.y == drone_reentry_y_for_processed_count(1));
+        assert(session.encounter.drone.y == -1200);
+        assert(session.encounter.drone_settlement_tick == canonical_drone_settlement_tick_cap);
+        assert(!session.encounter.boss.family.has_value());
+    }
+
+    // Objective 2 is the compiled shareware termination branch. It zeroes lives
+    // before rebuilding the encounter and exposes Results/EndRun to the host.
+    {
+        GameSession session{};
+        session.campaign.mission.processed_count = 2;
+        session.campaign.mission.outcomes[0] = DroneOutcome::Disarmed;
+        session.campaign.mission.outcomes[1] = DroneOutcome::Disarmed;
+        session.encounter.drone.y = 231;
+        session.encounter.drone_settlement_tick = 59;
+        session.encounter.gameplay_substep_phase = 1;
+
+        const auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_resolution_transition_started);
+        assert(result.encounter_transition);
+        assert(result.encounter_transition->target == EncounterTransitionTarget::Results);
+        assert(result.encounter_transition->disposition ==
+               EncounterTransitionDisposition::EndRun);
+        assert(session.campaign.player_lifecycle.lives == 0);
+        assert(!session.campaign.player_lifecycle.player_active);
+        assert(session.encounter.drone.y == drone_reentry_y_for_processed_count(2));
+        assert(session.encounter.drone.y == -1350);
     }
 
     std::cout << "Drone continuous game-session tests passed\n";

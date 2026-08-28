@@ -232,3 +232,12 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Integrated continuous active-gameplay ticking for phase cadence, player input/motion, rapid missiles, Probe/Stinger state, shield, existing enemy bombs, cleanup, world scroll and one-extra-life conversion.
 - Kept encounter target/redirect facts explicit until actor collections and encounter producers are integrated.
 - Added dedicated C++ session tests plus an asset-free deterministic 120-update `drone_session_probe` oracle.
+
+## 2026-08-28 — Phase 4 normal Drone objective ownership
+
+- Re-read the Win32 state-2 Drone block `0x0040E4A8..0x0040E849` against the continuous-session scheduler and promoted normal Drone position/progression into `GameSession`. Full reset evidence initializes the objective at `(155,-850)` and settlement scalar `0x004D9600` at 61.
+- Established the exact phase-2 approach/hold route: unresolved Y advances below 45; the transient -117/-40 audio landmarks are immediately replaced by -116/-39; Y=44 resets the hold counter; Y=45 increments `0x004460B6`; exact hold count 4200 is the timeout handoff into the still-separate destructive countdown.
+- Tightened completed-Probe behavior: decode status 1 releases the Y=45 hold, the existing Y=201 disarm commit forces Y=202, Y=230 resets settlement, the next completed-disarm tick reaches Y=231 and clears decode status, and Y remains 231 until the early phase-2 settlement scalar reaches exactly 60.
+- Integrated `run_mission_outcome_transition` semantics at the session boundary without proprietary presentation assets. Processed count 1 performs the encounter-only Gemini continuation and rebuilds Drone Y to -1200; processed count 2 performs the compiled shareware Results/EndRun branch, zeroes lives, and rebuilds Y to -1350.
+- Removed external `drone_x` and `boss_approach_boundary_reached` inputs from `GameSessionTargetContext`. Probe homing/pinning now reads the owned Drone X, while boss dispatch derives the exact Y=-200 boundary from the owned phase-2 path.
+- Added `gameplay/drone_objective.*`, dedicated objective regression tests, expanded whole-session transition tests, and retained the byte-identical 120-update session oracle. Destructive Drone countdown/detonation remains the next explicit Phase-4 slice.
