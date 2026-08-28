@@ -119,3 +119,24 @@ A second sprite path is now classified. Wrapper `0x00403460` reads entity X/Y pl
 This promotes common-entity `+0x24/+0x26` to established `render_width` / `render_height` fields. The ordinary unscaled path still uses source `+0x20/+0x22` dimensions.
 
 The state-2 render block calls the wrapper for active special entities when their family-specific render-enable condition is satisfied. This path belongs to fidelity presentation; it does not alter gameplay state.
+
+
+## Dynamic palette presentation
+
+Phase 3 establishes that the late `0x00403490`, `0x0041EE90`, and `0x0041EFE0` helper cluster is palette presentation state rather than an unknown sprite/HUD subsystem. The Windows port owns a base palette upload source and a separate mutable working palette, then uses `0x004011E0` to push inclusive ranges into the DirectDraw palette object.
+
+Once state 2 is settled, palette traffic is phase-sliced rather than fully uploaded every update; transition/destruction paths fall back to a full `0..255` upload. The clean fidelity layer reproduces the recovered palette algorithms and upload-range plan independently of DirectDraw.
+
+See [`PALETTE_EFFECTS.md`](PALETTE_EFFECTS.md) for exact animated bands, random initialization, generic animation controls, gating, and upload ranges.
+
+## Canonical gameplay presentation order
+
+Phase 3 now records the complete ordinary state-2 presentation ordering from the world compositor at `0x004100D8` through the final framebuffer copy at `0x004115A5`. In particular, debris-particle pixels and Drone detonation radial noise are inserted between separate ordinary-sprite spans; scaled overlays follow those world/effect spans; the initial gameplay palette fade then updates the working palette before HUD/shield/status indices are written; later dynamic palette animation occurs after all framebuffer drawing, followed by host pacing, palette upload and present. The corrected outer contract has 19 passes.
+
+See [`PRESENTATION_ORDER.md`](PRESENTATION_ORDER.md), [`SCALED_OVERLAYS.md`](SCALED_OVERLAYS.md), and `drone::fidelity::canonical_win32_gameplay_presentation_order()`.
+
+## Reference snapshot boundary
+
+Phase 3 now defines a clean local `DRONEFB1` snapshot that stores the 64,000 indexed pixels and 256×RGB8 working palette together. This is **not** an original game format; it is the comparison boundary used by `drone_framecheck` and the hash-only fixture workflow.
+
+The preferred Win32 capture point is immediately after indexed-framebuffer drawing/palette mutation state has reached the intended comparison landmark and before host presentation artifacts can alter interpretation. See [`../FRAMEBUFFER_VALIDATION.md`](../FRAMEBUFFER_VALIDATION.md).

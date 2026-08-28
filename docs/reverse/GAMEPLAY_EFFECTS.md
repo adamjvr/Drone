@@ -88,6 +88,42 @@ The remaining small composite-explosion debris is not the `0x18` record family. 
 
 The clean `DebrisSpriteState` / `advance_debris_sprite()` contract reproduces this update deterministically.
 
+
+## Fixed-point point-particle bank — `0x00434D80`
+
+A separate global bank contains **650** `0x18`-byte point-particle records.
+Gameplay-session setup at `0x00417BCC` writes capacity 650 to `0x0042B1A0`,
+clears every record's `+0x15` active byte, and clears active count
+`0x004D95F0`. Many unrelated encounter/effect producers allocate records, so
+this is intentionally named a generic point-particle bank.
+
+The state-2 renderer at `0x0041043E..0x0041049B` shifts fixed-point X/Y down by
+16 and writes byte `+0x14` directly as one palette index into the software
+framebuffer. This bank is distinct from the grouped debris pool rooted at
+`0x00472B00` and from the secondary debris bank guarded at `0x00440FF8`.
+
+## Explosion presentation routing
+
+Two established common-entity families are split by contextual family flag
+`+0x14E`:
+
+- `0x00480318` (`miniexp1.jba` family);
+- `0x00446FC8` (`explode1.jba` family).
+
+Active members with flag 0 use the ordinary transparent blitter immediately
+before debris-particle pixels. Flag-1 members skip those loops and are rendered
+later by the scaled-transparent wrapper. This is an original presentation
+routing rule.
+
+The 15-slot pool at `0x004605A0` is a **different** sprite-effect family. Its
+update/render lifecycle and many boss/effect producers are established, but its
+exact frame-source ownership is not yet proven; it is therefore kept as
+`secondary_impact_sprite_pool` and must not be mislabeled as the miniexp pool.
+
+The player-destruction singleton `0x00491CE0` is also separate. Its frame-pointer
+table is copied from the `explode1` source entity, establishing shared artwork
+without making it part of the normal `0x00446FC8` pool.
+
 ## Status
 
 `Q-FX-001` is resolved: the small debris visual identities and their lifetime/update consumers are established. Remaining effect work is presentation fidelity (exact palette appearance, layering, and special late effects), not basic pool lifecycle semantics.

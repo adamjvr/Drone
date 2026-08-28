@@ -1,7 +1,7 @@
 address,provisional_name,confidence,notes
 0x00401000,ddraw_palette_get_entry,high,DirectDrawPalette GetEntries for one palette entry; surface unlock/relock guard
 0x004010A0,capture_palette_range,high,captures caller-selected palette range through 0x00401000
-0x004011E0,set_palette_range,medium,called by JBA loader after palette load
+0x004011E0,upload_directdraw_palette_range,high,inclusive first/last + biased 0x44-stride palette source; builds PALETTEENTRYs and calls DirectDraw palette SetEntries
 0x004012B0,load_jba_320x200,high,256 RGB triples then 10-lane deinterleave into 64000-byte framebuffer
 0x00401470,draw_bitmap_text,high,lazy-loads font2.jba; ASCII-0x20 glyph table; menu/status strings
 0x00401660,blit_sprite_transparent_clipped,high,8-bit clipped sprite blit; source index 0 transparent; uses 0x154 object fields
@@ -104,3 +104,6 @@ address,provisional_name,confidence,notes
 0x00401570,draw_bitmap_glyph_mask,high,FONT2 glyph mask: zero transparent; nonzero writes caller color
 0x004015D0,extract_font2_glyph_mask,high,copies descriptor width x height from 320-stride FONT2.JBA source into cached mask
 0x00401630,allocate_bitmap_record_pixels,high,allocates width*height+1 and stores pointer at descriptor +0x10
+0x00403490,advance_generic_gameplay_palette_animation,high,"animates working palette bands 64..170,192..213,224..233; signed RGB steps; blue bounds/stop; 2% inactive activation"
+0x0041EE90,advance_gameplay_palette_effect_bands,high,"updates flash 110..112, red breathing 96..102, yellow 128..148, green 103..109 purpose-built bands"
+0x0041EFE0,initialize_gameplay_palette_effect_bands,high,initializes four dynamic gameplay palette bands and their rand-derived phase/toggle/period state

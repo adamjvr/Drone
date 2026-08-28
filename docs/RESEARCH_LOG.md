@@ -199,3 +199,28 @@ This file records major findings and engineering decisions chronologically. It i
 Phase 2 closes after `Q-ENTITY-002` established the field-level Win32 `0x154` ↔ DOS `0x14F` common entity correspondence. The machine-readable queue has no unresolved critical simulation-architecture question. The roadmap now advances to Phase 3 rather than retaining renderer completeness, complete-game simulation, deterministic trace parity, or retail-only evidence as artificial Phase-2 blockers.
 
 A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Phase 3 begins from the existing indexed-framebuffer, sprite blit/extraction, world viewport, FONT2, debris/effect, and simulation→presentation ordering contracts.
+
+
+## 2026-08-27 — Phase 3 dynamic palette presentation
+
+- Closed `Q-RENDER-001` by classifying the late Win32 presentation cluster. `0x004011E0` is now `upload_directdraw_palette_range`, an inclusive DirectDraw `SetEntries` wrapper over a biased 0x44-stride palette source.
+- Recovered `0x0041EFE0` / `0x0041EE90` as initializer/updater pairs for four purpose-built mutable bands: sparse flashes 110..112, red breathing 96..102, timed yellow/olive 128..148, and timed green 103..109. Exact random-consumption order, colors, clamp/reversal values, periods and toggles are clean-tested.
+- Recovered `0x00403490` as the distinct generic late-game palette animation kernel over 64..170, 192..213 and 224..233, including negative channel clamp, blue-channel bound/stop priority and `rand()%100 < 2` inactive activation.
+- Established the settled state-2 DirectDraw upload schedule: phase 0 uploads 32..42 + 64..110; phase 1 uploads 111..156; phases 2/3 upload 157..170 + 192..213 + 224..234. Unsettled paths upload 0..255.
+- Added `fidelity/palette_effects` plus a dedicated `drone_fidelity` CTest target. Historical 0x44 records remain evidence only; clean code separates RGB, effect controls and host upload planning.
+
+## 2026-08-27 — Phase 3 small-JBA / embedded-PCX container
+
+- Resolved `Q-JBA-002` from all three canonical Windows-only small `.JBA` members (`Logo.jba`, `River.jba`, `Screen.jba`). Byte 0 is an opaque-preamble length `N`; the embedded PCX begins exactly at `1+N` (offsets 65, 5, and 39 respectively).
+- Established the common PCX contract: version 5, RLE, 8 bits/pixel, one plane, bounds 0..127 in both axes, 128 bytes/line, and exactly 16,384 decoded indices.
+- Established the trailer boundary exactly: after RLE completion, precisely 768 bytes remain and are a shared full-range RGB8 palette. The canonical files omit the conventional PCX `0x0C` 256-color palette marker.
+- Added a separate clean `load_small_jba_pcx128` decoder, PPM inspection support, synthetic markerless/RLE regression coverage, a metadata-only analyzer, and `manifests/small_jba_pcx.csv`. The ordinary 320×200 RGB6/lane-interleaved JBA loader remains separate.
+- A complete canonical Win32 executable string inventory contains many runtime `.jba` names but not `Logo.jba`, `River.jba`, or `Screen.jba`; this milestone therefore establishes physical format/import semantics without inventing a game-runtime owner.
+
+## 2026-08-28 — Phase 3 closure: scaled overlays, startup fade, outcome cursor
+
+- Resolved the scaled state-2 block `0x00410C15..0x00410E9D`: active `miniexp1` and `explode1` pool members with contextual `+0x14E == 1` use the scaled route, followed by a shared `debris1/debris2a/debris3` objective-destruction effect.
+- Established that the three scaled debris sprites are shared by Mothership destruction and Drone detonation, including source dimensions/frame counts, initial velocities, phase-2 symmetric growth and exact visibility prefilters.
+- Corrected the presentation catalog from 18 to 19 passes by restoring the startup palette fade at `0x00410E9D..0x00410F34`; recovered x87 truncate-toward-zero conversion of `255-counter*4.19` and phase-2 counter progression 0..62.
+- Identified the former auxiliary HUD sprite as `square.jba`, a 13x18 current Drone-outcome cursor whose target moves upward by 19 pixels per committed outcome and disappears after the sixth outcome.
+- Phase 3 exit criteria are now met: renderer/world architecture is deterministic and comparison-ready. Roadmap advances to Phase 4 complete-game simulation; exact original-runtime trace parity remains Phase 6.

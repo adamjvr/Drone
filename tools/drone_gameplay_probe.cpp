@@ -1,4 +1,5 @@
 #include <drone/fidelity/indexed_framebuffer.hpp>
+#include <drone/fidelity/framebuffer_snapshot.hpp>
 #include <drone/fidelity/sprite_blit.hpp>
 #include <drone/fidelity/sprite_sheet.hpp>
 #include <drone/formats/jba.hpp>
@@ -51,14 +52,14 @@ std::array<drone::fidelity::IndexedSpriteFrame, 3> load_missile_frames(
 } // namespace
 
 int main(int argc, char** argv) try {
-    if (argc < 3 || argc > 4) {
-        std::cerr << "Usage: drone_gameplay_probe <windows-shareware-root> <output.ppm> [updates]\n";
+    if (argc < 3 || argc > 5) {
+        std::cerr << "Usage: drone_gameplay_probe <windows-shareware-root> <output.ppm> [updates] [output.drfb]\n";
         return 2;
     }
 
     const fs::path root = argv[1];
     const fs::path output = argv[2];
-    const int updates = argc == 4 ? std::stoi(argv[3]) : 36;
+    const int updates = argc >= 4 ? std::stoi(argv[3]) : 36;
     if (updates < 0 || updates > 10000) throw std::runtime_error("updates must be 0..10000");
 
     const auto ship_sheet = drone::formats::load_jba_320x200(root / "Sights" / "Ship.jba");
@@ -95,10 +96,16 @@ int main(int argc, char** argv) try {
     }
 
     write_ppm(framebuffer, output);
+    if (argc == 5) {
+        drone::fidelity::write_framebuffer_snapshot(
+            drone::fidelity::make_framebuffer_snapshot(framebuffer), argv[4]);
+    }
     std::cout << "updates=" << updates
               << " active_missiles=" << missiles.active_count
               << " cooldown=" << missiles.fire_cooldown
-              << " output=" << output << '\n';
+              << " output=" << output;
+    if (argc == 5) std::cout << " snapshot=" << argv[4];
+    std::cout << '\n';
     return 0;
 } catch (const std::exception& e) {
     std::cerr << "error: " << e.what() << '\n';

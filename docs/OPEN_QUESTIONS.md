@@ -31,9 +31,9 @@ Neither original build owns one packed gameplay-action bitfield. Win32 combines 
 
 Win32 `0x00415FA0` establishes trajectory index/step/wrap and normal AUX animation: AUX `<=1` is a signed relative frame delta and AUX `>1` selects absolute frame `aux-2`. The broader group lifecycle is also recovered; remaining work is limited to special-family substitutions/producers and full template cataloging. See [`formats/FLY.md`](formats/FLY.md) and [`reverse/TRAJECTORY_GROUPS.md`](reverse/TRAJECTORY_GROUPS.md).
 
-### Q-RENDER-001 — Which late palette/HUD/effect helpers remain around the established rendering pipeline?
+### Resolved — Q-RENDER-001 late dynamic-palette ownership and scheduling
 
-The ordinary transparent blitter, scaled blitter, framebuffer ownership, 320×600 viewport compositor, FONT2 masks, and simulation→presentation boundary are already established. Phase 3 now classifies the remaining late presentation helpers—especially `0x00403490`, `0x0041EE90`, and `0x0041EFE0`—and their palette/HUD/effect ownership.
+The formerly unclassified late helpers are palette presentation code, not gameplay/HUD state. `0x00403490` is the generic dynamic-palette animation kernel; `0x0041EFE0` initializes four purpose-built gameplay palette bands; `0x0041EE90` advances those bands; and `0x004011E0` is the inclusive DirectDraw palette-range upload wrapper. State 2 phase-slices settled uploads across exact palette ranges and falls back to `0..255` during transitions. The clean fidelity layer now models these algorithms semantically without reproducing the original packed `0x44` records. See [`reverse/PALETTE_EFFECTS.md`](reverse/PALETTE_EFFECTS.md).
 
 ### Q-LEVEL-001 — What registered/endgame world-transition semantics remain beyond the recovered shareware scroll?
 

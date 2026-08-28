@@ -63,7 +63,7 @@ WIN-STRUCT-002,0x141,1,signed/byte,frame_count,high,established,0x00401820 itera
 WIN-STRUCT-002,0x142,1,byte enum,activity_state,medium,partial,"values 0,1,3 observed; many update paths gate on ==1"
 WIN-STRUCT-002,0x143,1,byte,out_of_bounds_flag,high,established,0x00401D20/0x00401E60/effect helpers set 0/1 from screen-bound checks
 WIN-STRUCT-002,0x14C,2,word,legacy_initializer_word,high,established,0x00401780 initializes to 1; no live direct consumer found in canonical Win32 corpus; DOS counterpart +0x14A also initialized to 1
-WIN-STRUCT-002,0x14E,1,byte enum/flag,family_flag_14e,high,partial,effect entities use as growth/expansion flag; Probe/Stinger special entity reuses as target-lock/attachment state; DOS counterpart +0x14C shows same contextual reuse
+WIN-STRUCT-002,0x14E,1,byte enum/flag,family_flag_14e,high,partial,effect entities use as established scaled-render routing flag when value==1; Probe/Stinger special entity reuses as target-lock/attachment state; DOS counterpart +0x14C shows same contextual reuse
 WIN-STRUCT-002,0x14F,1,unsigned byte,destruction_burst_count,high,established,generic destruction paths branch/loop on +0x14F to emit one or N bursts; DOS counterpart +0x14D behaves identically
 WIN-STRUCT-002,0x150,1,signed byte,score_value,high,established,trajectory/common destruction adds signed +0x150 to score and extra-life progress; retirement paths may subtract it; DOS counterpart +0x14E adds to both score/progress
 WIN-STRUCT-002,0x151,3,opaque bytes,win_tail_padding_151_153,high,established,no direct consumers in canonical Win32 disassembly; these bytes account for final three bytes of 0x154 versus DOS 0x14F stride
@@ -78,3 +78,13 @@ WIN-STRUCT-003,0x0E,2,signed,spawn_delay_interval,high,established,0x00415FA0 ac
 WIN-STRUCT-003,0x10,2,signed,activated_entity_count,high,established,0x00415FA0 compares against entity_count then increments and activates inline entity at previous count
 WIN-STRUCT-003,0x14,variable,inline,entities,high,established,first inline WIN-STRUCT-002 object; indexing formula uses 0x154 stride
 WIN-STRUCT-004,0x4494,4,pointer,decoded_pixels_320x200,high,established,0x00401900 stores allocation; 0x004012B0 writes decoded pixels; 0x00401860 reads; 0x00401450 frees
+WIN-STRUCT-006,0x00,4,signed/int low-byte upload,current_red,high,established,0x004011E0 biased source +8; all three animation kernels
+WIN-STRUCT-006,0x04,4,signed/int low-byte upload,current_green,high,established,0x004011E0 biased source +0xC; all three animation kernels
+WIN-STRUCT-006,0x08,4,signed/int low-byte upload,current_blue,high,established,0x004011E0 biased source +0x10; all three animation kernels
+WIN-STRUCT-006,0x14,4,signed,generic_stop_blue,high contextual,partial,0x00403490 compares updated blue against this value only in generic animation context
+WIN-STRUCT-006,0x18,4,context-specific scalar,active_toggle_or_flash_phase,high contextual,partial,0x00403490 active flag; 0x0041EE90/0x0041EFE0 flash phase or timed-band toggle
+WIN-STRUCT-006,0x20,4,context-specific scalar,red_step_or_timer,high contextual,partial,0x00403490 red step; 0x0041EE90 red-band step / timed-band timer
+WIN-STRUCT-006,0x2C,4,context-specific scalar,green_step_or_period,high contextual,partial,0x00403490 green step; timed bands use as period
+WIN-STRUCT-006,0x38,4,signed,generic_blue_step,high contextual,partial,0x00403490 blue step
+WIN-STRUCT-006,0x3C,4,signed,generic_upper_blue,high contextual,partial,0x00403490 upper blue reversal bound
+WIN-STRUCT-006,0x40,4,signed,generic_lower_blue,high contextual,partial,0x00403490 lower blue reversal bound

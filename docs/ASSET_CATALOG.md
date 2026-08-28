@@ -32,7 +32,7 @@ Observed installation inventory: **192 files / 12,354,961 bytes**.
 
 `Logo`, `Minidrg`, `Miniprb`, `Miniprg`, `Miniprr`, `Mission3`, `Redprobe`, `River`, `Screen`, `Splash0`, `Square`, `Top_hole`, `Top_tab`, `Wincred`, plus a Windows `Disarm2` variant.
 
-`Logo.jba` (7,494 bytes), `River.jba` (10,732 bytes), and `Screen.jba` (8,923 bytes) are **not** the normal 64,768-byte full-screen JBA form. Milestone 0 found embedded 128×128 8-bit PCX data inside at least this small-JBA family; their surrounding container bytes still need semantic reconstruction.
+`Logo.jba` (7,494 bytes), `River.jba` (10,732 bytes), and `Screen.jba` (8,923 bytes) are **not** the normal 64,768-byte JBA form. Their physical container is now resolved: byte 0 is an opaque-preamble length, the canonical 128×128 8-bit PCX begins at `1+N`, RLE expands to 16,384 indices, and the file ends with a markerless raw 768-byte RGB8 palette. See [`formats/JBA.md`](formats/JBA.md) and `manifests/small_jba_pcx.csv`. Their filenames are not present in the canonical game executable's ASCII-string inventory, so runtime ownership is not asserted.
 
 ### DOS-only JBA names
 

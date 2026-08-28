@@ -75,10 +75,12 @@ The fidelity renderer preserves a logical 320×200 indexed image. This gives us 
 At chosen deterministic ticks:
 
 1. capture the 64,000 index bytes and active palette;
-2. compare exact hashes when the reconstructed path should be pixel-identical;
-3. if an intentional platform/presentation difference prevents full equality, compare documented regions or semantic masks rather than weakening the test globally.
+2. wrap them in the clean `DRONEFB1` local snapshot format;
+3. compare indexed pixels, resolved RGB, palette entries, and minimal mismatch bounds with `drone_framecheck`;
+4. record SHA-256-only metadata with `scripts/framebuffer_fixture.py`;
+5. if an intentional platform/presentation difference prevents full equality, compare documented regions rather than weakening the test globally.
 
-The remaster renderer is validated separately; it must not become the only way to inspect fidelity behavior.
+Actual original-runtime `.drfb` files remain local evidence and are ignored by Git. See [`FRAMEBUFFER_VALIDATION.md`](FRAMEBUFFER_VALIDATION.md). The remaster renderer is validated separately; it must not become the only way to inspect fidelity behavior.
 
 ### V6 — Audio/event comparison
 
@@ -129,3 +131,13 @@ When Phase 2 host dependencies are introduced, CI should have two levels:
 - **local/private reference suite:** same build plus user-supplied evidence comparisons.
 
 The public repository must remain testable without copyrighted original payloads.
+
+
+## Durable phase-exit gates
+
+The normal CTest suite includes repository-level architecture gates:
+
+- `scripts/check_phase2_exit.py` — preserves the completed gameplay-architecture baseline even after later phases advance;
+- `scripts/check_phase3_exit.py` — requires the resolved Phase-3 renderer blockers, corrected 19-pass presentation contract, scaled/HUD/framebuffer/host artifacts, and roadmap advancement to Phase 4.
+
+These gates intentionally do not demand later exact trace parity, retail-only content, or production platform hardening. Those requirements belong to their later roadmap phases.

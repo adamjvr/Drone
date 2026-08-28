@@ -143,6 +143,19 @@ The host currently presents a decoded full-screen JBA through the clean 320×200
 
 Use `Escape` or `Q` to exit. The optional final argument is integer scale.
 
+Linux can validate the same host binary without an X display by using a clean snapshot and landmark capture:
+
+```bash
+./build/drone_fidelity_host \
+  /tmp/clean-frame.drfb \
+  --headless \
+  --capture-dir /tmp/drone-captures \
+  --landmark "validation frame" \
+  --sequence 1
+```
+
+See `docs/LINUX_FIDELITY_HOST.md` for the capture + fingerprint workflow.
+
 ## Reproduce the DOS LE object image
 
 ```bash
@@ -189,3 +202,27 @@ git commit -m "Advance Drone Phase 2 gameplay reconstruction"
 ```
 
 Before committing, confirm no `.reference/`, Ghidra project/database, decoded original asset, executable, or other proprietary payload has been staged.
+
+## Optional Phase-3 framebuffer validation
+
+After a normal build, local indexed-framebuffer captures can be checked without adding original frame bytes to Git:
+
+```bash
+./build/drone_framecheck info /path/to/frame.drfb
+./build/drone_framecheck compare /path/to/reference.drfb /path/to/candidate.drfb
+python3 scripts/framebuffer_fixture.py verify /path/to/metadata.json /path/to/reference.drfb
+```
+
+See `docs/FRAMEBUFFER_VALIDATION.md` for the `DRONEFB1` format and provenance requirements.
+
+
+## Phase architecture gates
+
+After a normal build/test run, the durable phase-exit checks can also be invoked directly:
+
+```bash
+python3 scripts/check_phase2_exit.py
+python3 scripts/check_phase3_exit.py
+```
+
+At the Phase-3 closure checkpoint both must pass. Phase 4 may add new integration tests without weakening these completed-phase invariants.

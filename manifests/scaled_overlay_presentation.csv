@@ -1,0 +1,6 @@
+order,subpass,evidence_start,evidence_end,entity_root,fixed_count,asset,gate_or_rule,status
+1,miniexp1_scaled_pool,0x00410C15,0x00410C5A,0x00480318,110,miniexp1.jba,"activity +0x142 == 1 and family flag +0x14E == 1",established
+2,explode1_scaled_pool,0x00410C5C,0x00410CA9,0x00446FC8,165,explode1.jba,"activity +0x142 == 1 and family flag +0x14E == 1",established
+3,objective_debris1,0x00410CAB,0x00410D5D,0x00441928,1,debris1.jba,"shared objective-debris flag 0x00441A6A; phase2 grows +2x+2 and shifts -1,-1",established
+4,objective_debris2a,0x00410D5D,0x00410DFD,0x004417D0,1,debris2a.jba,"shared objective-debris flag 0x00441A6A; phase2 grows +2x+2 and shifts -1,-1",established
+5,objective_debris3,0x00410DFD,0x00410E9D,0x00441AC8,1,debris3.jba,"shared objective-debris flag 0x00441A6A; phase2 grows +2x+2 and shifts -1,-1",established

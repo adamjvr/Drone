@@ -14,6 +14,8 @@
 #include <drone/gameplay/special_weapon.hpp>
 #include <drone/gameplay/shield.hpp>
 
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -44,6 +46,76 @@ int main() {
         const auto image = drone::formats::load_jba_320x200(path);
         assert(image.pixels == expected);
         assert(image.palette[1].r == 4 && image.palette[1].g == 8 && image.palette[1].b == 12);
+    }
+
+
+    // Synthetic Windows small-JBA fixture: byte-sized opaque preamble length,
+    // canonical 128x128 8-bit PCX header/RLE, then raw 256xRGB8 palette with
+    // no conventional PCX 0x0C palette marker.
+    {
+        std::vector<unsigned char> file;
+        file.push_back(3); // skip three opaque preamble bytes
+        file.push_back(0xAA);
+        file.push_back(0x55);
+        file.push_back(0x11);
+
+        std::array<unsigned char, 128> header{};
+        header[0] = 0x0A;
+        header[1] = 0x05;
+        header[2] = 0x01;
+        header[3] = 0x08;
+        header[8] = 127;  // xmax
+        header[10] = 127; // ymax
+        header[12] = 128; // hres
+        header[14] = 128; // vres
+        header[65] = 1;   // planes
+        header[66] = 128; // bytes per line
+        file.insert(file.end(), header.begin(), header.end());
+
+        // 16,384 pixels, all palette index 7, encoded in legal <=63-byte runs.
+        std::size_t pixels_left = drone::formats::SmallJbaPcxImage::pixel_count;
+        while (pixels_left != 0) {
+            const auto run = static_cast<unsigned char>(std::min<std::size_t>(63, pixels_left));
+            file.push_back(static_cast<unsigned char>(0xC0u | run));
+            file.push_back(7);
+            pixels_left -= run;
+        }
+
+        for (int i = 0; i < 256; ++i) {
+            file.push_back(static_cast<unsigned char>(i));
+            file.push_back(static_cast<unsigned char>(255 - i));
+            file.push_back(static_cast<unsigned char>((i * 3) & 255));
+        }
+
+        const auto path = base / "small_fixture.jba";
+        std::ofstream(path, std::ios::binary).write(
+            reinterpret_cast<const char*>(file.data()),
+            static_cast<std::streamsize>(file.size()));
+
+        const auto image = drone::formats::load_small_jba_pcx128(path);
+        assert(image.preamble_length == 3);
+        assert((image.opaque_preamble == std::vector<std::uint8_t>{0xAA, 0x55, 0x11}));
+        assert(image.pixels.size() == drone::formats::SmallJbaPcxImage::pixel_count);
+        assert(image.pixels.front() == 7 && image.pixels.back() == 7);
+        assert(image.palette[7].r == 7);
+        assert(image.palette[7].g == 248);
+        assert(image.palette[7].b == 21);
+
+        // A standard PCX 0x0C palette marker is not part of this JBA family:
+        // inserting one must make the clean parser reject the physical layout.
+        auto with_marker = file;
+        with_marker.insert(with_marker.end() - 768, 0x0C);
+        const auto marker_path = base / "small_fixture_marker.jba";
+        std::ofstream(marker_path, std::ios::binary).write(
+            reinterpret_cast<const char*>(with_marker.data()),
+            static_cast<std::streamsize>(with_marker.size()));
+        bool rejected_marker = false;
+        try {
+            (void)drone::formats::load_small_jba_pcx128(marker_path);
+        } catch (const std::runtime_error&) {
+            rejected_marker = true;
+        }
+        assert(rejected_marker);
     }
 
     {

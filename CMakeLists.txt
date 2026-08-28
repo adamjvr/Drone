@@ -14,10 +14,17 @@ add_library(drone_core
     src/formats/demo.cpp
     src/formats/scores.cpp
     src/fidelity/indexed_framebuffer.cpp
+    src/fidelity/framebuffer_snapshot.cpp
+    src/fidelity/host_capture.cpp
+    src/fidelity/hud_presentation.cpp
     src/fidelity/sprite_sheet.cpp
     src/fidelity/sprite_blit.cpp
     src/fidelity/font2.cpp
     src/fidelity/world_viewport.cpp
+    src/fidelity/palette_effects.cpp
+    src/fidelity/presentation_order.cpp
+    src/fidelity/scaled_overlay_presentation.cpp
+    src/fidelity/world_presentation_subpasses.cpp
     src/gameplay/collision.cpp
     src/gameplay/debris_effects.cpp
     src/gameplay/player.cpp
@@ -58,6 +65,9 @@ target_link_libraries(drone_inspect PRIVATE drone_core)
 add_executable(drone_gameplay_probe tools/drone_gameplay_probe.cpp)
 target_link_libraries(drone_gameplay_probe PRIVATE drone_core)
 
+add_executable(drone_framecheck tools/drone_framecheck.cpp)
+target_link_libraries(drone_framecheck PRIVATE drone_core)
+
 option(DRONE_BUILD_FIDELITY_HOST "Build the native indexed-framebuffer fidelity host" ON)
 
 if(DRONE_BUILD_FIDELITY_HOST)
@@ -90,6 +100,10 @@ if(DRONE_BUILD_TESTS)
     target_link_libraries(drone_gameplay_tests PRIVATE drone_core)
     add_test(NAME drone_gameplay COMMAND drone_gameplay_tests)
 
+    add_executable(drone_fidelity_tests tests/test_fidelity.cpp)
+    target_link_libraries(drone_fidelity_tests PRIVATE drone_core)
+    add_test(NAME drone_fidelity COMMAND drone_fidelity_tests)
+
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
         add_test(
@@ -100,5 +114,19 @@ if(DRONE_BUILD_TESTS)
             NAME drone_phase2_exit
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase2_exit.py
         )
+        add_test(
+            NAME drone_phase3_exit
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase3_exit.py
+        )
+        add_test(
+            NAME drone_framebuffer_fixture_tool
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_framebuffer_fixture.py
+        )
+        if(UNIX AND NOT APPLE AND TARGET drone_fidelity_host)
+            add_test(
+                NAME drone_linux_fidelity_host_capture
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_linux_fidelity_host.py $<TARGET_FILE:drone_fidelity_host>
+            )
+        endif()
     endif()
 endif()

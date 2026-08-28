@@ -43,6 +43,24 @@ The initializer also uses the common boss-introduction sound path used by the bo
 
 Because these are distinct symmetric branches, the clean reconstruction must not prematurely replace them with one generic “boss killed = +100” callback. The exact rule governing whether both awards occur in a normal Gemini defeat remains a targeted parity question even though the individual branch arithmetic is established.
 
+
+## Procedural inter-head presentation effect
+
+The state-2 renderer contains a Gemini-specific procedural block at
+`0x00410514..0x004107AE`. When both body/head halves are active, it derives the
+horizontal interval between the two heads and paints a randomized palette-index
+band at the recovered head Y position. If the active player lies inside that
+interval, the path performs a much heavier locked-surface effect: 55 outer
+iterations, each containing six randomized line writes, an invocation of
+`0x0041EB70`, a player blit to the locked surface, and a software-framebuffer
+copy/present-helper cycle.
+
+The effect is therefore **not** part of an ordinary transparent-sprite batch.
+The clean evidence name `GeminiProceduralBeam` describes geometry/ownership only;
+it is not asserted to be original developer terminology. The body/head A pair
+is then drawn before body/head B. See
+[`WORLD_PRESENTATION_SUBPASSES.md`](WORLD_PRESENTATION_SUBPASSES.md).
+
 ## Evidence-set boundary
 
 Unlike later registered bosses, the Gemini graphics/audio required by the dedicated loader are present in the supplied shareware installation. That is consistent with the explicit two-level shareware campaign: Gemini is the second normally reachable boss family.

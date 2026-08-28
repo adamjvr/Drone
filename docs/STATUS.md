@@ -1,7 +1,7 @@
 # Project Status
 
 **Repository:** `Drone`  
-**Current engineering phase:** Phase 3 — Rendering & World Reconstruction  
+**Current engineering phase:** Phase 4 — Complete Game Simulation  
 **Primary decompilation reference:** canonical 1999 Win32 shareware executable (`BIN-WIN-SW-01`)  
 **Independent cross-check:** canonical 1997 DOS shareware executable (`BIN-DOS-SW-01`)
 
@@ -33,11 +33,13 @@
 | bitmap UI text | CONFIRMED cross-build | Win32 `0x00401470` and DOS `0x000809B0` share a 64×0x14 FONT2 descriptor cache; exact 16×4 / 7×5 mask geometry, ASCII-0x20 lookup, mask extraction/render semantics and clean safe extractor are established |
 | explosion/effects cluster | CONFIRMED core debris lifecycle | mini/large/composite emitters and sound variants mapped; 0x18 particle groups plus secondary bank have motion/gravity/lifetime/teardown rules clean-tested; three 15-entry sprite-debris pools identified as junk1/junk2/wheel and their shared updater recovered |
 | native fidelity framebuffer | CONFIRMED | clean 320×200 indexed buffer + palette/RGBA conversion |
+| dynamic Win32 palette effects | CONFIRMED | `0x004011E0` inclusive DirectDraw uploads; generic `0x00403490`; purpose-built `0x0041EFE0`/`0x0041EE90` bands; exact settled four-phase upload ranges clean-tested |
+| gameplay HUD presentation | CONFIRMED | score/lives FONT2 anchors, six-Drone mini-probe outcome strip, Probe/Stinger status protocol/target reticle clamps, and exact 4-pixel shield-meter geometry/color bands are recovered and clean-tested |
 | player reconstruction | CONFIRMED core slice | player root `0x00466B18`; 22x22/15-frame ship bank, Left/Right + A/Z motion, exact bounds and banking mapped; lives are deferred until death settlement; 3-life init, respawn and game-over transition are clean-tested |
 | gameplay input aggregation | CONFIRMED semantic boundary | Win32 keyboard + normalized DirectInput joystick, DOS keyboard/game-port convergence, exact six-channel demo replacement, live vertical overlay and portable `GameplayInputFrame` are recovered and clean-tested |
 | rapid-fire missiles | CONFIRMED core slice | Ctrl path; 8-slot 1x9 pool, 3 frames, cooldown/spawn/update/top cleanup, missile.wav voice pool and rendering chain mapped; clean module tested |
 | player shield | CONFIRMED core slice | Space/demo channel 5; 75-unit high-word accumulator, +0x514 recharge, 0xBB80 drain, protection flag, shields.wav cadence and bomb-absorption path mapped; clean energy model tested |
-| native fidelity host | CONFIRMED build | X11, Win32/GDI, Cocoa/CoreGraphics backends present; Linux backend builds in current validation environment |
+| native fidelity host | CONFIRMED Linux capture boundary | X11, Win32/GDI, Cocoa/CoreGraphics backends present; Linux host accepts JBA/DRONEFB1, supports display-free landmark capture, and has an automated byte-exact no-DISPLAY round-trip gate |
 | Probe/Stinger special weapon | CONFIRMED core lifecycle | shared 3x8 entity, load/cycle/launch/homing/Probe attachment mapped; state 4 hole interaction and state 10 impact-consumed terminal behavior now classified; downstream state-4 target and full disarm consequences partial |
 | demo replay system | CONFIRMED core semantics | playback/recording flags and all 14 channels mapped; DOS/Win share zero-reset, one-preincrement-per-gameplay-update and 0x82F terminal clock; four shared demos byte-identical |
 | six-Drone objective outcomes | CONFIRMED core semantics | six-entry ledger 0 unresolved / 1 disarmed / 2 detonated; normal Y=201 commit plus 60-slow-tick settlement gate recovered; `0x0041D220` detonation path, per-objective good/bad + mission interstitial, and final result art/music reductions clean-tested |
@@ -62,7 +64,7 @@
 | format | status | current result |
 |---|---|---|
 | full-screen JBA | CONFIRMED | 768-byte RGB6 palette + 64,000 pixels; 10-lane interleave; 320×200 |
-| small Windows JBA family | PARTIAL | embedded 128×128 8-bit PCX observed; container semantics open |
+| small Windows JBA family | CONFIRMED physical format | byte-0 preamble length; PCX at `1+N`; 128×128 8-bit single-plane RLE; final markerless 768-byte RGB8 palette; runtime owner not asserted |
 | CLV | CONFIRMED | 22,050 Hz unsigned 8-bit interleaved stereo PCM |
 | FLY | CONFIRMED core runtime semantics | dual physical encoding, X/Y, trajectory index/step/wrap, normal AUX frame control and canonical short-file reachability solved; special-family substitutions/producers remain |
 | demo DAT | CONFIRMED core semantics | 2,101 × 14 ASCII integers; all playback channel meanings mapped; trajectory-channel authoring provenance still open |
@@ -77,16 +79,19 @@
 | FLY parser | CONFIRMED physical behavior | explicit counted/raw APIs; known loader counts; mismatch-safe behavior |
 | demo DAT parser/replay adapter | CONFIRMED core semantics | raw records preserved; original byte/word narrowing reproduced; named control/trajectory/bomb/Drone checkpoints exposed |
 | fidelity framebuffer | CONFIRMED | indexed 320×200 core-owned contract |
+| world/effect subpass catalog | CONFIRMED Win32 order | 28 evidence-backed subpasses resolve boss composites, direct point particles, Gemini procedural effect, explosion/debris routing and actor/projectile tail before scaled overlays |
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
 | simulation reconstruction | PARTIAL implementation | player, lifecycle, missiles, shield, Probe/Stinger, bombs, scoring/high scores, collision, semantic input/replay, trajectory groups/templates, four-phase scheduler, game-state protocol, world scroll, and objective/encounter mission progression now exist as independently written tested `drone_core` modules |
 
-## Phase 3 current priorities
+## Phase 3 closure / Phase 4 priorities
 
-1. Classify the remaining late palette/HUD/effect presentation helpers and make their ordering explicit (`Q-RENDER-001`).
-2. Finish the small Windows JBA / embedded-PCX container family (`Q-JBA-002`).
-3. Add reference framebuffer capture/comparison fixtures around the already recovered 320×200 indexed pipeline.
-4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.
+Phase 3 is complete. The renderer/world architecture now includes the corrected 19-pass Win32 presentation order, detailed world/effect and scaled-overlay catalogs, startup palette fade, complete late HUD/outcome-cursor contracts, framebuffer comparison tooling, and Linux headless capture validation.
 
-The supplied evidence set remains shareware. Full seven-level parity eventually requires a lawful full-game reference copy; missing retail behavior must not be invented.
+Phase 4 priorities are now:
 
-- Boss dispatcher is now family-classified for all six slots: Lid/Top, Gemini, registered-slot-2 unknown, Spidey, Lid/Top reused, Bomber. Gemini resources are present in shareware; later registered boss resources are tracked as absent/unidentified rather than assumed.
+1. Build continuous clean game-session ownership around the recovered subsystem contracts.
+2. Integrate whole-frame player/enemy/projectile/collision/destruction/score/life/mission update flow under the established cadence.
+3. Complete shareware-reachable encounter interactions and death/restart/game-over continuity without pulling retail-only unknowns forward from Phase 8.
+4. Feed the Phase-3 fidelity presentation contracts from clean session state while preserving the simulation/presentation boundary.
+
+Exact original-runtime trace parity remains Phase 6; end-to-end shareware discrepancy closure remains Phase 7.

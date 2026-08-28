@@ -1,6 +1,6 @@
 # Phase 3 — Rendering & World Reconstruction
 
-**Status:** in progress.
+**Status:** complete.
 
 Phase 3 turns the Phase-2 gameplay/fidelity primitives into a documented original presentation pipeline. It does not broaden into complete game simulation; that belongs to Phase 4. The goal is to make original visual output reproducible enough for framebuffer-level comparison while keeping presentation separate from `drone_core` gameplay rules.
 
@@ -19,13 +19,17 @@ Already established before Phase 3 begins:
 
 These contracts are inputs to Phase 3, not work to rediscover.
 
-## Current Phase-3 work
+Current reconstruction also includes a detailed evidence-backed decomposition of the old world-sprite batches into boss composites, direct point-particle writes, the Gemini procedural effect, explosion/debris routing, trajectory/projectile/player layers, and late impact sprites; see [`reverse/WORLD_PRESENTATION_SUBPASSES.md`](reverse/WORLD_PRESENTATION_SUBPASSES.md).
 
-1. **Late presentation helper classification** — resolve remaining palette/HUD/effect helpers tracked by `Q-RENDER-001`, especially the late `0x00403490`, `0x0041EE90`, and `0x0041EFE0` region.
-2. **Small-JBA container completion** — finish the Windows embedded-PCX family (`Q-JBA-002`) without conflating it with the already solved full-screen JBA format.
-3. **Layering and composition** — make draw ordering, HUD ownership, palette transitions, world/object layering, and effect overlays explicit and testable.
-4. **Reference framebuffer fixtures** — add lawful, metadata-oriented capture/comparison tooling so clean output can be compared against original-runtime frames without checking proprietary payloads into Git.
-5. **Native host validation** — preserve the shared indexed-framebuffer boundary while validating presentation behavior on Linux first and later macOS/Windows; iPadOS production hosting remains a Phase-12 platform-completion concern.
+## Phase-3 closure result
+
+1. **Dynamic palette system — COMPLETE.** `Q-RENDER-001` is resolved: base/working palette ownership, startup fade-in, generic and purpose-built animators, and exact DirectDraw range-upload scheduling are clean-tested.
+2. **Small-JBA format — COMPLETE.** `Q-JBA-002` is resolved for the canonical Windows small family without inventing a runtime owner.
+3. **Layering/composition — COMPLETE for Phase-3 scope.** The ordinary state-2 path is a corrected 19-pass presentation contract. The world/effect region is decomposed into evidence-backed subpasses, scaled explosion/debris routing is explicit, the startup fade is restored to its correct position, and HUD/special/shield/outcome-cursor semantics are clean-tested.
+4. **Reference framebuffer validation — COMPLETE as tooling/boundary.** `DRONEFB1`, exact/region comparisons, metadata fingerprints and local-only capture workflow make clean output suitable for original-runtime comparison without checking proprietary captures into Git. Obtaining and driving exact original-runtime trace parity remains Phase 6 validation work.
+5. **Native host validation — COMPLETE for Phase-3 requirement.** Linux/X11 accepts the shared indexed-framebuffer snapshot contract and has automated display-free capture/round-trip validation. Production hardening across all targets remains Phase 12.
+
+**Exit achieved:** the clean project now has an evidence-backed original rendering/world pipeline capable of deterministic composition from clean state and suitable for framebuffer comparison. Remaining open research questions concern complete simulation, retail-only content, historical authoring/timing provenance or later exact-parity work; none requires keeping renderer/world architecture in Phase 3.
 
 ## Non-goals
 
@@ -34,6 +38,6 @@ These contracts are inputs to Phase 3, not work to rediscover.
 - Registered-only world/content reconstruction without a canonical lawful retail evidence set (Phase 8).
 - Modern high-resolution presentation or UX redesign (Phases 11–14).
 
-## Exit direction
+## Closure boundary
 
-Phase 3 should leave the project with an evidence-backed original rendering/world pipeline capable of deterministic composition from clean simulation state and suitable for reference framebuffer comparison. Exact Phase-3 closure will be recorded in the roadmap when those renderer/world contracts are complete rather than inferred from a fixed number of milestones.
+Phase 3 closes on renderer/world **architecture and deterministic comparison readiness**, not on perfect original-runtime trace equality. Exact state/frame/audio trace parity is explicitly Phase 6, end-to-end shareware discrepancy closure is Phase 7, registered-only world content is Phase 8, and production platform hardening is Phase 12. This prevents later validation/content work from artificially holding the renderer-reconstruction phase open.

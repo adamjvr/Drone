@@ -65,7 +65,7 @@ Still open:
 - frame-image load/packing routines;
 - HUD composition;
 - scrolling background/scenery composition;
-- palette effects and state-specific presentation behavior.
+- dynamic palette effects and state-specific palette upload scheduling are established; remaining Phase-3 work is small-JBA completion plus HUD/effect/world layering.
 
 ## Sprite/entity object layer — partial
 
@@ -155,3 +155,8 @@ See [`WORLD_SCENERY.md`](WORLD_SCENERY.md).
 ## Post-game / results boundary
 
 The state-2 lives gate enters inline post-game processing at `0x004115BE` when `player_lives <= 0`. That region is now partitioned through result reduction/statistics, a 58-present confirmation lock, optional state-7 Ordering Information, high-score qualification/insertion, and perfect-completion credits. Ordinary no-score return is state 1; ordinary qualifying insertion returns state 4; six-disarm Mothership completion runs credits and returns state 1. See [`POST_GAME_FLOW.md`](POST_GAME_FLOW.md).
+
+
+### Dynamic palette effects
+
+The Win32 presentation path now has established palette ownership: `0x004011E0` uploads inclusive DirectDraw ranges, `0x0041EFE0` initializes the four purpose-built gameplay bands, `0x0041EE90` advances them, and `0x00403490` handles the separate generic late-game animation bands. Settled state 2 distributes palette uploads by the four-phase scheduler; unstable paths upload all 256 entries. See [`PALETTE_EFFECTS.md`](PALETTE_EFFECTS.md).

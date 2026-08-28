@@ -17,6 +17,7 @@ static void usage() {
         << "Drone reverse-engineering asset inspector\n\n"
         << "Usage:\n"
         << "  drone_inspect jba-info <file.jba> [preview.ppm]\n"
+        << "  drone_inspect jba-small-info <file.jba> [preview.ppm]\n"
         << "  drone_inspect jba-grid-frame <file.jba> <width> <height> <cell-x> <cell-y> [preview.ppm]\n"
         << "  drone_inspect clv-info <file.clv> [downmix.wav]\n"
         << "  drone_inspect fly-info <file.fly> [loader-record-count]\n"
@@ -31,6 +32,16 @@ int main(int argc, char** argv) try {
     if (command == "jba-info") {
         const auto image = drone::formats::load_jba_320x200(input);
         std::cout << "JBA 320x200 indexed8, palette=256xRGB6, pixels=" << image.pixels.size() << "\n";
+        if (argc >= 4) {
+            drone::formats::write_ppm(image, argv[3]);
+            std::cout << "wrote " << argv[3] << "\n";
+        }
+    } else if (command == "jba-small-info") {
+        const auto image = drone::formats::load_small_jba_pcx128(input);
+        std::cout << "JBA small-PCX 128x128 indexed8, preamble-bytes="
+                  << static_cast<unsigned>(image.preamble_length)
+                  << ", pcx-offset=" << (1u + static_cast<unsigned>(image.preamble_length))
+                  << ", palette=256xRGB8(raw-no-marker), pixels=" << image.pixels.size() << "\n";
         if (argc >= 4) {
             drone::formats::write_ppm(image, argv[3]);
             std::cout << "wrote " << argv[3] << "\n";

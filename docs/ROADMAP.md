@@ -18,11 +18,13 @@ Recover the real gameplay architecture: state orchestration, entity/object layou
 
 **Exit achieved:** the user-facing state protocol, canonical DOS cadence, semantic input boundary, Win32/DOS common entity family, trajectory lifecycle/templates, collision/projectile boundaries, scrolling/mission progression, post-game control flow, native fidelity host, and multiple clean gameplay subsystems are recovered and tested. No unresolved `critical` research question remains. Later renderer completeness, complete-game simulation, deterministic trace parity, and retail-only behavior stay assigned to their roadmap phases rather than keeping Phase 2 artificially open.
 
-## Phase 3 — Rendering & World Reconstruction — IN PROGRESS
+## Phase 3 — Rendering & World Reconstruction — COMPLETE
 
 Recover sprite/frame loading, animation, clipping, layering, scrolling, palettes, HUD, text, effects, scenery composition, and reference framebuffer comparison.
 
-## Phase 4 — Complete Game Simulation
+**Exit achieved:** the original Win32 presentation path is represented as a corrected 19-pass semantic contract; detailed world/effect and scaled-overlay ownership, startup palette fade, HUD/special/shield presentation, JBA families, cyclic scenery composition, deterministic framebuffer snapshots/comparison tooling, and a validated Linux capture boundary are in clean code/tests. Exact original-runtime trace parity remains Phase 6 rather than blocking renderer architecture closure.
+
+## Phase 4 — Complete Game Simulation — IN PROGRESS
 
 Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, lives, pickups, special weapons, scripted events, bosses, death/restart, level progression, and game-over behavior.
 

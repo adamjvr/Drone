@@ -123,3 +123,31 @@ address,provisional_name,confidence,notes
 0x00446078,alien_ships_total,high,"mission-wide alien total; Results Total, Missed and Percentage Hit denominator"
 0x00466C90,font2_glyph_table,high,64 x 0x14 FONT2 descriptors indexed by ASCII-0x20
 0x0042EFD0,font2_glyph_cache_initialized,high,lazy FONT2 table initialization flag
+0x00441C20,base_palette_upload_base,high,biased source passed to 0x004011E0; corresponding 0x44-stride RGB records begin at +8
+0x00455B80,working_palette_upload_base,high,state-2 mutable palette upload source; dynamic 0x44-stride RGB/control records begin at 0x00455B88
+0x00433548,drone_outcome_marker_entity,high,11x16 common entity; miniprg/miniprb/miniprr frames; state-2 renders six slots x=3 y=160-i*19 from raw outcome values 1..3
+0x004666E8,special_target_reticle_entity,high,17x13 target.jba common entity; state-2 centers on Probe/Stinger selected target and clamps to x 0..301 / y 0..185 with original edge quirk
+0x0045A17A,special_miss_status_timer,high,16-bit presentation timer; state0 HUD shows MISS while <110 and increments; miss/out-of-bounds path resets 0; suppression paths write 110
+0x0045A17C,special_disarmed_status_timer,high,16-bit presentation timer; DISARMING writes 1; completed state2 HUD shows DISARMED! while <200 and increments
+0x00434D80,point_particle_bank,high,650 x 0x18 fixed-point point-particle records; +0x14 palette code and +0x15 active byte; rendered directly into software framebuffer
+0x0042B1A0,point_particle_capacity,high,initialized to 650 (0x28A); bounds free-slot scans and state-2 render loop
+0x004D95F0,point_particle_active_count,high,live count for 0x00434D80 bank; reset at gameplay-session initialization
+0x00434C10,stinger_display_entity,high,six-frame stinger.jba common entity; late world presentation before Lid/Top composite
+0x00440E00,flare_entity,high,12-frame flare.jba common entity; rendered after Drone when active
+0x0045BDA8,chute_entity,high,chute0/chute1/chute2 frame bank; rendered after flare when active
+0x004673E0,retro_sprite_a,high,first 12-frame retro.jba singleton; state-2 phase-gated frame counter
+0x00438C80,retro_sprite_b,high,second 12-frame retro.jba singleton; state-2 phase-gated frame counter
+0x00491CE0,player_destruction_explosion_entity,high,player-destruction singleton sharing explode1 frame pointers; rendered immediately after player
+0x004605A0,secondary_impact_sprite_pool,medium,15 common entities with established update/render lifecycle; exact frame-source ownership open
+0x0047E288,paired_fixed_actor_pool_a,medium,six-record paired fixed actor family; identity open; rendered A then paired B per active slot
+0x0043F5F8,paired_fixed_actor_pool_b,medium,six-record paired fixed actor family; identity open; paired with 0x0047E288
+0x00480318,mini_explosion_effect_pool,high,110 common entities; +0x14E==1 routes active members through scaled blitter
+0x00446FC8,explosion_effect_pool,high,165 common entities; active +0x14E==1 members use scaled route
+0x00441A6A,objective_scaled_debris_active,high,shared Mothership/Drone destruction flag for debris1/debris2a/debris3 scaled effect
+0x00441928,objective_scaled_debris1_entity,high,"debris1.jba 25x18 8 frames; initial velocity -3,+4"
+0x004417D0,objective_scaled_debris2a_entity,high,"debris2a.jba 27x17 16 frames; initial velocity -5,-1"
+0x00441AC8,objective_scaled_debris3_entity,high,"debris3.jba 26x20 16 frames; initial velocity +3,+1"
+0x004D95FC,gameplay_palette_fade_counter,high,"phase2-only 0..62 startup palette settlement counter; 0..60 fade, 61 band init, 62 settled"
+0x0042F040,drone_outcome_cursor_entity,high,square.jba 13x18 current outcome-slot outline; x2 y follows contextual target +0x1E
+0x0042F182,drone_outcome_cursor_visible,high,HUD cursor render gate; cleared after sixth outcome
+0x0042B178,mini_explosion_entity_capacity,high,canonical 110-entry bound for pool 0x00480318
