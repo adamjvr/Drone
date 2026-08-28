@@ -1,8 +1,11 @@
 #pragma once
 
+#include <drone/gameplay/special_weapon.hpp>
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace drone::gameplay {
 
@@ -89,6 +92,35 @@ std::size_t retire_enemy_bombs_below_bottom(EnemyBombPool& pool);
 
 bool deactivate_enemy_bomb(EnemyBombPool& pool, std::size_t index);
 
+
+
+inline constexpr std::int16_t canonical_special_weapon_collision_width_extent = 2;
+inline constexpr std::int16_t canonical_special_weapon_collision_height_extent = 6;
+
+struct EnemyBombSpecialImpactResult {
+    bool hit = false;
+    std::optional<std::size_t> bomb_index{};
+    SpecialWeaponActivity previous_activity = SpecialWeaponActivity::Inactive;
+    SpecialWeaponKind kind = SpecialWeaponKind::Probe;
+    bool launch_sound_stop_requested = false;
+    bool probe_decode_reset = false;
+    bool probe_phase2_interrupt_signal_requested = false;
+    bool probe_impact_effect_requested = false;
+    bool probe_impact_sound_requested = false;
+    bool stinger_impact_effect_requested = false;
+    bool stinger_impact_sound_requested = false;
+};
+
+// Reconstructs the bomb -> Probe/Stinger branch at Win32
+// 0x0040F35F..0x0040F4B8. The bomb contributes point (x,y+9) through
+// 0x00402000 and the 3x8 special entity contributes its 0.85-derived 2x6
+// inclusive collision extents. The first hit in ascending bomb-slot order
+// consumes both objects. An attached Probe resets decoder status/counters only
+// when phase 2 has already begun (phase2_elapsed > 0) and status is not
+// complete; the original does not clear phase-1-only elapsed state here.
+[[nodiscard]] EnemyBombSpecialImpactResult collide_enemy_bombs_with_special_weapon(
+    EnemyBombPool& pool,
+    SpecialWeaponState& special) noexcept;
 
 struct EnemyBombPlayerImpactResult {
     bool bomb_deactivated = false;

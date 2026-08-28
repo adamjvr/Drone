@@ -74,11 +74,12 @@ The integrated tick composes already-established atomic behavior:
 13. advance/load/cycle/launch/move Probe/Stinger state;
 14. recharge/drain shield;
 15. move/animate rapid missiles and existing enemy bombs, then retire offscreen projectiles;
-16. test rapid missiles first and the launched Probe/Stinger second against the active Drone with the recovered inclusive point-vs-12×32-hitbox primitive; a missile/Stinger starts the destruction countdown while a blue Probe attaches, awards +10 and initializes exact live/demo decode thresholds;
-17. dispatch already-proven trajectory hit events through damage, destruction, score and group teardown;
-18. advance world scroll on phase 2;
-19. convert at most one 500-point extra-life threshold, except after the explicit shareware EndRun transition;
-20. publish a compact tick-result event summary.
+16. run the exact late bomb-to-special collision pass using bomb `(x,y+9)` against the 3x8 special entity's inclusive 2x6 hitbox; consume both objects on hit and apply the original phase-2-only Probe decoder interruption/reset rule;
+17. test rapid missiles first and the launched Probe/Stinger second against the active Drone with the recovered inclusive point-vs-12×32-hitbox primitive; a missile/Stinger starts the destruction countdown while a blue Probe attaches, awards +10 and initializes exact live/demo decode thresholds;
+18. dispatch already-proven trajectory hit events through damage, destruction, score and group teardown;
+19. advance world scroll on phase 2;
+20. convert at most one 500-point extra-life threshold, except after the explicit shareware EndRun transition;
+21. publish a compact tick-result event summary.
 
 This is the first continuous clean integration boundary. It does **not** yet
 claim that every relative position of these narrow helper calls is a
@@ -98,7 +99,7 @@ The session accepts `GameSessionTargetContext` for facts produced by encounter s
 - exact sprite-mask collision hits already proven for trajectory actors;
 - already-validated Lid/Top or Gemini destruction transitions from their boss-local collision/damage producers.
 
-This is intentional. Mutable trajectory lifecycle, the exact Probe attachment/decode/disarm chain, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Random trajectory/template selection, immutable asset data, trajectory opaque-pixel collision detection, attached-Probe vulnerability/enemy collision producers, hostile Stinger target selection, direct framebuffer detonation rendering, and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
+This is intentional. Mutable trajectory lifecycle, the exact Probe attachment/decode/disarm chain, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Random trajectory/template selection, immutable asset data, trajectory opaque-pixel collision detection, hostile Stinger target selection, direct framebuffer detonation rendering, and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
 
 ## Headless state oracle
 
@@ -127,7 +128,6 @@ Not yet session-integrated:
 - exact opaque-pixel collision detection feeding trajectory hit events;
 - remaining non-trajectory enemy state and full boss geometry/movement/attack ownership;
 - exact Lid/Top/Gemini boss-local collision/damage producers (the session consumes only their validated destruction transitions);
-- the enemy collision path that can shoot an attached Probe off and its exact decoder-reset consequences;
 - hostile Stinger target-selection priority and the remaining non-Drone special-weapon collision consequences;
 - randomized/direct-framebuffer Drone detonation presentation emitted from the owned logical effect events;
 - death-effect/respawn continuity;

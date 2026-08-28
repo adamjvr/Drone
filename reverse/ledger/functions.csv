@@ -51,7 +51,7 @@ WIN-FN-035,windows,0x00401470,draw_bitmap_text,render/ui,high,established,menus 
 WIN-FN-036,windows,0x00401E60,spawn_mini_explosion_sprite,gameplay/effects,high,established,,,,,"allocates mini-explosion pool sprite, centers on source, inherits motion",
 WIN-FN-037,windows,0x00401F60,point_in_entity_hitbox,gameplay/collision,high,established,,,,,inclusive point test against collision extents +0x28/+0x2A,clean implementation in gameplay/collision.cpp
 WIN-FN-038,windows,0x00401FA0,point_hits_opaque_sprite_pixel,gameplay/collision,high,established,,,,,tests current-frame pixel; palette index zero is transparent,clean implementation in gameplay/collision.cpp
-WIN-FN-039,windows,0x00402000,point_plus_y9_in_entity_hitbox,gameplay/collision,high,established,,,,,same hitbox family after +9 Y adjustment,used by bomb/player collision path
+WIN-FN-039,windows,0x00402000,point_plus_y9_in_entity_hitbox,gameplay/collision,high,established,,,,,same hitbox family after +9 Y adjustment,used by late bomb/special and bomb/player collision paths
 WIN-FN-040,windows,0x00402050,emit_composite_explosion_effect,gameplay/effects,high,established,,,,,randomized explosion/debris orchestration; periodic large-effect delegation,
 WIN-FN-041,windows,0x00402430,activate_sprite_with_random_velocity,gameplay/effects,high,established,,,,,activates in-bounds sprite and assigns randomized +0x10/+0x14 motion,
 WIN-FN-042,windows,0x004024B0,emit_large_explosion_effect,gameplay/effects,high,established,,,,,large randomized explosion/mini/debris effect plus expscale audio,

@@ -1,5 +1,7 @@
 #include <drone/gameplay/enemy_bomb.hpp>
 
+#include <drone/gameplay/collision.hpp>
+
 #include <algorithm>
 
 namespace drone::gameplay {
@@ -136,6 +138,74 @@ bool deactivate_enemy_bomb(EnemyBombPool& pool, const std::size_t index) {
         --pool.active_count;
     }
     return true;
+}
+
+
+EnemyBombSpecialImpactResult collide_enemy_bombs_with_special_weapon(
+    EnemyBombPool& pool,
+    SpecialWeaponState& special) noexcept {
+
+    EnemyBombSpecialImpactResult result{};
+    if (special.activity == SpecialWeaponActivity::Inactive) {
+        return result;
+    }
+
+    const CollisionEntityView special_hitbox{
+        .x = special.x,
+        .y = special.y,
+        .sprite_width = 3,
+        .sprite_height = 8,
+        .hitbox_width = canonical_special_weapon_collision_width_extent,
+        .hitbox_height = canonical_special_weapon_collision_height_extent,
+    };
+
+    for (std::size_t index = 0; index < pool.bombs.size(); ++index) {
+        auto& bomb = pool.bombs[index];
+        if (!bomb.active) continue;
+
+        if (!point_plus_y9_in_hitbox(Point{bomb.x, bomb.y}, special_hitbox)) {
+            continue;
+        }
+
+        result.hit = true;
+        result.bomb_index = index;
+        result.previous_activity = special.activity;
+        result.kind = special.kind;
+        result.launch_sound_stop_requested =
+            special.activity == SpecialWeaponActivity::LaunchedHoming;
+
+        (void)deactivate_enemy_bomb(pool, index);
+
+        auto& decode = special.probe_decode;
+        if (decode.status != ProbeDecodeStatus::Complete &&
+            decode.phase2_elapsed > 0 &&
+            special.activity == SpecialWeaponActivity::ProbeAttachedDecoding) {
+            decode.status = ProbeDecodeStatus::Phase1Decoding;
+            decode.phase1_elapsed = 0;
+            decode.phase2_elapsed = 0;
+            result.probe_decode_reset = true;
+            result.probe_phase2_interrupt_signal_requested = true;
+        }
+
+        // The original writes state 0 before branching on Probe vs Stinger and
+        // transiently writes +0x14=1. The Stinger branch subsequently zeros
+        // both motion fields; the Probe branch retains motion_y=1 while inactive.
+        special.activity = SpecialWeaponActivity::Inactive;
+        special.motion_y = 1;
+
+        if (special.kind == SpecialWeaponKind::Stinger) {
+            special.motion_x = 0;
+            special.motion_y = 0;
+            result.stinger_impact_effect_requested = true;
+            result.stinger_impact_sound_requested = true;
+        } else {
+            result.probe_impact_effect_requested = true;
+            result.probe_impact_sound_requested = true;
+        }
+        return result;
+    }
+
+    return result;
 }
 
 EnemyBombPlayerImpactResult resolve_enemy_bomb_player_impact(

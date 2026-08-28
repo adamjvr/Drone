@@ -204,7 +204,15 @@ At the exact phase-1 threshold the original writes status 3 and resets phase-2 e
 - awards **+500** to total score and extra-life progress;
 - writes status 1 (complete).
 
-The normal Drone owner later observes status 1 on the same gameplay update, releases the Y=45 hold, commits the normal outcome at Y=201, and clears the completed decoder status/counters after the Drone passes Y=230. This completes the executable-backed normal attach/decode/disarm chain. Enemy attacks that can knock an attached Probe off remain a separate collision producer to recover/integrate.
+The normal Drone owner later observes status 1 on the same gameplay update, releases the Y=45 hold, commits the normal outcome at Y=201, and clears the completed decoder status/counters after the Drone passes Y=230. This completes the executable-backed normal attach/decode/disarm chain.
+
+## Enemy-bomb knockoff / decoder interruption
+
+The late bomb collision loop at `0x0040F35F..0x0040F4B8` tests every active bomb against any nonzero Probe/Stinger state through `0x00402000`. That primitive adds 9 to the bomb Y coordinate and tests against the special entity hitbox. Because the special entity is 3x8 and common initialization uses 0.85-derived collision extents, the inclusive special hitbox is 2x6.
+
+A hit deactivates the bomb and consumes the special weapon. The decoder side effect is deliberately conditional: only an attached state-2 Probe with status not complete **and `phase2_elapsed > 0`** is interrupted back to status 0 with both elapsed counters cleared. A Probe knocked off during phase 1 is consumed but its phase-1 elapsed scalar is not explicitly cleared by this branch. A completed status-1 decoder likewise is not reset by this collision branch. Probe and Stinger then take distinct impact-effect/audio paths.
+
+This exact vulnerability path is now owned by `GameSession`; hostile spawn/steering selection remains a separate encounter producer.
 
 ## Red Stinger impacts
 
@@ -244,10 +252,11 @@ The clean module currently implements only behavior with direct evidence:
 - exact decoder status protocol 0 -> 3 -> 1, including same-update phase-2 tick 1;
 - exact +500 completion award and completion-effect PRNG consumption;
 - state-2 horizontal pin to `Drone.x + 5`;
+- enemy-bomb knockoff through the recovered Y+9 inclusive hitbox, including the exact phase-2-only decoder interruption reset;
 - state-3 -> state-4 hole-interaction transition;
 - state-10 -> state-0 terminal settlement.
 
-The clean implementation also carries the exact MSVC CRT 15-bit PRNG used by this path (`original_random.*`) so live threshold draws are deterministic when seeded. It intentionally does **not** yet encode the complete Mothership subassembly/core state machine reached through the state-4 path, hostile Stinger target priority, or the enemy collision producer that can knock an attached Probe off. Those remain active reverse-engineering targets.
+The clean implementation also carries the exact MSVC CRT 15-bit PRNG used by this path (`original_random.*`) so live threshold draws are deterministic when seeded. It intentionally does **not** yet encode the complete Mothership subassembly/core state machine reached through the state-4 path or hostile Stinger target priority. Those remain active reverse-engineering targets.
 
 
 ## Presentation cross-reference

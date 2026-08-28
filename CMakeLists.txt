@@ -121,6 +121,10 @@ if(DRONE_BUILD_TESTS)
     target_link_libraries(drone_drone_weapon_interaction_tests PRIVATE drone_core)
     add_test(NAME drone_drone_weapon_interaction COMMAND drone_drone_weapon_interaction_tests)
 
+    add_executable(drone_enemy_bomb_special_collision_tests tests/test_enemy_bomb_special_collision.cpp)
+    target_link_libraries(drone_enemy_bomb_special_collision_tests PRIVATE drone_core)
+    add_test(NAME drone_enemy_bomb_special_collision COMMAND drone_enemy_bomb_special_collision_tests)
+
     add_executable(drone_boss_encounter_tests tests/test_boss_encounter.cpp)
     target_link_libraries(drone_boss_encounter_tests PRIVATE drone_core)
     add_test(NAME drone_boss_encounter COMMAND drone_boss_encounter_tests)

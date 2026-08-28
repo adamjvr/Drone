@@ -324,6 +324,28 @@ GameSessionTickResult step_game_session(
     result.enemy_bombs_retired =
         retire_enemy_bombs_below_bottom(encounter.enemy_bombs);
 
+    // The late state-2 bomb loop checks the Probe/Stinger before the later
+    // weapon-to-Drone producers. This owner now reproduces that collision
+    // directly, including the original phase-2-only decoder interruption rule.
+    const auto bomb_special_hit = collide_enemy_bombs_with_special_weapon(
+        encounter.enemy_bombs,
+        encounter.special_weapon);
+    result.enemy_bomb_hit_special_weapon = bomb_special_hit.hit;
+    result.enemy_bomb_special_hit_index = bomb_special_hit.bomb_index;
+    result.enemy_bomb_probe_decode_reset = bomb_special_hit.probe_decode_reset;
+    result.enemy_bomb_probe_phase2_interrupt_signal_requested =
+        bomb_special_hit.probe_phase2_interrupt_signal_requested;
+    result.enemy_bomb_special_launch_sound_stop_requested =
+        bomb_special_hit.launch_sound_stop_requested;
+    result.enemy_bomb_probe_impact_effect_requested =
+        bomb_special_hit.probe_impact_effect_requested;
+    result.enemy_bomb_probe_impact_sound_requested =
+        bomb_special_hit.probe_impact_sound_requested;
+    result.enemy_bomb_stinger_impact_effect_requested =
+        bomb_special_hit.stinger_impact_effect_requested;
+    result.enemy_bomb_stinger_impact_sound_requested =
+        bomb_special_hit.stinger_impact_sound_requested;
+
     // The original rapid-missile pool is checked before the common special
     // projectile. Both Drone interactions use 0x00401F60 point-vs-hitbox, not
     // the opaque-pixel primitive. The first destructive hit changes countdown

@@ -592,6 +592,50 @@ int main() {
         assert(session.encounter.drone.y == -1350);
     }
 
+
+    // Enemy-bomb collision with an attached phase-2 Probe is now owned by the
+    // continuous session. The bomb moves first, then the late collision pass
+    // consumes both objects and applies the exact decoder interruption reset.
+    {
+        GameSession session{};
+        session.encounter.special_weapon.activity =
+            SpecialWeaponActivity::ProbeAttachedDecoding;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Probe;
+        session.encounter.special_weapon.x = session.encounter.drone.x + 5;
+        session.encounter.special_weapon.y = 100;
+        session.encounter.special_weapon.probe_decode.status =
+            ProbeDecodeStatus::Phase2Disarming;
+        session.encounter.special_weapon.probe_decode.phase1_elapsed = 480;
+        session.encounter.special_weapon.probe_decode.phase1_threshold = 500;
+        session.encounter.special_weapon.probe_decode.phase2_elapsed = 10;
+        session.encounter.special_weapon.probe_decode.phase2_threshold = 350;
+
+        // step_enemy_bombs adds two to Y first: 89 -> 91, then 0x00402000
+        // tests y+9 == 100 against the attached Probe's inclusive hitbox.
+        assert(spawn_live_enemy_bomb(
+            session.encounter.enemy_bombs,
+            session.encounter.drone.x + 5,
+            89,
+            0));
+
+        const auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.enemy_bomb_hit_special_weapon);
+        assert(result.enemy_bomb_special_hit_index == 0);
+        assert(result.enemy_bomb_probe_decode_reset);
+        assert(result.enemy_bomb_probe_phase2_interrupt_signal_requested);
+        assert(result.enemy_bomb_probe_impact_effect_requested);
+        assert(result.enemy_bomb_probe_impact_sound_requested);
+        assert(!result.enemy_bomb_stinger_impact_effect_requested);
+        assert(session.encounter.enemy_bombs.active_count == 0);
+        assert(!session.encounter.enemy_bombs.bombs[0].active);
+        assert(session.encounter.special_weapon.activity ==
+               SpecialWeaponActivity::Inactive);
+        assert(session.encounter.special_weapon.probe_decode.status ==
+               ProbeDecodeStatus::Phase1Decoding);
+        assert(session.encounter.special_weapon.probe_decode.phase1_elapsed == 0);
+        assert(session.encounter.special_weapon.probe_decode.phase2_elapsed == 0);
+    }
+
     std::cout << "Drone continuous game-session tests passed\n";
     return 0;
 }

@@ -125,6 +125,15 @@ struct GameSessionTickResult {
     bool rapid_missile_fired = false;
     std::size_t rapid_missiles_retired = 0;
     std::size_t enemy_bombs_retired = 0;
+    bool enemy_bomb_hit_special_weapon = false;
+    std::optional<std::size_t> enemy_bomb_special_hit_index{};
+    bool enemy_bomb_probe_decode_reset = false;
+    bool enemy_bomb_probe_phase2_interrupt_signal_requested = false;
+    bool enemy_bomb_special_launch_sound_stop_requested = false;
+    bool enemy_bomb_probe_impact_effect_requested = false;
+    bool enemy_bomb_probe_impact_sound_requested = false;
+    bool enemy_bomb_stinger_impact_effect_requested = false;
+    bool enemy_bomb_stinger_impact_sound_requested = false;
 
     bool trajectory_group_spawned = false;
     std::size_t trajectory_actors_activated = 0;

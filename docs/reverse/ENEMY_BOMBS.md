@@ -107,7 +107,19 @@ That two-stage boundary behavior resembles the separately recovered rapid-missil
 
 ## Collision pass
 
-The later state-2 pass around `0x0040F330..0x0040F5A3` tests bombs against the Probe/Stinger and player. The player branch at `0x0040F4BB..0x0040F589` is now established precisely:
+The later state-2 pass around `0x0040F330..0x0040F5A3` tests bombs against the Probe/Stinger and player. The Probe/Stinger branch at `0x0040F35F..0x0040F4B8` is now established precisely:
+
+1. collision is attempted whenever the special entity activity byte is nonzero;
+2. `0x00402000` tests bomb point `(x, y+9)` against the special entity collision extents; the established 3x8 special entity therefore contributes inclusive 2x6 extents;
+3. the bomb is deactivated immediately on collision;
+4. a launched state-3 special requests launch-sound stop before consumption;
+5. if the special is attached state 2, decode status is not complete and `phase2_elapsed > 0`, the original emits its interruption signal, writes decode status back to 0 and clears both elapsed counters;
+6. a phase-1-only attached Probe is still consumed, but this branch does **not** explicitly clear its phase-1 elapsed counter because `phase2_elapsed == 0`;
+7. the special activity byte is written to 0; Probe and Stinger then enter separate impact-effect/audio branches, with the Stinger branch zeroing both motion fields.
+
+`collide_enemy_bombs_with_special_weapon()` reconstructs this late collision owner and is called from `GameSession` before the later weapon-to-Drone collision producers. The odd phase-1/phase-2 reset asymmetry is preserved exactly rather than normalized.
+
+The player branch at `0x0040F4BB..0x0040F589` is established separately:
 
 1. player collision is evaluated only while the player entity is active;
 2. `0x00402000` performs the recovered Y+9 hitbox test;
@@ -145,5 +157,5 @@ No proprietary pixels or replay records are required by the unit tests.
 
 - What is the best semantic name for the additional condition that redirects bombs toward an attached Probe?
 - Which original enemy families feed each live bomb-spawn path and what are their exact scheduler probabilities?
-- What are all Probe/Stinger state transitions caused by bomb collision?
+- Which remaining Probe/Stinger states 4/10 have additional bomb-collision consequences beyond the now-integrated ordinary nonzero-state consumption path?
 - Which original enemy families feed every remaining bomb/special collision consequence and how do those outcomes interact with special states 4/10?

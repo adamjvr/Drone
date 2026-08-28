@@ -88,3 +88,6 @@ binary instructions
 ```
 
 That workflow is the standard for player/projectile/enemy reconstruction going forward.
+## Enemy-bomb to special-weapon use of `0x00402000`
+
+The late state-2 bomb loop at `0x0040F35F..0x0040F4B8` independently confirms that `0x00402000` is not player-specific: it tests bomb `(x,y+9)` against the shared 3x8 Probe/Stinger common entity. The special entity's 0.85-derived collision extents are therefore 2x6, with the routine's established inclusive right/bottom comparisons. This producer is now integrated in `GameSession` and drives the attached-Probe decoder interruption path documented in `SPECIAL_WEAPONS.md`.
