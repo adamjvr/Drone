@@ -28,6 +28,7 @@ from state rebuilt for each encounter.
 - rapid-missile pool and cooldown;
 - Probe/Stinger state;
 - enemy-bomb pool and shared spawn/respawn gate;
+- all 17 fixed trajectory groups and their inline actor state;
 - four-phase gameplay substep;
 - 320x600 world-scroll row;
 - Drone settlement tick;
@@ -54,21 +55,24 @@ helper combines persistent lives with the current player-active flag.
 `step_game_session()` executes only while `GameState::ActiveGameplay` is active.
 Modal/menu states do not advance cooldowns, world scroll, projectiles or timing.
 
-The first integrated tick composes already-established atomic behavior:
+The integrated tick composes already-established atomic behavior:
 
 1. advance the shared four-phase state-2 substep;
-2. advance enemy-bomb spawn/respawn gate;
-3. advance rapid-missile cooldown;
-4. apply semantic player movement;
-5. allocate rapid fire when allowed;
-6. advance/load/cycle/launch/move Probe/Stinger state;
-7. recharge/drain shield;
-8. move/animate rapid missiles;
-9. move/animate existing enemy bombs;
-10. retire offscreen missiles/bombs;
-11. advance world scroll on phase 2;
-12. convert at most one 500-point extra-life threshold;
-13. publish a compact tick-result event summary.
+2. apply an explicitly selected live transient trajectory-group activation, when requested;
+3. advance owned trajectory groups, stagger activation and mode-2 escape retirement;
+4. advance enemy-bomb spawn/respawn gate;
+5. advance rapid-missile cooldown;
+6. apply semantic player movement;
+7. allocate rapid fire when allowed;
+8. advance/load/cycle/launch/move Probe/Stinger state;
+9. recharge/drain shield;
+10. move/animate rapid missiles;
+11. move/animate existing enemy bombs;
+12. retire offscreen missiles/bombs;
+13. dispatch already-proven trajectory hit events through damage, destruction, score and group teardown;
+14. advance world scroll on phase 2;
+15. convert at most one 500-point extra-life threshold;
+16. publish a compact tick-result event summary.
 
 This is the first continuous clean integration boundary. It does **not** yet
 claim that every relative position of these narrow helper calls is a
@@ -78,17 +82,17 @@ encounter/collision producers are integrated in subsequent Phase-4 milestones.
 
 ## Explicit encounter context
 
-The session currently accepts `GameSessionTargetContext` for facts produced by
-encounter systems that are not yet owned by the first integration milestone:
+The session accepts `GameSessionTargetContext` for facts produced by encounter systems that are deliberately kept outside mutable session ownership:
 
 - Drone X for Probe homing/pinning;
 - optional Stinger target geometry;
 - the independently recovered but still unnamed condition that redirects enemy
-  bombs toward an attached Probe.
+  bombs toward an attached Probe;
+- immutable trajectory path samples;
+- an already-selected transient trajectory template to activate during the formation stage;
+- exact sprite-mask collision hits already proven by the collision producer.
 
-This is intentional. Phase 4 will replace these inputs with reconstructed actor
-collections as encounter integration proceeds, rather than inventing selection
-or spawn rules early.
+This is intentional. Mutable trajectory lifecycle is now owned by the session, while random/template selection, immutable asset data and opaque-pixel collision detection remain separate producers until their own recovered encounter contracts are integrated. This avoids substituting rectangle collisions or guessed spawn policy for the original behavior.
 
 ## Headless state oracle
 
@@ -113,9 +117,9 @@ same reviewed milestone rather than silently moving the whole-session state.
 
 Not yet session-integrated:
 
-- trajectory-group actor collections and spawn producers;
-- encounter-specific enemy/boss state ownership;
-- collision/destruction dispatch across those collections;
+- the live random/template-selection producer that chooses which inactive trajectory group to activate;
+- exact opaque-pixel collision detection feeding trajectory hit events;
+- encounter-specific non-trajectory enemy/boss state ownership;
 - Drone resolution/encounter transition execution;
 - death-effect/respawn continuity;
 - post-game/results execution;

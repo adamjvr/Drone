@@ -1,6 +1,6 @@
 # Trajectory Group Lifecycle
 
-**Status:** Win32 trajectory-group lifecycle and all 17 fixed startup templates established; special runtime substitutions/whole-frame integration remain in progress.
+**Status:** Win32 trajectory-group lifecycle, all 17 fixed startup templates, the common live transient-wave producer, and clean whole-session ownership/destruction dispatch are established; special-family producers and exact runtime trace parity remain later work.
 
 This document describes the publishable semantic contract recovered from `update_trajectory_groups` at `0x00415FA0`. It records addresses, fields, constants, and behavior without distributing original executable bytes or original FLY payloads.
 
@@ -192,17 +192,23 @@ Evidence-backed helpers live in:
 
 - `include/drone/gameplay/trajectory.hpp`
 - `src/gameplay/trajectory.cpp`
+- `include/drone/gameplay/trajectory_encounter.hpp`
+- `src/gameplay/trajectory_encounter.cpp`
 - `tests/test_gameplay.cpp`
+- `tests/test_trajectory_encounter.cpp`
 
-The implementation covers path-index arithmetic, AUX frame control, the complete 17-template startup catalog, stagger activation, mode-2 retirement, zero-active teardown, breakaway eligibility, 16.16 breakaway movement, off-screen bounds, and breakaway frame direction.
+The implementation covers path-index arithmetic, AUX frame control, the complete 17-template startup catalog, stagger activation, mode-2 retirement, zero-active teardown, breakaway eligibility, 16.16 breakaway movement, off-screen bounds, breakaway frame direction, owned mutable actor/group state, the common live transient-wave activation contract, and proven-hit damage/destruction/score/group teardown. `GameSession` owns this encounter state continuously when immutable path samples are supplied.
 
-## Still open
+## Whole-session integration and remaining boundaries
 
-Phase 2 still needs:
+Phase 4 now owns all 17 groups inside `GameSession`. The established common live producer can activate an already-selected inactive non-primary template as mode 2, reset its fixed slots, activate slot 0 immediately, and then rely on the normal stagger updater for the remaining members. Proven collision hits can be dispatched through the original byte-damage threshold, destruction bursts, signed score award and zero-active group teardown. Mode-2 path completion applies the established negative score event.
 
-- remaining dynamic special-family substitutions/producers beyond the now-cataloged fixed startup templates;
-- broader whole-frame validation tying recovered group transitions to original runtime traces;
-- semantic names for unrelated counters touched by some spawn/activation branches where evidence is still insufficient.
+Still intentionally separate:
+
+- the higher-level random/template-selection policy that chooses which inactive group to activate;
+- exact opaque-pixel collision detection, which must continue to use the extracted sprite mask rather than a rectangle substitute;
+- remaining dynamic special-family substitutions/producers beyond the fixed startup templates;
+- deterministic original-runtime trace comparison, which remains Phase 6.
 
 ## Static combat metadata
 

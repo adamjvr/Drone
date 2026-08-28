@@ -1,7 +1,32 @@
 #include <drone/gameplay/game_session.hpp>
 
+#include <array>
 #include <cassert>
+#include <cstdint>
 #include <iostream>
+#include <vector>
+
+
+namespace {
+
+drone::gameplay::TrajectoryPathCatalogView make_session_trajectory_paths(
+    std::array<std::vector<drone::formats::FlyRecord>, 10>& storage) {
+    for (std::size_t family = 0; family < storage.size(); ++family) {
+        auto& path = storage[family];
+        path.resize(1000);
+        for (std::size_t i = 0; i < path.size(); ++i) {
+            path[i].x = static_cast<std::int16_t>((i + family * 3) % 300);
+            path[i].y = static_cast<std::int16_t>(20 + ((i + family * 5) % 150));
+            path[i].aux = (i % 4 == 0) ? 1 : 0;
+        }
+    }
+
+    drone::gameplay::TrajectoryPathCatalogView view{};
+    for (std::size_t i = 0; i < storage.size(); ++i) view.families[i] = storage[i];
+    return view;
+}
+
+} // namespace
 
 int main() {
     using namespace drone::gameplay;
@@ -164,6 +189,42 @@ int main() {
         (void)step_game_session(session, GameplayInputFrame{}, targets);
         assert(session.encounter.special_weapon.x == 85); // Drone.x + 5
         assert(session.encounter.enemy_bombs.bombs[0].x == 98); // target = probe.x+1=86
+    }
+
+
+    // Phase-4 whole-session integration owns the trajectory collection and can
+    // execute the established formation -> path update -> proven-hit ->
+    // destruction/score path in one logical tick. Group 1 is the canonical
+    // weak LeftDive template (threshold 1, burst 1, score 1).
+    {
+        std::array<std::vector<drone::formats::FlyRecord>, 10> storage{};
+        const auto paths = make_session_trajectory_paths(storage);
+
+        GameSession session{};
+        const TrajectoryHitEvent hit{1, 0, 3};
+        const std::array<TrajectoryHitEvent, 1> hits{hit};
+
+        GameSessionTargetContext targets{};
+        targets.trajectory_paths = &paths;
+        targets.trajectory_spawn_group = 1;
+        targets.trajectory_spawn_x_offset = 7;
+        targets.trajectory_spawn_y_offset = -3;
+        targets.trajectory_hits = hits;
+
+        const auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.advanced);
+        assert(result.trajectory_group_spawned);
+        assert(result.trajectory_actors_destroyed == 1);
+        assert(result.trajectory_groups_retired == 1);
+        assert(result.trajectory_destruction_bursts == 1);
+        assert(result.trajectory_score_delta == 1);
+        assert(session.campaign.score.total == 1);
+        assert(session.campaign.score.extra_life_progress == 1);
+        assert(session.encounter.trajectories.groups[1].lifecycle.mode ==
+               TrajectoryGroupMode::Inactive);
+        assert(session.encounter.trajectories.groups[1].actors[0].activity ==
+               TrajectoryEntityActivity::Inactive);
+        assert(session.encounter.trajectories.active_group_count == 1);
     }
 
     std::cout << "Drone continuous game-session tests passed\n";

@@ -91,7 +91,7 @@
 | fidelity framebuffer | CONFIRMED | indexed 320×200 core-owned contract |
 | world/effect subpass catalog | CONFIRMED Win32 order | 28 evidence-backed subpasses resolve boss composites, direct point particles, Gemini procedural effect, explosion/debris routing and actor/projectile tail before scaled overlays |
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
-| simulation reconstruction | PARTIAL implementation | player, lifecycle, missiles, shield, Probe/Stinger, bombs, scoring/high scores, collision, semantic input/replay, trajectory groups/templates, four-phase scheduler, game-state protocol, world scroll, and objective/encounter mission progression now exist as independently written tested `drone_core` modules |
+| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state plus all 17 trajectory groups and integrates common live wave activation, stagger/path/escape lifecycle and proven-hit destruction/score teardown alongside player, missiles, shield, Probe/Stinger, bombs, cadence and world scroll; non-trajectory encounter/boss ownership remains Phase-4 work |
 
 ## Phase 3 closure / Phase 4 priorities
 
@@ -99,8 +99,8 @@ Phase 3 is complete. The renderer/world architecture now includes the corrected 
 
 Phase 4 priorities are now:
 
-1. Build continuous clean game-session ownership around the recovered subsystem contracts.
-2. Integrate whole-frame player/enemy/projectile/collision/destruction/score/life/mission update flow under the established cadence.
+1. Extend established continuous `GameSession` ownership across the remaining encounter/boss families.
+2. Continue whole-frame integration from the now-owned trajectory wave/destruction path into exact collision producers, non-trajectory actors, mission transitions and lifecycle continuity.
 3. Complete shareware-reachable encounter interactions and death/restart/game-over continuity without pulling retail-only unknowns forward from Phase 8.
 4. Feed the Phase-3 fidelity presentation contracts from clean session state while preserving the simulation/presentation boundary.
 

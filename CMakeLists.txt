@@ -44,6 +44,7 @@ add_library(drone_core
     src/gameplay/boss_progression.cpp
     src/gameplay/trajectory.cpp
     src/gameplay/trajectory_templates.cpp
+    src/gameplay/trajectory_encounter.cpp
     src/gameplay/gameplay_phase.cpp
     src/gameplay/world_scroll.cpp
     src/gameplay/gameplay_update_order.cpp
@@ -107,6 +108,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_game_session_tests tests/test_game_session.cpp)
     target_link_libraries(drone_game_session_tests PRIVATE drone_core)
     add_test(NAME drone_game_session COMMAND drone_game_session_tests)
+
+    add_executable(drone_trajectory_encounter_tests tests/test_trajectory_encounter.cpp)
+    target_link_libraries(drone_trajectory_encounter_tests PRIVATE drone_core)
+    add_test(NAME drone_trajectory_encounter COMMAND drone_trajectory_encounter_tests)
 
     add_executable(drone_fidelity_tests tests/test_fidelity.cpp)
     target_link_libraries(drone_fidelity_tests PRIVATE drone_core)

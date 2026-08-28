@@ -11,11 +11,13 @@
 #include <drone/gameplay/scoring.hpp>
 #include <drone/gameplay/shield.hpp>
 #include <drone/gameplay/special_weapon.hpp>
+#include <drone/gameplay/trajectory_encounter.hpp>
 #include <drone/gameplay/world_scroll.hpp>
 
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 
 namespace drone::gameplay {
 
@@ -44,6 +46,7 @@ struct GameEncounterState {
     SpecialWeaponState special_weapon{};
     EnemyBombPool enemy_bombs{};
     EnemyBombSpawnGate enemy_bomb_spawn_gate{};
+    TrajectoryEncounterState trajectories{};
 
     std::int32_t gameplay_substep_phase = 0;
     std::int32_t world_scroll_row = canonical_world_scroll_initial_row;
@@ -52,6 +55,8 @@ struct GameEncounterState {
 };
 
 struct GameSession {
+    GameSession();
+
     GameState state = GameState::ActiveGameplay;
     GameCampaignState campaign{};
     GameEncounterState encounter{};
@@ -76,6 +81,17 @@ struct GameSessionTargetContext {
     // Bomb redirection has an independently recovered external gate in the
     // original. Keep that gate explicit instead of assigning it a false name.
     bool redirect_bombs_to_attached_probe = false;
+
+    // Phase-4 encounter integration. Asset/path samples remain immutable input;
+    // mutable 17-group lifecycle/actor state lives inside GameSession. A caller
+    // may request one already-selected transient template activation at the
+    // formation stage and provide collision hits detected by the exact sprite-
+    // mask collision layer later in the same logical update.
+    const TrajectoryPathCatalogView* trajectory_paths = nullptr;
+    std::optional<std::uint8_t> trajectory_spawn_group{};
+    std::int16_t trajectory_spawn_x_offset = 0;
+    std::int16_t trajectory_spawn_y_offset = 0;
+    std::span<const TrajectoryHitEvent> trajectory_hits{};
 };
 
 struct GameSessionTickResult {
@@ -88,6 +104,14 @@ struct GameSessionTickResult {
     bool rapid_missile_fired = false;
     std::size_t rapid_missiles_retired = 0;
     std::size_t enemy_bombs_retired = 0;
+
+    bool trajectory_group_spawned = false;
+    std::size_t trajectory_actors_activated = 0;
+    std::size_t trajectory_actors_escaped = 0;
+    std::size_t trajectory_actors_destroyed = 0;
+    std::size_t trajectory_groups_retired = 0;
+    std::uint32_t trajectory_destruction_bursts = 0;
+    std::int32_t trajectory_score_delta = 0;
 
     bool special_loaded = false;
     bool special_cycled = false;
@@ -105,10 +129,11 @@ struct GameSessionTickResult {
 void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 
 // Execute one continuous active-gameplay update using only behavior that has
-// already been recovered and independently tested. The function deliberately
-// does not create enemies, trajectory groups, collisions, Drone resolution or
-// boss transitions yet: those are encounter-system producers integrated by the
-// following Phase-4 milestones.
+// already been recovered and independently tested. Trajectory groups are now
+// continuously owned and advanced when immutable path samples are supplied;
+// transient formation selection and opaque-pixel hit detection remain explicit
+// producers. Drone resolution and boss transitions are integrated by following
+// Phase-4 milestones.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,

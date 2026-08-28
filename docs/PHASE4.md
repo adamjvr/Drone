@@ -26,9 +26,7 @@ Phase 4 begins with:
 ## Current Phase-4 work
 
 1. **Continuous session ownership — ESTABLISHED FIRST CONTRACT** — `GameSession` now separates campaign and encounter state, implements full-vs-encounter reset, and continuously composes the recovered player/weapon/shield/bomb/cadence/scroll/extra-life helpers. A deterministic asset-free 120-update session oracle is under CTest.
-2. **Whole-frame simulation integration — CURRENT** — connect player, projectiles,
-   trajectory enemies, collisions, destruction effects, score/lives, mission
-   progression and encounter transitions under the established logical cadence.
+2. **Whole-frame simulation integration — IN PROGRESS** — the session now owns all 17 trajectory groups, reconstructs the common live mode-2 wave activation/stagger/escape lifecycle, and dispatches proven trajectory hits through damage/destruction/score/group teardown. Random/template selection and opaque-pixel collision detection remain explicit producers while non-trajectory enemies, mission transitions and bosses are integrated.
 3. **Encounter completeness** — fill the remaining shareware-reachable enemy,
    scripted-event and boss interactions required for continuous play while
    keeping registered-only unknowns in Phase 8.
@@ -55,4 +53,4 @@ zero.
 
 ## First Phase-4 integration milestone
 
-The initial `GameSession` contract is documented in [`GAME_SESSION.md`](GAME_SESSION.md). It intentionally leaves encounter-specific actor creation, trajectory collections, collision/destruction dispatch, Drone resolution and post-game continuity to subsequent Phase-4 milestones rather than assigning guessed producer semantics.
+The initial `GameSession` contract is documented in [`GAME_SESSION.md`](GAME_SESSION.md). The next integration milestone adds owned trajectory encounter state and the established common live wave/destruction lifecycle while deliberately leaving template-selection randomness, opaque-pixel hit detection, Drone resolution, boss ownership and post-game continuity to their recovered producers.

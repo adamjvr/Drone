@@ -4,6 +4,10 @@
 
 namespace drone::gameplay {
 
+GameSession::GameSession() {
+    reset_trajectory_encounter(encounter.trajectories);
+}
+
 void reset_game_session(GameSession& session, const GameplaySessionResetScope scope) {
     if (scope == GameplaySessionResetScope::FullCampaign) {
         session.campaign = GameCampaignState{};
@@ -11,6 +15,7 @@ void reset_game_session(GameSession& session, const GameplaySessionResetScope sc
     }
 
     session.encounter = GameEncounterState{};
+    reset_trajectory_encounter(session.encounter.trajectories);
     // Encounter rebuilds reactivate the player entity while preserving the
     // campaign life count. The active flag lives in the older combined helper
     // type, so normalize it here at the session ownership boundary.
@@ -38,6 +43,30 @@ GameSessionTickResult step_game_session(
     encounter.gameplay_substep_phase =
         advance_win32_gameplay_substep_phase(encounter.gameplay_substep_phase);
     const bool animation_tick = is_win32_phase2(encounter.gameplay_substep_phase);
+
+    // The recovered state-2 formation producer runs before trajectory updates.
+    // This milestone keeps random/template selection external but owns the
+    // actual mode-2 activation and all subsequent group/actor lifecycle here.
+    if (targets.trajectory_paths != nullptr && targets.trajectory_spawn_group.has_value()) {
+        result.trajectory_group_spawned = activate_transient_trajectory_group(
+            encounter.trajectories,
+            *targets.trajectory_spawn_group,
+            *targets.trajectory_paths,
+            targets.trajectory_spawn_x_offset,
+            targets.trajectory_spawn_y_offset);
+    }
+
+    if (targets.trajectory_paths != nullptr) {
+        const auto trajectory_result = advance_trajectory_encounter(
+            encounter.trajectories,
+            *targets.trajectory_paths,
+            encounter.gameplay_substep_phase,
+            campaign.score);
+        result.trajectory_actors_activated = trajectory_result.actors_activated;
+        result.trajectory_actors_escaped = trajectory_result.actors_escaped;
+        result.trajectory_groups_retired += trajectory_result.groups_retired;
+        result.trajectory_score_delta += trajectory_result.escape_score_delta;
+    }
 
     // Both recovered cooldown/gate scalars advance once per active state-2
     // update before their producer paths can consume the ready values.
@@ -120,6 +149,18 @@ GameSessionTickResult step_game_session(
         retire_rapid_missiles_above_top(encounter.rapid_missiles);
     result.enemy_bombs_retired =
         retire_enemy_bombs_below_bottom(encounter.enemy_bombs);
+
+    // Collision detection itself still owns the original extracted-frame mask.
+    // Once a hit is proven, destruction/score/group teardown belongs to the
+    // continuously owned trajectory encounter and is dispatched here.
+    for (const auto& hit : targets.trajectory_hits) {
+        const auto hit_result = apply_trajectory_hit(encounter.trajectories, hit, campaign.score);
+        if (!hit_result.destroyed) continue;
+        ++result.trajectory_actors_destroyed;
+        result.trajectory_destruction_bursts += hit_result.destruction_burst_count;
+        result.trajectory_score_delta += hit_result.score_delta;
+        if (hit_result.group_retired) ++result.trajectory_groups_retired;
+    }
 
     encounter.world_scroll_row = advance_gameplay_world_scroll_row(
         encounter.world_scroll_row,
