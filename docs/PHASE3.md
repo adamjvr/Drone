@@ -19,6 +19,8 @@ Already established before Phase 3 begins:
 
 These contracts are inputs to Phase 3, not work to rediscover.
 
+Current reconstruction also includes a detailed evidence-backed decomposition of the old world-sprite batches into boss composites, direct point-particle writes, the Gemini procedural effect, explosion/debris routing, trajectory/projectile/player layers, and late impact sprites; see [`reverse/WORLD_PRESENTATION_SUBPASSES.md`](reverse/WORLD_PRESENTATION_SUBPASSES.md).
+
 ## Current Phase-3 work
 
 1. **Late dynamic-palette classification — COMPLETE.** `Q-RENDER-001` is resolved: the generic and purpose-built palette animators, their initialization state, DirectDraw range-upload primitive, and exact settled phase-sliced upload ranges are clean-tested. See [`reverse/PALETTE_EFFECTS.md`](reverse/PALETTE_EFFECTS.md).

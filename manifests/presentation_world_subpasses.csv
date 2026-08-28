@@ -1,0 +1,29 @@
+order,subpass,primitive,evidence_start,evidence_end,primary_root,fixed_count,asset_or_role,notes
+1,mothership_composite,transparent_sprite_composite,0x004100DD,0x00410230,0x00472598,0,mothership composite,"hole/projectile special branch plus panel/hull/hub/motor/damage ownership"
+2,stinger_entity,transparent_sprite,0x00410233,0x0041024C,0x00434C10,0,stinger.jba,drawn when its common-entity activity state is 1
+3,lid_top_composite,transparent_sprite_composite,0x0041024F,0x0041027D,0x00446E00,0,lid.jba + top.jba,two common entities
+4,registered_boss_slot2,transparent_sprite_composite,0x00410280,0x004102DC,0x00441618,0,unknown registered family,three known component roots
+5,spidey_composite,transparent_sprite_composite,0x004102DF,0x0041033B,0x004402D0,0,Spidey family,three component sprite roots under active owner
+6,bomber_composite,transparent_sprite_composite,0x0041033E,0x004103B6,0x00464BE8,0,Bomber family,four component sprite roots under active owner
+7,paired_fixed_actor_pool,transparent_sprite_pool,0x004103B9,0x0041043C,0x0047E288,6,unknown paired family,"paired roots 0x47E288 and 0x43F5F8; descending active-slot loop"
+8,point_particle_bank,fixed_point_pixel_particles,0x0041043E,0x0041049B,0x00434D80,650,direct palette-index particles,0x18 records; +0x14 visual code +0x15 active
+9,drone,transparent_sprite,0x0041049D,0x004104B7,0x00446080,0,drone.jba,drawn when Drone activity == 1
+10,flare,transparent_sprite,0x004104B7,0x004104D4,0x00440E00,0,flare.jba,conditional common entity
+11,chute,transparent_sprite,0x004104D7,0x004104F0,0x0045BDA8,0,chute0/1/2.jba,conditional common entity
+12,special_projectile,transparent_sprite,0x004104F3,0x00410511,0x0045A148,0,Probe/Stinger projectile,drawn for nonzero state except state 4
+13,gemini_procedural_beam,procedural_framebuffer_effect,0x00410514,0x004107AE,0x00467538,0,Gemini inter-head effect,"random band plus conditional locked-surface effect; not an ordinary sprite batch"
+14,gemini_body_head_a,transparent_sprite_composite,0x004107AE,0x004107DB,0x00467538,0,gemini body/head A,body then head
+15,gemini_body_head_b,transparent_sprite_composite,0x004107DE,0x0041080C,0x00467690,0,gemini body/head B,body then head
+16,miniexp1_unscaled,transparent_sprite_pool,0x0041080F,0x00410864,0x00480318,0,miniexp1.jba,only active members with family flag +0x14E == 0
+17,explode1_unscaled,transparent_sprite_pool,0x00410866,0x004108BB,0x00446FC8,0,explode1.jba,only active members with family flag +0x14E == 0
+18,debris_particle_pixels,direct_pixel_effect,0x004108BD,0x004108BD,0x00000000,0,debris particle groups,0x00402CA0 direct pixel renderer
+19,sprite_debris_triplet,transparent_sprite_pool,0x004108C2,0x00410974,0x0042FCA0,15,junk1/junk2/wheel,"for each slot: junk1 then junk2 then wheel"
+20,drone_detonation_radial_noise,direct_pixel_effect,0x0041097A,0x004109CE,0x00000000,0,Drone detonation,0x0041EBE0 called once or twice by detonation tick
+21,retro_sprite_a,transparent_sprite,0x004109D1,0x00410A11,0x004673E0,0,retro.jba,12-frame phase-animated singleton
+22,retro_sprite_b,transparent_sprite,0x00410A14,0x00410A53,0x00438C80,0,retro.jba,12-frame phase-animated singleton
+23,trajectory_groups,trajectory_entity_batch,0x00410A56,0x00410AEB,0x00495CF0,17,trajectory-group entities,active groups then active inline entities
+24,rapid_missiles,transparent_sprite_pool,0x00410AF1,0x00410B3C,0x0042F200,0,missile.jba,runtime-counted pool
+25,enemy_bombs,transparent_sprite_pool,0x00410B3E,0x00410B89,0x004651A0,0,bomb.jba,runtime-counted pool
+26,player,transparent_sprite,0x00410B8B,0x00410BA5,0x00466B18,0,ship.jba,drawn when active
+27,player_destruction_explosion,transparent_sprite,0x00410BA8,0x00410BC1,0x00491CE0,0,shared explode1 frames,frame pointer table copied from explode1 source entity
+28,secondary_impact_sprite_pool,transparent_sprite_pool,0x00410BC4,0x00410C0B,0x004605A0,15,asset source unresolved,many boss/effect producers; do not conflate with miniexp1 pool

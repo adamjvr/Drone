@@ -3,6 +3,7 @@
 #include <drone/fidelity/hud_presentation.hpp>
 #include <drone/fidelity/palette_effects.hpp>
 #include <drone/fidelity/presentation_order.hpp>
+#include <drone/fidelity/world_presentation_subpasses.hpp>
 
 #include <cassert>
 #include <cstdint>
@@ -305,6 +306,89 @@ int main() {
         assert(!order[11].conditional); // shield meter is always invoked
         assert(!order[16].conditional); // some upload range is always emitted
         assert(!order[17].conditional);
+    }
+
+
+    {
+        const auto& subpasses = canonical_win32_world_presentation_subpasses();
+        assert(subpasses.size() == canonical_win32_world_presentation_subpass_count);
+        assert(subpasses.front().subpass == WorldPresentationSubpass::MothershipComposite);
+        assert(subpasses.back().subpass == WorldPresentationSubpass::SecondaryImpactSpritePool);
+
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::MothershipComposite,
+            WorldPresentationSubpass::PointParticleBank));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::SpecialProjectile,
+            WorldPresentationSubpass::GeminiProceduralBeam));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::GeminiProceduralBeam,
+            WorldPresentationSubpass::GeminiBodyHeadA));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::MiniExplosionUnscaled,
+            WorldPresentationSubpass::DebrisParticlePixels));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::DebrisParticlePixels,
+            WorldPresentationSubpass::SpriteDebrisTriplet));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::SpriteDebrisTriplet,
+            WorldPresentationSubpass::DroneDetonationRadialNoise));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::RetroSpriteA,
+            WorldPresentationSubpass::TrajectoryGroups));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::TrajectoryGroups,
+            WorldPresentationSubpass::RapidMissilePool));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::RapidMissilePool,
+            WorldPresentationSubpass::EnemyBombPool));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::EnemyBombPool,
+            WorldPresentationSubpass::Player));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::Player,
+            WorldPresentationSubpass::PlayerDestructionExplosion));
+        assert(canonical_win32_world_presentation_precedes(
+            WorldPresentationSubpass::PlayerDestructionExplosion,
+            WorldPresentationSubpass::SecondaryImpactSpritePool));
+
+        const auto* particles = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::PointParticleBank);
+        assert(particles != nullptr);
+        assert(particles->primitive == WorldPresentationPrimitive::FixedPointPixelParticles);
+        assert(particles->primary_root == 0x00434D80u);
+        assert(particles->fixed_element_count == 650);
+
+        const auto* debris = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::SpriteDebrisTriplet);
+        assert(debris != nullptr);
+        assert(debris->primary_root == 0x0042FCA0u);
+        assert(debris->fixed_element_count == 15);
+
+        const auto* flare = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::Flare);
+        const auto* chute = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::Chute);
+        const auto* stinger = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::StingerEntity);
+        assert(flare && flare->primary_root == 0x00440E00u);
+        assert(chute && chute->primary_root == 0x0045BDA8u);
+        assert(stinger && stinger->primary_root == 0x00434C10u);
+
+        const auto* retro_a = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::RetroSpriteA);
+        const auto* retro_b = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::RetroSpriteB);
+        assert(retro_a && retro_a->primary_root == 0x004673E0u);
+        assert(retro_b && retro_b->primary_root == 0x00438C80u);
+
+        const auto* destruction = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::PlayerDestructionExplosion);
+        assert(destruction && destruction->primary_root == 0x00491CE0u);
+        const auto* secondary = canonical_win32_world_presentation_descriptor(
+            WorldPresentationSubpass::SecondaryImpactSpritePool);
+        assert(secondary && secondary->primary_root == 0x004605A0u);
+        assert(secondary->fixed_element_count == 15);
     }
 
 

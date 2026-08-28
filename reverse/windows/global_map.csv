@@ -129,3 +129,15 @@ address,provisional_name,confidence,notes
 0x004666E8,special_target_reticle_entity,high,17x13 target.jba common entity; state-2 centers on Probe/Stinger selected target and clamps to x 0..301 / y 0..185 with original edge quirk
 0x0045A17A,special_miss_status_timer,high,16-bit presentation timer; state0 HUD shows MISS while <110 and increments; miss/out-of-bounds path resets 0; suppression paths write 110
 0x0045A17C,special_disarmed_status_timer,high,16-bit presentation timer; DISARMING writes 1; completed state2 HUD shows DISARMED! while <200 and increments
+0x00434D80,point_particle_bank,high,650 x 0x18 fixed-point point-particle records; +0x14 palette code and +0x15 active byte; rendered directly into software framebuffer
+0x0042B1A0,point_particle_capacity,high,initialized to 650 (0x28A); bounds free-slot scans and state-2 render loop
+0x004D95F0,point_particle_active_count,high,live count for 0x00434D80 bank; reset at gameplay-session initialization
+0x00434C10,stinger_display_entity,high,six-frame stinger.jba common entity; late world presentation before Lid/Top composite
+0x00440E00,flare_entity,high,12-frame flare.jba common entity; rendered after Drone when active
+0x0045BDA8,chute_entity,high,chute0/chute1/chute2 frame bank; rendered after flare when active
+0x004673E0,retro_sprite_a,high,first 12-frame retro.jba singleton; state-2 phase-gated frame counter
+0x00438C80,retro_sprite_b,high,second 12-frame retro.jba singleton; state-2 phase-gated frame counter
+0x00491CE0,player_destruction_explosion_entity,high,player-destruction singleton sharing explode1 frame pointers; rendered immediately after player
+0x004605A0,secondary_impact_sprite_pool,medium,15 common entities with established update/render lifecycle; exact frame-source ownership open
+0x0047E288,paired_fixed_actor_pool_a,medium,six-record paired fixed actor family; identity open; rendered A then paired B per active slot
+0x0043F5F8,paired_fixed_actor_pool_b,medium,six-record paired fixed actor family; identity open; paired with 0x0047E288

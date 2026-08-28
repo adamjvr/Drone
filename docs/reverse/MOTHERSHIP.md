@@ -145,3 +145,24 @@ See [`DRONE_OUTCOMES.md`](DRONE_OUTCOMES.md).
 - whether any shareware-accessible state can enter the full encounter despite the README's registered-game description.
 
 These remain tracked in `Q-MSHIP-001` and the structure/function ledgers.
+
+## Presentation ownership
+
+The ordinary state-2 presentation tail renders the Mothership composite first
+after world-viewport composition (`0x004100DD..0x00410230`). The recovered
+component ownership is:
+
+- hull entity `0x0043FE68` — `hull0.jba`..`hull3.jba`;
+- panel entity `0x00446C90` — `panel0.jba`..`panel3.jba`;
+- damage entities `0x00472848` / `0x004726F0` — `damage0.jba` / `damage1.jba`;
+- hub entity `0x00440120` — `hub.jba`;
+- motor entities `0x00491A00` / `0x00491B58` — shared `motor.jba` frames;
+- hole entity `0x00433700` — `hole.jba`;
+- central collision/core owner `0x00472598`.
+
+When special state `0x0045A28A == 4`, the hole and special projectile are drawn
+before the normal component composite. Otherwise hole visibility and the
+panel/hull/hub/motor-versus-damage choices follow their component activity
+states. The central core target itself is collision/state ownership and is not
+simply another unconditional ordinary sprite at this call site. See
+[`WORLD_PRESENTATION_SUBPASSES.md`](WORLD_PRESENTATION_SUBPASSES.md).

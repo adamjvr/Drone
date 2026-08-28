@@ -206,6 +206,18 @@ globals_ = {
     0x0042B1B0: "drone_detonation_tick",
     0x004603A0: "drone_detonation_center_x",
     0x004603A4: "drone_detonation_center_y",
+    0x00434D80: "point_particle_bank",
+    0x0042B1A0: "point_particle_capacity",
+    0x004D95F0: "point_particle_active_count",
+    0x00434C10: "stinger_display_entity",
+    0x00440E00: "flare_entity",
+    0x0045BDA8: "chute_entity",
+    0x004673E0: "retro_sprite_a",
+    0x00438C80: "retro_sprite_b",
+    0x00491CE0: "player_destruction_explosion_entity",
+    0x004605A0: "secondary_impact_sprite_pool",
+    0x0047E288: "paired_fixed_actor_pool_a",
+    0x0043F5F8: "paired_fixed_actor_pool_b",
 }
 for addr,name in labels.items():
     a=toAddr(addr); f=getFunctionAt(a)

@@ -79,12 +79,13 @@
 | FLY parser | CONFIRMED physical behavior | explicit counted/raw APIs; known loader counts; mismatch-safe behavior |
 | demo DAT parser/replay adapter | CONFIRMED core semantics | raw records preserved; original byte/word narrowing reproduced; named control/trajectory/bomb/Drone checkpoints exposed |
 | fidelity framebuffer | CONFIRMED | indexed 320×200 core-owned contract |
+| world/effect subpass catalog | CONFIRMED Win32 order | 28 evidence-backed subpasses resolve boss composites, direct point particles, Gemini procedural effect, explosion/debris routing and actor/projectile tail before scaled overlays |
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
 | simulation reconstruction | PARTIAL implementation | player, lifecycle, missiles, shield, Probe/Stinger, bombs, scoring/high scores, collision, semantic input/replay, trajectory groups/templates, four-phase scheduler, game-state protocol, world scroll, and objective/encounter mission progression now exist as independently written tested `drone_core` modules |
 
 ## Phase 3 current priorities
 
-1. Refine ownership inside the earlier world-sprite/effect batches and complete remaining procedural presentation helpers; the late HUD contract is now explicit and clean-tested.
+1. Continue Phase-3 renderer/world closure from the now-recovered 28-subpass world/effect catalog; remaining work is limited to finer scaled/special ownership and original-runtime framebuffer evidence rather than opaque A/B/C sprite batches.
 2. Acquire lawful original-runtime framebuffer captures and use the completed `DRONEFB1`/region-hash tooling to localize discrepancies.
 3. Continue validating the shared presentation contracts through native fidelity hosts without coupling them to platform-specific graphics APIs.
 4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.

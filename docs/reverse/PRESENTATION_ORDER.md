@@ -30,21 +30,26 @@ final `0x004115A5` framebuffer present, the canonical Win32 path is:
 | 17 | phase-sliced or full palette upload | `0x004114F6..0x00411556` | host palette |
 | 18 | software-framebuffer present | `0x004115A5` | host surface |
 
-## Why the sprite batches remain batches
+## Detailed world/effect ownership
 
-The state-2 renderer contains dozens of conditional `0x00401660` calls for
-trajectory members, bosses, the player, Drone, projectiles and effect sprites.
-Many individual roots are already named, but Phase 3 does not need to invent a
-single universal "scene graph" before every conditional root has complete
-ownership semantics. The important compositor fact is already exact: debris
-particles and Drone detonation noise are inserted **between** specific ordinary
-sprite spans, scaled overlays come after those spans, and HUD/shield content is
-painted after world actors/effects.
+The original three coarse sprite-span labels remain in the stable 18-pass outer
+contract, but Phase 3 now has a finer evidence-backed decomposition of the
+world/effect work they contain. In particular, the first span mixes ordinary
+transparent sprites with a 650-record fixed-point point-particle bank and the
+Gemini procedural surface effect, so treating it as one homogeneous sprite
+batch would be inaccurate.
 
-This ordering matters because all of these paths mutate the same indexed
-320x200 framebuffer and palette index zero is transparent for the sprite
-blitters. Reordering them changes visible occlusion even when simulation state
-is identical.
+The detailed order is recorded in
+[`WORLD_PRESENTATION_SUBPASSES.md`](WORLD_PRESENTATION_SUBPASSES.md) and in the
+portable `canonical_win32_world_presentation_subpasses()` catalog. The recovered
+ordering includes fixed boss composites, Drone/flare/chute/special-projectile
+sprites, Gemini procedural work, unscaled explosion pools, direct particle
+pixels, the interleaved junk1/junk2/wheel loop, Drone detonation noise,
+retro/trajectory/projectile/player layers, and the late 15-slot impact pool.
+
+This refinement does **not** replace the outer 18-pass contract. It nests inside
+the existing framebuffer stages so callers can reason at either level without
+copying original globals into the clean renderer.
 
 ## Late HUD ordering
 

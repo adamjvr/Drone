@@ -20,3 +20,7 @@ Phase 2 has added several high-confidence anchors to the durable function/struct
 ## Dynamic palette cluster
 
 Phase 3 classifies `0x004011E0` as the inclusive DirectDraw palette-range upload wrapper, `0x00403490` as the generic gameplay palette animator, and `0x0041EFE0` / `0x0041EE90` as the purpose-built gameplay palette-band initializer/updater. Exact ranges and clean semantic implementations are documented in [`../../docs/reverse/PALETTE_EFFECTS.md`](../../docs/reverse/PALETTE_EFFECTS.md).
+
+## Phase 3 renderer ownership
+
+The state-2 world/effect paint tail now has a 28-subpass evidence catalog covering fixed boss composites, point particles, Gemini procedural work, explosion/debris routing, and trajectory/projectile/player ordering. See [`../../docs/reverse/WORLD_PRESENTATION_SUBPASSES.md`](../../docs/reverse/WORLD_PRESENTATION_SUBPASSES.md).
