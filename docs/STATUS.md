@@ -34,6 +34,7 @@
 | explosion/effects cluster | CONFIRMED core debris lifecycle | mini/large/composite emitters and sound variants mapped; 0x18 particle groups plus secondary bank have motion/gravity/lifetime/teardown rules clean-tested; three 15-entry sprite-debris pools identified as junk1/junk2/wheel and their shared updater recovered |
 | native fidelity framebuffer | CONFIRMED | clean 320×200 indexed buffer + palette/RGBA conversion |
 | dynamic Win32 palette effects | CONFIRMED | `0x004011E0` inclusive DirectDraw uploads; generic `0x00403490`; purpose-built `0x0041EFE0`/`0x0041EE90` bands; exact settled four-phase upload ranges clean-tested |
+| gameplay HUD presentation | CONFIRMED | score/lives FONT2 anchors, six-Drone mini-probe outcome strip, Probe/Stinger status protocol/target reticle clamps, and exact 4-pixel shield-meter geometry/color bands are recovered and clean-tested |
 | player reconstruction | CONFIRMED core slice | player root `0x00466B18`; 22x22/15-frame ship bank, Left/Right + A/Z motion, exact bounds and banking mapped; lives are deferred until death settlement; 3-life init, respawn and game-over transition are clean-tested |
 | gameplay input aggregation | CONFIRMED semantic boundary | Win32 keyboard + normalized DirectInput joystick, DOS keyboard/game-port convergence, exact six-channel demo replacement, live vertical overlay and portable `GameplayInputFrame` are recovered and clean-tested |
 | rapid-fire missiles | CONFIRMED core slice | Ctrl path; 8-slot 1x9 pool, 3 frames, cooldown/spawn/update/top cleanup, missile.wav voice pool and rendering chain mapped; clean module tested |
@@ -83,9 +84,9 @@
 
 ## Phase 3 current priorities
 
-1. Refine per-actor HUD/effect ownership and begin framebuffer fixtures; the ordinary 18-pass state-2 presentation order is now explicit, and `Q-RENDER-001` / `Q-JBA-002` are resolved.
-2. Add reference framebuffer capture/comparison fixtures around the recovered 320×200 indexed + dynamic-palette pipeline.
-3. Validate the shared presentation contracts through the native fidelity host without coupling them to platform-specific graphics APIs.
+1. Refine ownership inside the earlier world-sprite/effect batches and complete remaining procedural presentation helpers; the late HUD contract is now explicit and clean-tested.
+2. Acquire lawful original-runtime framebuffer captures and use the completed `DRONEFB1`/region-hash tooling to localize discrepancies.
+3. Continue validating the shared presentation contracts through native fidelity hosts without coupling them to platform-specific graphics APIs.
 4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.
 
 The supplied evidence set remains shareware. Full seven-level parity eventually requires a lawful full-game reference copy; missing retail behavior must not be invented.

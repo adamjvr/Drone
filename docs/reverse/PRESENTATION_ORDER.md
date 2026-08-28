@@ -48,7 +48,7 @@ is identical.
 
 ## Late HUD ordering
 
-The recovered tail also establishes useful HUD precedence:
+The recovered tail also establishes useful HUD precedence. Exact geometry, text/timer semantics, reticle clamping, and shield-meter colors are reconstructed in [`HUD_PRESENTATION.md`](HUD_PRESENTATION.md):
 
 ```text
 score/lives text

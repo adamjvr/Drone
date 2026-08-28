@@ -16,6 +16,7 @@ add_library(drone_core
     src/fidelity/indexed_framebuffer.cpp
     src/fidelity/framebuffer_snapshot.cpp
     src/fidelity/host_capture.cpp
+    src/fidelity/hud_presentation.cpp
     src/fidelity/sprite_sheet.cpp
     src/fidelity/sprite_blit.cpp
     src/fidelity/font2.cpp

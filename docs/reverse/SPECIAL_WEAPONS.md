@@ -236,3 +236,8 @@ The clean module currently implements only behavior with direct evidence:
 - state-10 -> state-0 terminal settlement.
 
 It intentionally does **not** yet encode the complete Mothership subassembly/core state machine reached through the state-4 path, enemy target priority, the full Probe decode/disarm status machine, or difficulty timing in wall-clock units. Those remain active reverse-engineering targets.
+
+
+## Presentation cross-reference
+
+The exact late-gameplay HUD geometry and presentation-only status/meter behavior are documented in [`HUD_PRESENTATION.md`](HUD_PRESENTATION.md).

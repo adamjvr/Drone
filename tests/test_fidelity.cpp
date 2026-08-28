@@ -1,5 +1,6 @@
 #include <drone/fidelity/framebuffer_snapshot.hpp>
 #include <drone/fidelity/host_capture.hpp>
+#include <drone/fidelity/hud_presentation.hpp>
 #include <drone/fidelity/palette_effects.hpp>
 #include <drone/fidelity/presentation_order.hpp>
 
@@ -191,6 +192,76 @@ int main() {
             rejected = true;
         }
         assert(rejected);
+    }
+
+    {
+        assert(score_text_placement(0).x == 309);
+        assert(score_text_placement(9).x == 309);
+        assert(score_text_placement(10).x == 301);
+        assert(score_text_placement(99).x == 301);
+        assert(score_text_placement(100).x == 293);
+        assert(score_text_placement(999).x == 293);
+        assert(score_text_placement(1000).x == 285);
+        assert(score_text_placement(9998).x == 285);
+        assert(score_text_placement(42).y == 190);
+        assert(score_text_placement(42).palette_index == 28);
+        assert(lives_text_placement().x == 309);
+        assert(lives_text_placement().y == 180);
+
+        const auto markers = plan_drone_outcome_markers({0, 1, 2, 3, 0, 1});
+        assert(!markers[0].visible && markers[0].x == 3 && markers[0].y == 160);
+        assert(markers[1].visible && markers[1].frame_index == 0 && markers[1].y == 141);
+        assert(markers[2].visible && markers[2].frame_index == 1 && markers[2].y == 122);
+        assert(markers[3].visible && markers[3].frame_index == 2 && markers[3].y == 103);
+        assert(!markers[4].visible && markers[4].y == 84);
+        assert(markers[5].visible && markers[5].frame_index == 0 && markers[5].y == 65);
+
+        SpecialWeaponHudTimers timers{};
+        auto miss = plan_special_weapon_status({.activity_state = 0}, timers);
+        assert(miss.visible && miss.status == SpecialWeaponHudStatus::Miss && miss.text == "MISS");
+        assert(miss.next_timers.miss_hold == 1);
+        timers.miss_hold = 110;
+        assert(!plan_special_weapon_status({.activity_state = 0}, timers).visible);
+
+        auto ready = plan_special_weapon_status({.activity_state = 1}, {});
+        assert(ready.visible && ready.text == "READY" && ready.placement.x == 5 && ready.placement.y == 190);
+        auto seeking = plan_special_weapon_status({.activity_state = 3}, {});
+        assert(seeking.visible && seeking.text == "SEEKING");
+
+        SpecialWeaponHudInputs decode{
+            .activity_state = 2,
+            .decode_phase1_elapsed = 2,
+            .decode_phase1_threshold = 10,
+            .decode_phase2_elapsed = 0,
+            .decode_phase2_threshold = 10,
+        };
+        auto decoding = plan_special_weapon_status(decode, {});
+        assert(decoding.visible && decoding.text == "DECODING");
+        decode.decode_phase1_elapsed = 10;
+        decode.decode_phase2_elapsed = 2;
+        auto disarming = plan_special_weapon_status(decode, {.miss_hold = 0, .disarmed_hold = 77});
+        assert(disarming.visible && disarming.text == "DISARMING");
+        assert(disarming.next_timers.disarmed_hold == 1);
+        decode.decode_phase2_elapsed = 10;
+        auto disarmed = plan_special_weapon_status(decode, {.miss_hold = 0, .disarmed_hold = 1});
+        assert(disarmed.visible && disarmed.text == "DISARMED!");
+        assert(disarmed.placement.palette_index == 57);
+        assert(disarmed.next_timers.disarmed_hold == 2);
+        assert(!plan_special_weapon_status(decode, {.miss_hold = 0, .disarmed_hold = 200}).visible);
+
+        assert((special_target_reticle_placement({100, 80, 20, 10}) == ReticlePlacement{102, 77}));
+        assert((special_target_reticle_placement({-50, -50, 10, 10}) == ReticlePlacement{0, 0}));
+        assert((special_target_reticle_placement({315, 195, 20, 20}) == ReticlePlacement{301, 185}));
+
+        const auto shield = plan_shield_meter_rows(75);
+        assert(shield[0].x == 313 && shield[0].y == 138 && shield[0].width == 4 && shield[0].palette_index == 27);
+        assert(shield[10].y == 128 && shield[10].palette_index == 27);
+        assert(shield[11].y == 127 && shield[11].palette_index == 57);
+        assert(shield[25].palette_index == 57);
+        assert(shield[26].palette_index == 28);
+        assert(shield[74].y == 64 && shield[74].palette_index == 28);
+        const auto empty_shield = plan_shield_meter_rows(-5);
+        assert(empty_shield[0].width == 0);
     }
 
     {
