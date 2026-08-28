@@ -25,6 +25,12 @@ enum class TrajectoryPathFamily : std::uint8_t {
     Generated422,
 };
 
+struct TrajectoryCombatProfile {
+    std::uint8_t destruction_threshold{};
+    std::uint8_t destruction_burst_count{};
+    std::int8_t score_value{};
+};
+
 struct TrajectoryFormationSlotTemplate {
     std::int16_t initial_path_index{};
     std::int16_t x_offset{};
@@ -56,6 +62,7 @@ struct TrajectoryGroupTemplate {
     std::int16_t sprite_width{};
     std::int16_t sprite_height{};
     std::uint8_t frame_count{};
+    TrajectoryCombatProfile combat{};
     TrajectoryEntityActivity initial_activity{TrajectoryEntityActivity::Inactive};
 
     // sprite_entity_init does not establish common-entity +0x36. Only the

@@ -57,7 +57,7 @@ High-confidence fields now include:
 
 The transparent blitter treats palette index `0` as transparent. Its right-edge clip branch uses the original literal-319 quirk documented in `reverse/FRAMEBUFFER_PIPELINE.md`; the framebuffer-height global is initialized to 200.
 
-DOS code independently contains a heavily used `0x14F`-byte object family with aligned early fields (`+0`, `+4`, `+0x10`, `+0x14`) and a state-like tail. This is a strong correspondence candidate, not yet a declaration that the complete layouts are identical.
+DOS `0x00068220` initializes the corresponding `0x14F` entity family; `0x000682D0` releases its frames and `0x00068300` renders it. Collision/destruction consumers establish a field-level correspondence with Win32 `0x154`: the DOS frame table starts at `+0x3E` versus Win32 `+0x40`, later frame/status/tail fields stay two bytes earlier, and Win32 adds three unreferenced tail bytes. Damage/threshold and destruction-burst/score metadata correspond exactly. See `docs/reverse/ENTITY_LAYOUT.md`.
 
 
 ### Sprite-sheet extraction and clean blitter
@@ -189,11 +189,17 @@ The registered-game Mothership sequence is now present as executable-backed arch
 
 The former critical `Q-ENTITY-001` is resolved as a Phase 1 classification artifact rather than simulation debt. Win32 `0x00401470` builds 64 × `0x14` FONT2 glyph descriptors at `0x00466C90`; DOS `0x000809B0` independently builds the same descriptor/cache at data offset `0x6F80`. Both use 16×4 cells, 7×5 masks, `character-0x20` indexing, and a pointer at `+0x10` to a `width*height+1` allocation. Clean `fidelity/font2.*` code models the safe semantic layout and extraction contract. See `docs/reverse/BITMAP_FONT.md`.
 
+## Common entity-layout checkpoint
+
+`Q-ENTITY-002` is resolved for simulation architecture. Win32 `0x154` and DOS `0x14F` common sprite/entities now have an established field-level lifecycle correspondence across constructor, transparent blitter, frame release, collision, destruction and score handling. The common combat bytes are `+0x30` accumulated damage and `+0x31` destruction threshold; Win32 common destructibles use `+0x14F` destruction-burst count and signed `+0x150` score value, corresponding to DOS `+0x14D/+0x14E`. Both records preserve an unreferenced 128-byte block between their 32-frame pointer table and current-frame byte.
+
+The clean engine intentionally does not copy either packed structure. Contextual offsets such as trajectory breakaway accumulators, boss destruction counter `+0x34`, and family flag Win32 `+0x14E` / DOS `+0x14C` stay in subsystem-specific semantic state. The 17 fixed trajectory templates now also carry their exact recovered damage threshold, destruction-burst count and score value. See `docs/reverse/ENTITY_LAYOUT.md`.
+
 ## Important unresolved work inside Phase 2
 
 - preserve the established ~70.0863 Hz DOS fidelity scheduler while treating the Win32 QPC wall-clock cadence as a separate nonblocking historical-port question;
 - continue partitioning the state-2 Win32 gameplay orchestrator into named subsystems and whole-frame sequencing;
-- determine the remaining `0x154` object fields and which gameplay object families share/extend the layout;
+- keep family-specific overlays of the now-established Win32 `0x154` / DOS `0x14F` entity correspondence inside their owning gameplay subsystems rather than introducing a raw packed core ABI;
 - finish dynamic special-family trajectory substitutions/producers and their whole-frame integration beyond the now-resolved 17-template startup catalog, group lifecycle, normal AUX/path cycle, and harmless `Rightdiv.fly` / `Swarm.fly` short-loader-slot quirks;
 - integrate the now-resolved semantic `GameplayInputFrame` boundary into increasingly complete whole-frame simulation; physical DOS/DirectInput details remain host archaeology rather than core ABI;
 - continue outward from the reconstructed player/projectile/lifecycle slices into enemy, encounter-transition, registered-level, and results behavior; the shareware scenery scroll cadence itself is now established;

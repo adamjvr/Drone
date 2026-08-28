@@ -71,7 +71,7 @@ Still open:
 
 Win32 `0x00401780` initializes a common `0x154`-byte object and `0x00401820` releases its frame allocations. The same object participates in trajectory groups and many gameplay loops.
 
-DOS has a heavily used `0x14F`-byte family with a compatible early-field prefix; correspondence is under active reconstruction.
+DOS has the corresponding `0x14F`-byte family initialized at `0x00068220`. Init/free/blit/collision/destruction evidence establishes a field-level correspondence, including the two-byte pre-frame-table layout shift and tail combat metadata. See `ENTITY_LAYOUT.md`.
 
 See [`STRUCTURE_RECOVERY.md`](STRUCTURE_RECOVERY.md) and [`COLLISION.md`](COLLISION.md).
 

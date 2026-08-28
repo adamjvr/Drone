@@ -1,23 +1,72 @@
 structure_id,offset,width,signedness,provisional_name,confidence,status,evidence
+DOS-STRUCT-001,0x00,4,signed,x,high,established,FONT2 cache init stores source X; text renderer overwrites with destination X
+DOS-STRUCT-001,0x04,4,signed,y,high,established,FONT2 cache init stores source Y; text renderer overwrites with destination Y
+DOS-STRUCT-001,0x08,4,signed,width,high,established,Both builds initialize every descriptor to glyph width 7
+DOS-STRUCT-001,0x0C,4,signed,height,high,established,Both builds initialize every descriptor to glyph height 5
+DOS-STRUCT-001,0x10,4,pointer,mask_pixels,high,established,Allocation helper stores width*height+1 buffer; extractor writes 35 meaningful mask bytes
+DOS-STRUCT-002,0x00,4,signed,position_x,high,established,0x00068220 initializer and 0x00068300 transparent blitter
+DOS-STRUCT-002,0x04,4,signed,position_y,high,established,0x00068220 initializer and 0x00068300 transparent blitter
+DOS-STRUCT-002,0x10,4,signed,velocity_x,high,established,0x00068220 clears field; gameplay/effect paths consume same early-prefix semantics
+DOS-STRUCT-002,0x14,4,signed,velocity_y,high,established,0x00068220 clears field; gameplay/effect paths consume same early-prefix semantics
+DOS-STRUCT-002,0x18,2,signed,trajectory_x_offset,high,partial,0x00068220 clears field; cross-build trajectory layout matches Win32 early prefix
+DOS-STRUCT-002,0x1A,2,signed,trajectory_y_offset,high,partial,0x00068220 clears field; cross-build trajectory layout matches Win32 early prefix
+DOS-STRUCT-002,0x20,2,signed,sprite_width,high,established,0x00068220 writes width; 0x00068300 reads via overlapping DWORD/shift codegen
+DOS-STRUCT-002,0x22,2,signed,sprite_height,high,established,0x00068220 writes height; 0x00068300 reads via overlapping DWORD/shift codegen
+DOS-STRUCT-002,0x28,2,signed,collision_width_extent,high,established,0x00068220 computes collision extent using same 0.85 rule family; collision consumers align
+DOS-STRUCT-002,0x2A,2,signed,collision_height_extent,high,established,0x00068220 computes collision extent using same 0.85 rule family; collision consumers align
+DOS-STRUCT-002,0x30,1,unsigned byte,damage_accumulator,high,established,0x0007F82B adds 3 and compares to +0x31 before destruction
+DOS-STRUCT-002,0x31,1,unsigned byte,destruction_threshold,high,established,0x0007F83B reads threshold and compares against +0x30 accumulated damage
+DOS-STRUCT-002,0x32,2,signed,trajectory_index_or_object_param_32,high,partial,0x00068220 initializes from argument at same semantic point as Win32 +0x32
+DOS-STRUCT-002,0x38,2,signed,trajectory_end_index_or_object_param_38,high,partial,0x00068220 initializes from argument at same semantic point as Win32 +0x38
+DOS-STRUCT-002,0x3E,0x80,pointer array,frame_pixels_32,high,established,0x000682D0 frees 32-bit frame pointers from +0x3E; 0x00068300 selects by current frame
+DOS-STRUCT-002,0xBE,0x80,opaque bytes,reserved_unreferenced_block_be_13d,high,established,no canonical direct consumer found; same 128-byte preserved gap as Win32 +0xC0..+0x13F
+DOS-STRUCT-002,0x13E,1,signed/byte,current_frame,high,established,0x000683C5 loads DWORD +0x13B then arithmetic-shifts 24 to select frame pointer at +0x3E
+DOS-STRUCT-002,0x13F,1,signed/byte,frame_count,high,established,0x000682D0 uses +0x13F as frame-release iteration bound
+DOS-STRUCT-002,0x140,1,byte enum,activity_state,high,established,0x0007F806 gates collision on +0x140 and destruction clears it
+DOS-STRUCT-002,0x141,1,byte flag,out_of_bounds_flag,high,established,runtime effect/object paths toggle +0x141 in the same structural position as Win32 +0x143
+DOS-STRUCT-002,0x14A,2,word,legacy_initializer_word,high,established,0x00068257 initializes to 1; no live canonical direct consumer found
+DOS-STRUCT-002,0x14C,1,byte enum/flag,family_flag_14c,high,partial,special-object/effect-family use corresponds to Win32 contextual +0x14E
+DOS-STRUCT-002,0x14D,1,unsigned byte,destruction_burst_count,high,established,0x0007F86C branches on ==1 and 0x0007F95F loops until emitted count reaches +0x14D
+DOS-STRUCT-002,0x14E,1,byte (observed zero-extended),score_value,high,established,0x0007F97B loads byte after clearing EAX and adds it to both DOS score and extra-life progress globals
+WIN-STRUCT-001,0x00,4,signed,x,high,established,FONT2 cache init stores source X; text renderer overwrites with destination X
+WIN-STRUCT-001,0x04,4,signed,y,high,established,FONT2 cache init stores source Y; text renderer overwrites with destination Y
+WIN-STRUCT-001,0x08,4,signed,width,high,established,Both builds initialize every descriptor to glyph width 7
+WIN-STRUCT-001,0x0C,4,signed,height,high,established,Both builds initialize every descriptor to glyph height 5
+WIN-STRUCT-001,0x10,4,pointer,mask_pixels,high,established,Allocation helper stores width*height+1 buffer; extractor writes 35 meaningful mask bytes
 WIN-STRUCT-002,0x00,4,signed,position_x,high,established,0x00401660 blitter and trajectory position write
 WIN-STRUCT-002,0x04,4,signed,position_y,high,established,0x00401660 blitter and trajectory position write
+WIN-STRUCT-002,0x08,4,signed/fixed16.16,breakaway_fixed_x_or_family_state_08,high,partial,0x00415FA0 mode-10 breakaway path integrates +0x08 as 16.16 X accumulator; other families may reuse field
+WIN-STRUCT-002,0x0C,4,signed/fixed16.16,breakaway_fixed_y_or_family_state_0c,high,partial,0x00415FA0 mode-10 breakaway path integrates +0x0C as 16.16 Y accumulator; other families may reuse field
 WIN-STRUCT-002,0x10,4,signed,velocity_x,high,established,effect spawners/randomizers write velocity; 0x00401E60 and 0x00402770 inherit/copy source +0x10
 WIN-STRUCT-002,0x14,4,signed,velocity_y,high,established,effect spawners/randomizers write velocity; 0x00401E60 and 0x00402770 inherit/copy source +0x14
 WIN-STRUCT-002,0x18,2,signed,trajectory_x_offset,medium,partial,trajectory-group spawn adds to X in path-owned objects
 WIN-STRUCT-002,0x1A,2,signed,trajectory_y_offset,medium,partial,trajectory-group spawn adds to Y in path-owned objects
+WIN-STRUCT-002,0x1C,2,signed,breakaway_exit_x_or_family_param_1c,high,partial,0x00415FA0 mode-10 breakaway setup stores horizontal exit target -60 or 321; contextual overlay only
+WIN-STRUCT-002,0x1E,2,signed,breakaway_exit_y_or_family_param_1e,high,partial,0x00415FA0 mode-10 breakaway setup stores vertical exit target -60 or 201; contextual overlay only
 WIN-STRUCT-002,0x20,2,signed,sprite_width,high,established,0x00401660 clipping/row logic
 WIN-STRUCT-002,0x22,2,signed,sprite_height,high,established,0x00401660 clipping/row logic
+WIN-STRUCT-002,0x24,2,signed,render_width,high,established,0x00403460 forms scaled destination right edge as entity.x + +0x24; 0x00413940 consumes resulting rectangle
+WIN-STRUCT-002,0x26,2,signed,render_height,high,established,0x00403460 forms scaled destination bottom edge as entity.y + +0x26; 0x00413940 consumes resulting rectangle
 WIN-STRUCT-002,0x28,2,signed,collision_width_extent,high,established,0x00401780 computes int(width*0.85); 0x00401F60/0x00402000 use as inclusive X hitbox extent
 WIN-STRUCT-002,0x2A,2,signed,collision_height_extent,high,established,0x00401780 computes int(height*0.85); 0x00401F60/0x00402000 use as inclusive Y hitbox extent
-WIN-STRUCT-002,0x30,1,unknown,trajectory_state_30,low,candidate,trajectory-group initialization clears field
+WIN-STRUCT-002,0x30,1,unsigned byte,damage_accumulator,high,established,0x0040EE36 and 0x004164A8 collision paths add damage then compare against +0x31; DOS counterpart uses same offsets
+WIN-STRUCT-002,0x31,1,unsigned byte,destruction_threshold,high,established,collision/destruction paths compare accumulated +0x30 damage against +0x31; 17 trajectory templates initialize exact thresholds
 WIN-STRUCT-002,0x32,2,signed,trajectory_index_or_object_param_32,high,partial,0x00415FA0 advances and indexes X/Y/AUX with this field in trajectory-owned entities; special projectile reuses offset
+WIN-STRUCT-002,0x34,2/4 contextual,contextual,family_counter_or_state_34,high,partial,boss roots use WORD +0x34 as destruction progress (e.g. 0x004143E0); effect family accesses broader state at same offset; not universal
 WIN-STRUCT-002,0x36,2,signed,trajectory_step_or_object_counter_36,high,partial,0x00415FA0 adds this signed word to +0x32 each trajectory update; special projectile reuses offset
 WIN-STRUCT-002,0x38,2,signed,trajectory_end_index_or_object_param_38,high,partial,0x00415FA0 signed-compares path index +0x32 against +0x38 and wraps index to zero when greater
+WIN-STRUCT-002,0x3C,2,unknown,object_threshold_or_param_3c,medium,partial,special projectile reset initializes +0x3C to 12 and compares +0x36 against it for load/cycle progress; other object-family uses pending
 WIN-STRUCT-002,0x40,0x80,pointer array,frame_pixels_32,high,established,32 pointers cleared by init; selected by current_frame; freed by release routine
+WIN-STRUCT-002,0xC0,0x80,opaque bytes,reserved_unreferenced_block_c0_13f,high,established,complete canonical Win32 direct-access corpus has no +0xC0..+0x13F consumers; matching 0x80-byte DOS gap exists at +0xBE..+0x13D
 WIN-STRUCT-002,0x140,1,signed/byte,current_frame,high,established,0x00401660 indexes frame pointer table with this byte
 WIN-STRUCT-002,0x141,1,signed/byte,frame_count,high,established,0x00401820 iterates frame pointers to this count
 WIN-STRUCT-002,0x142,1,byte enum,activity_state,medium,partial,"values 0,1,3 observed; many update paths gate on ==1"
-WIN-STRUCT-002,0x14C,2,unknown,unknown_14c,medium,open,0x00401780 initializes to 1
+WIN-STRUCT-002,0x143,1,byte,out_of_bounds_flag,high,established,0x00401D20/0x00401E60/effect helpers set 0/1 from screen-bound checks
+WIN-STRUCT-002,0x14C,2,word,legacy_initializer_word,high,established,0x00401780 initializes to 1; no live direct consumer found in canonical Win32 corpus; DOS counterpart +0x14A also initialized to 1
+WIN-STRUCT-002,0x14E,1,byte enum/flag,family_flag_14e,high,partial,effect entities use as growth/expansion flag; Probe/Stinger special entity reuses as target-lock/attachment state; DOS counterpart +0x14C shows same contextual reuse
+WIN-STRUCT-002,0x14F,1,unsigned byte,destruction_burst_count,high,established,generic destruction paths branch/loop on +0x14F to emit one or N bursts; DOS counterpart +0x14D behaves identically
+WIN-STRUCT-002,0x150,1,signed byte,score_value,high,established,trajectory/common destruction adds signed +0x150 to score and extra-life progress; retirement paths may subtract it; DOS counterpart +0x14E adds to both score/progress
+WIN-STRUCT-002,0x151,3,opaque bytes,win_tail_padding_151_153,high,established,no direct consumers in canonical Win32 disassembly; these bytes account for final three bytes of 0x154 versus DOS 0x14F stride
 WIN-STRUCT-003,0x00,1,byte,group_mode,high,established,"0x00415FA0 and group setup use modes 0 inactive, 1 persistent loop, 2 retire-on-path-wrap, and 10 breakaway fly-off"
 WIN-STRUCT-003,0x01,1,signed byte,entity_count,high,established,group loops bound inline entity iteration with this field
 WIN-STRUCT-003,0x02,1,byte,active_entity_count,high,established,0x00415FA0 increments on stagger activation and decrements on path-exit/breakaway retirement; zero inactivates group
@@ -29,17 +78,3 @@ WIN-STRUCT-003,0x0E,2,signed,spawn_delay_interval,high,established,0x00415FA0 ac
 WIN-STRUCT-003,0x10,2,signed,activated_entity_count,high,established,0x00415FA0 compares against entity_count then increments and activates inline entity at previous count
 WIN-STRUCT-003,0x14,variable,inline,entities,high,established,first inline WIN-STRUCT-002 object; indexing formula uses 0x154 stride
 WIN-STRUCT-004,0x4494,4,pointer,decoded_pixels_320x200,high,established,0x00401900 stores allocation; 0x004012B0 writes decoded pixels; 0x00401860 reads; 0x00401450 frees
-WIN-STRUCT-002,0x143,1,byte,out_of_bounds_flag,high,established,0x00401D20/0x00401E60/effect helpers set 0/1 from screen-bound checks
-WIN-STRUCT-002,0x3C,2,unknown,object_threshold_or_param_3c,medium,partial,special projectile reset initializes +0x3C to 12 and compares +0x36 against it for load/cycle progress; other object-family uses pending
-WIN-STRUCT-002,0x24,2,signed,render_width,high,established,0x00403460 forms scaled destination right edge as entity.x + +0x24; 0x00413940 consumes resulting rectangle
-WIN-STRUCT-002,0x26,2,signed,render_height,high,established,0x00403460 forms scaled destination bottom edge as entity.y + +0x26; 0x00413940 consumes resulting rectangle
-WIN-STRUCT-001,0x00,4,signed,x,high,established,FONT2 cache init stores source X; text renderer overwrites with destination X
-WIN-STRUCT-001,0x04,4,signed,y,high,established,FONT2 cache init stores source Y; text renderer overwrites with destination Y
-WIN-STRUCT-001,0x08,4,signed,width,high,established,Both builds initialize every descriptor to glyph width 7
-WIN-STRUCT-001,0x0C,4,signed,height,high,established,Both builds initialize every descriptor to glyph height 5
-WIN-STRUCT-001,0x10,4,pointer,mask_pixels,high,established,Allocation helper stores width*height+1 buffer; extractor writes 35 meaningful mask bytes
-DOS-STRUCT-001,0x00,4,signed,x,high,established,FONT2 cache init stores source X; text renderer overwrites with destination X
-DOS-STRUCT-001,0x04,4,signed,y,high,established,FONT2 cache init stores source Y; text renderer overwrites with destination Y
-DOS-STRUCT-001,0x08,4,signed,width,high,established,Both builds initialize every descriptor to glyph width 7
-DOS-STRUCT-001,0x0C,4,signed,height,high,established,Both builds initialize every descriptor to glyph height 5
-DOS-STRUCT-001,0x10,4,pointer,mask_pixels,high,established,Allocation helper stores width*height+1 buffer; extractor writes 35 meaningful mask bytes

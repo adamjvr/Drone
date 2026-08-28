@@ -39,6 +39,7 @@ constexpr TrajectoryGroupTemplate make_template(
     std::int16_t width,
     std::int16_t height,
     std::uint8_t frame_count,
+    TrajectoryCombatProfile combat,
     Slots slots = zero_slots(),
     TrajectoryPathFamily initial_sample_family = TrajectoryPathFamily::Loop) noexcept {
     // initial_sample_family == Loop is used as a compact default sentinel only
@@ -62,6 +63,7 @@ constexpr TrajectoryGroupTemplate make_template(
         width,
         height,
         frame_count,
+        combat,
         TrajectoryEntityActivity::Inactive,
         false,
         0,
@@ -86,26 +88,27 @@ constexpr auto kTemplates = [] {
         28,
         21,
         15,
+        {2, 1, 1},
         TrajectoryEntityActivity::FollowingPath,
         true,
         1,
         loop_slots(),
     };
-    groups[1] = make_template(1, TrajectoryPathFamily::LeftDive, 6, 18, 117, 26, 26, 16);
-    groups[2] = make_template(2, TrajectoryPathFamily::LeftDive, 7, 13, 117, 28, 21, 15);
+    groups[1] = make_template(1, TrajectoryPathFamily::LeftDive, 6, 18, 117, 26, 26, 16, {1, 1, 1});
+    groups[2] = make_template(2, TrajectoryPathFamily::LeftDive, 7, 13, 117, 28, 21, 15, {1, 1, 1});
     groups[3] = make_template(
-        3, TrajectoryPathFamily::Swarm, 4, 1, 945, 35, 22, 16, swarm_diamond_slots());
-    groups[4] = make_template(4, TrajectoryPathFamily::Swarm, 1, 1, 945, 44, 46, 16);
-    groups[5] = make_template(5, TrajectoryPathFamily::Swoop, 7, 13, 185, 28, 21, 15);
-    groups[6] = make_template(6, TrajectoryPathFamily::NewCurly, 9, 10, 230, 35, 30, 32);
-    groups[7] = make_template(7, TrajectoryPathFamily::Frisbee1, 9, 9, 935, 14, 12, 32);
-    groups[8] = make_template(8, TrajectoryPathFamily::Frisbee2, 9, 5, 425, 14, 12, 32);
-    groups[9] = make_template(9, TrajectoryPathFamily::LeftDrop, 5, 16, 195, 44, 46, 16);
-    groups[10] = make_template(10, TrajectoryPathFamily::LeftDrop, 6, 12, 195, 35, 22, 16);
-    groups[11] = make_template(11, TrajectoryPathFamily::LeftDrop, 6, 12, 195, 26, 26, 16);
-    groups[12] = make_template(12, TrajectoryPathFamily::LeftDive, 4, 18, 117, 31, 41, 32);
-    groups[13] = make_template(13, TrajectoryPathFamily::LeftDrop, 5, 16, 195, 31, 41, 32);
-    groups[14] = make_template(14, TrajectoryPathFamily::Generated402, 6, 11, 402, 16, 11, 16);
+        3, TrajectoryPathFamily::Swarm, 4, 1, 945, 35, 22, 16, {1, 2, 1}, swarm_diamond_slots());
+    groups[4] = make_template(4, TrajectoryPathFamily::Swarm, 1, 1, 945, 44, 46, 16, {25, 5, 25});
+    groups[5] = make_template(5, TrajectoryPathFamily::Swoop, 7, 13, 185, 28, 21, 15, {1, 1, 1});
+    groups[6] = make_template(6, TrajectoryPathFamily::NewCurly, 9, 10, 230, 35, 30, 32, {1, 1, 1});
+    groups[7] = make_template(7, TrajectoryPathFamily::Frisbee1, 9, 9, 935, 14, 12, 32, {1, 1, 1});
+    groups[8] = make_template(8, TrajectoryPathFamily::Frisbee2, 9, 5, 425, 14, 12, 32, {1, 1, 1});
+    groups[9] = make_template(9, TrajectoryPathFamily::LeftDrop, 5, 16, 195, 44, 46, 16, {25, 5, 25});
+    groups[10] = make_template(10, TrajectoryPathFamily::LeftDrop, 6, 12, 195, 35, 22, 16, {1, 2, 1});
+    groups[11] = make_template(11, TrajectoryPathFamily::LeftDrop, 6, 12, 195, 26, 26, 16, {1, 1, 1});
+    groups[12] = make_template(12, TrajectoryPathFamily::LeftDive, 4, 18, 117, 31, 41, 32, {25, 6, 25});
+    groups[13] = make_template(13, TrajectoryPathFamily::LeftDrop, 5, 16, 195, 31, 41, 32, {25, 6, 25});
+    groups[14] = make_template(14, TrajectoryPathFamily::Generated402, 6, 11, 402, 16, 11, 16, {1, 1, 1});
     groups[15] = make_template(
         15,
         TrajectoryPathFamily::Generated422,
@@ -115,9 +118,10 @@ constexpr auto kTemplates = [] {
         16,
         11,
         16,
+        {1, 1, 1},
         zero_slots(),
         TrajectoryPathFamily::Generated402);
-    groups[16] = make_template(16, TrajectoryPathFamily::LeftDive, 6, 11, 117, 23, 23, 32);
+    groups[16] = make_template(16, TrajectoryPathFamily::LeftDive, 6, 11, 117, 23, 23, 32, {1, 1, 1});
 
     return groups;
 }();
@@ -128,6 +132,9 @@ static_assert(kTemplates[3].slots[0].y_offset == -25);
 static_assert(kTemplates[3].slots[3].x_offset == -25);
 static_assert(kTemplates[15].path_family == TrajectoryPathFamily::Generated422);
 static_assert(kTemplates[15].initial_sample_family == TrajectoryPathFamily::Generated402);
+static_assert(kTemplates[0].combat.destruction_threshold == 2);
+static_assert(kTemplates[4].combat.score_value == 25);
+static_assert(kTemplates[12].combat.destruction_burst_count == 6);
 
 } // namespace
 

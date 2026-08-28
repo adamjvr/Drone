@@ -11,7 +11,7 @@ Machine-readable records:
 
 ## Win32 `0x154` sprite/entity object
 
-**Status:** partial layout / high-confidence size and rendering fields.
+**Status:** established common/core layout with explicit family-contextual overlays. See [`ENTITY_LAYOUT.md`](ENTITY_LAYOUT.md) for the complete DOS/Win32 comparison.
 
 A common Win32 object is initialized by `0x00401780`, consumed by transparent blitter `0x00401660`, has frame allocations released by `0x00401820`, and is iterated throughout initialization/gameplay with a stride of `0x154` bytes.
 
@@ -31,7 +31,8 @@ Established or strong fields:
 | `0x26` | 2 | scaled/render destination height | high | `0x00403460` wrapper into scaled blitter |
 | `0x28` | 2 | collision-width extent | high | `int(width * 0.85)` in init; consumed by hitbox tests |
 | `0x2A` | 2 | collision-height extent | high | `int(height * 0.85)` in init; consumed by hitbox tests |
-| `0x30` | 1 | context-specific state | low | trajectory initialization |
+| `0x30` | 1 | damage accumulator | high | collision/destruction paths; exact DOS correspondence |
+| `0x31` | 1 | destruction threshold | high | compared against accumulated `+0x30`; exact DOS correspondence |
 | `0x32` | 2 | trajectory index in path-owned objects | high contextual | `0x00415FA0` increments then indexes X/Y/AUX arrays |
 | `0x36` | 2 | trajectory step/increment in path-owned objects | high contextual | `0x00415FA0` adds it to `+0x32` every trajectory update |
 | `0x38` | 2 | trajectory end/wrap index in path-owned objects | high contextual | `0x00415FA0` signed-compares advanced `+0x32` and wraps to zero when greater |
@@ -40,11 +41,16 @@ Established or strong fields:
 | `0x141` | 1 | loaded frame count | high | frame-release iteration bound |
 | `0x142` | 1 | activity/state byte | high contextual / partial global | trajectory family establishes 0 inactive, 1 following path, 3 acquiring path; other object families reuse field |
 | `0x143` | 1 | out-of-bounds/offscreen flag | high | explosion/effect spawn helpers set from screen-bound checks |
-| `0x14C` | 2 | initialized to 1; semantic open | medium physical | initializer |
+| `0x14C` | 2 | legacy initializer word = 1; no canonical live consumer | high physical | initializer plus complete direct-use corpus |
+| `0x14E` | 1 | family-contextual flag | high contextual | effect growth flag; Probe/Stinger attachment state |
+| `0x14F` | 1 | destruction burst count | high | common destruction effect loop; DOS `+0x14D` |
+| `0x150` | 1 signed | score value | high | score/extra-life progress add/subtract; DOS `+0x14E` |
 
 The debris-sprite updater additionally proves that `+0x32` must remain family-contextual: `junk1`/`junk2`/`wheel` entities consume its low byte as a signed animation-frame step, while trajectory-owned entities consume the word as a path index.
 
 The `0x142` field must **not** be represented as `bool`: the original writes at least `0`, `1`, and `3`.
+
+The frame pointer table is followed by a preserved **128-byte reserved/unreferenced block** (`+0xC0..+0x13F` in Win32, `+0xBE..+0x13D` in DOS). No canonical direct consumer was found; clean code deliberately assigns it no semantics.
 
 The floating constant used to derive collision extents at `0x0042A000` is exactly `0.85` as an IEEE-754 double. Effect routines `0x00402430`, `0x00401E60`, and `0x00402770` independently establish `+0x10/+0x14` as velocity X/Y. Collision routines `0x00401F60` and `0x00402000` independently establish `+0x28/+0x2A` as collision extents. See [`COLLISION.md`](COLLISION.md).
 
@@ -89,11 +95,11 @@ entity.frame = apply_aux(entity.frame, aux[path_index])
 
 `+0x02` is incremented when a staggered member activates and decremented when an active member retires. Reaching zero sets the group to mode 0 and decrements the global active-group count. `+0x10` is different: it counts how many fixed slots have been activated at least once. See [`TRAJECTORY_GROUPS.md`](TRAJECTORY_GROUPS.md) for mode-2 retirement and mode-10 breakaway behavior.
 
-## DOS `0x14F` object family correspondence candidate
+## DOS `0x14F` object family correspondence
 
-The DOS binary uses `0x14F` repeatedly as an object stride (for example around linear `0x0006861D` and many later loops). Early fields at `+0x00`, `+0x04`, `+0x10`, and `+0x14` are used in ways compatible with the Win32 object's early semantic prefix, while the tail offsets differ.
+**Status: established field-level family correspondence.** DOS `0x00068220` initializes the `0x14F` record, `0x000682D0` releases its frame allocations, and `0x00068300` performs the clipped zero-transparent sprite blit. Later collision/destruction code independently establishes activity, damage, destruction-burst and score metadata.
 
-This is strong evidence for a related DOS-era object family and also a warning **not** to force Win32 offsets onto DOS. Compiler/platform changes appear to have changed tail layout/size. The correspondence stays partial until init/blit/free routines are paired more completely.
+The frame table begins at DOS `+0x3E` versus Win32 `+0x40`; from there the current-frame/count/activity and tail fields are consistently two bytes earlier in DOS. Both layouts preserve an unreferenced 128-byte block immediately after the frame table, while Win32 adds three final unreferenced bytes at `+0x151..+0x153`. Keep the packed layouts separate and use only semantic correspondence in clean code. See [`ENTITY_LAYOUT.md`](ENTITY_LAYOUT.md).
 
 ## Resolved `0x14` record — FONT2 glyph descriptor/cache
 

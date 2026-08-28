@@ -679,6 +679,22 @@ int main() {
         assert(groups[16].path_family == TrajectoryPathFamily::LeftDive);
         assert(groups[16].sprite_width == 23 && groups[16].sprite_height == 23);
 
+        // Static startup writes also recover the combat metadata stored in the
+        // common entity tail: +0x31 destruction threshold, +0x14F destruction
+        // burst count, and signed +0x150 score contribution. These are part of
+        // the semantic trajectory-template catalog rather than a raw 0x154 ABI.
+        constexpr std::array<std::array<int, 3>, canonical_trajectory_group_count> combat = {{
+            {{2, 1, 1}}, {{1, 1, 1}}, {{1, 1, 1}}, {{1, 2, 1}}, {{25, 5, 25}},
+            {{1, 1, 1}}, {{1, 1, 1}}, {{1, 1, 1}}, {{1, 1, 1}}, {{25, 5, 25}},
+            {{1, 2, 1}}, {{1, 1, 1}}, {{25, 6, 25}}, {{25, 6, 25}}, {{1, 1, 1}},
+            {{1, 1, 1}}, {{1, 1, 1}},
+        }};
+        for (std::size_t i = 0; i < groups.size(); ++i) {
+            assert(groups[i].combat.destruction_threshold == combat[i][0]);
+            assert(groups[i].combat.destruction_burst_count == combat[i][1]);
+            assert(groups[i].combat.score_value == combat[i][2]);
+        }
+
         assert(canonical_trajectory_group_template(16) == &groups[16]);
         assert(canonical_trajectory_group_template(17) == nullptr);
     }

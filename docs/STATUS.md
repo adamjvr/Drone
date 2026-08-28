@@ -22,7 +22,7 @@
 | canonical DOS fidelity cadence | CONFIRMED | BIOS mode 13h + shared replay/update boundary + one ordinary sync-tail retrace wait establishes ~70.0863 Hz; Win32 15,000-QPC-count wall-clock cadence remains a separate historical-port question |
 | Win32 gameplay orchestration | PARTIAL / strong | state-2 four-phase substep `0→1→2→3→0` plus explicit simulation→presentation boundary recovered; collision/destruction→debris updates→320×600 viewport composition→sprite/effect render→HUD→QPC→present is encoded as a clean stage-order contract; exceptional branches still need partitioning |
 | Win32 game-state protocol | CONFIRMED user-facing set | raw values 0..8, 13 and 99 mapped across direct dispatcher, main-menu selections, modal handlers, pause/quit overlays and nine-lives notice; clean protocol module tested |
-| Win32 common sprite/entity | PARTIAL / strong | `0x154` stride; X/Y, velocity, source sprite dimensions, scaled render dimensions +0x24/+0x26, 0.85-derived collision extents, frame table/current/count, activity/state and edge flag recovered; +0x32 object-family reuse now proven by trajectory and debris families |
+| Win32/DOS common sprite/entity | ESTABLISHED core layout | Win32 `0x154` and DOS `0x14F` field-level correspondence established across init/free/blit/collision/destruction; damage `+0x30`, threshold `+0x31`, destruction burst/score tail metadata, contextual overlays, and preserved unreferenced 128-byte block mapped |
 | transparent sprite blit | CONFIRMED | `0x00401660`; clips to logical framebuffer and skips source index 0 |
 | FLY encoding | CONFIRMED | `CURRENT.FLY` counted; gameplay trajectories raw triples with hard-coded loader counts |
 | FLY X/Y semantics | CONFIRMED | first two arrays directly produce entity X/Y positions with offsets |
@@ -83,7 +83,6 @@
 ## Current blockers to completing Phase 2
 
 1. The canonical DOS fidelity cadence and Win32 four-phase gameplay substep are established; the remaining timing architecture work is complete branch-aware whole-frame update/render partitioning and the separate nonblocking historical Win32 QPC wall-clock question.
-2. `0x154` object fields beyond the position/velocity/render/collision/path subset need producer/consumer coverage.
 3. The trajectory-group lifecycle, all 17 fixed startup templates, and canonical FLY path/AUX/short-file behavior are resolved; only dynamic special-family trajectory substitutions/producers and their whole-frame integration still need broader classification.
 4. Full Probe disarm consequences, remaining Mothership/special-weapon details, the proper identity/resource loader for registered boss slot 2, enemy-specific Stinger consequences, bomb live-scheduler ownership, retail reachability/history for dormant world branches, remaining retail-only result presentation details still need reconstruction.
 5. Typed demo replay checkpoints now exist, but deterministic whole-frame trace/framebuffer parity against the original runtime has not yet been established.

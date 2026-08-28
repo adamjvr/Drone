@@ -25,3 +25,7 @@ address,provisional_name,confidence,notes
 0x000694EC,extract_font2_glyph_mask,high,DOS 320-stride FONT2 mask extractor
 0x0006958C,allocate_bitmap_record_pixels,high,DOS width*height+1 descriptor buffer allocator
 0x000695AC,release_bitmap_record_pixels,medium,DOS bitmap-record pixel-pointer release helper; FONT2 lifetime call not overclaimed
+0x00068220,sprite_entity_init,high,initializes common DOS 0x14F entity; exact field-level correspondent of Win32 0x00401780
+0x000682D0,sprite_entity_release_frames,high,frees +0x3E frame pointers up to +0x13F frame count
+0x00068300,blit_sprite_transparent_clipped,high,transparent clipped blitter using current frame +0x13E and frame table +0x3E
+0x000684D0,entity_collision_overlap,high,common DOS entity collision helper used by damage/destruction paths

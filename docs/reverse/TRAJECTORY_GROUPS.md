@@ -203,3 +203,7 @@ Phase 2 still needs:
 - remaining dynamic special-family substitutions/producers beyond the now-cataloged fixed startup templates;
 - broader whole-frame validation tying recovered group transitions to original runtime traces;
 - semantic names for unrelated counters touched by some spawn/activation branches where evidence is still insufficient.
+
+## Static combat metadata
+
+The startup regions for all 17 fixed templates also initialize common-entity combat tail fields. `TrajectoryGroupTemplate::combat` and `manifests/trajectory_group_templates.csv` now preserve the exact recovered `destruction_threshold` (`+0x31`), `destruction_burst_count` (`+0x14F`), and signed `score_value` (`+0x150`). Values are template data, not universal defaults; notably groups 4/9 use `25,5,25` and groups 12/13 use `25,6,25`. See [`ENTITY_LAYOUT.md`](ENTITY_LAYOUT.md).

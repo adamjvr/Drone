@@ -19,6 +19,7 @@ This directory is the durable engineering record for the **Drone** reverse-engin
 - [`reverse/DOS_WINDOWS_CORRESPONDENCE.md`](reverse/DOS_WINDOWS_CORRESPONDENCE.md) — how the two builds are correlated.
 - [`reverse/SUBSYSTEM_MAP.md`](reverse/SUBSYSTEM_MAP.md) — evolving engine subsystem map.
 - [`reverse/STRUCTURE_RECOVERY.md`](reverse/STRUCTURE_RECOVERY.md) — policy and current state for recovered structures.
+- [`reverse/ENTITY_LAYOUT.md`](reverse/ENTITY_LAYOUT.md) — established Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, contextual overlays, combat tail, and clean-engine boundary.
 - [`reverse/COLLISION.md`](reverse/COLLISION.md) — recovered collision primitives and clean semantic implementation.
 - [`reverse/FRAMEBUFFER_PIPELINE.md`](reverse/FRAMEBUFFER_PIPELINE.md) — software framebuffer, DirectDraw surface, palette/text, and present path.
 - [`reverse/BITMAP_FONT.md`](reverse/BITMAP_FONT.md) — exact DOS/Win32 FONT2 glyph cache, 0x14-byte descriptor, sheet geometry, ASCII mapping, and clean extraction boundary.

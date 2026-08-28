@@ -16,6 +16,11 @@ The tracked values are now mapped: `0` exit transition, `1` menu-reset entry, `2
 
 The repeated `0x14` stride is not a gameplay entity family. Win32 `0x00401470` builds 64 descriptors at `0x00466C90`, indexed by `character - 0x20`; DOS `0x000809B0` independently builds the same 64×`0x14` FONT2 cache at data offset `0x6F80`. Both establish mutable X/Y, 7×5 dimensions, a glyph-mask pointer at `+0x10`, identical 16×4 gutter geometry, and the same mask renderer. The clean engine models the semantic font layout without reproducing the pointer-bearing original record. See [`reverse/BITMAP_FONT.md`](reverse/BITMAP_FONT.md).
 
+
+### Resolved — Q-ENTITY-002 common Win32/DOS sprite-entity family
+
+Producer/consumer tracing now establishes the Win32 `0x154` and DOS `0x14F` records as a field-level common sprite/entity correspondence rather than a loose candidate. The core position/velocity/dimension/collision/frame/activity fields align; DOS places the frame table and later metadata two bytes earlier; both preserve an unreferenced 128-byte middle block; and matched destruction paths establish `+0x30/+0x31` damage/threshold plus the shifted destruction-burst and score-value tail fields. Family overlays remain owned by their subsystems instead of being forced into one universal clean struct. See [`reverse/ENTITY_LAYOUT.md`](reverse/ENTITY_LAYOUT.md).
+
 ## High — blocks gameplay reconstruction
 
 ### Resolved — Q-INPUT-001 canonical gameplay-action aggregation
@@ -79,5 +84,5 @@ Several Phase 1 questions have narrowed materially:
 - **Timing:** canonical DOS fidelity cadence is solved at ~70.0863 Hz from mode 13h plus one ordinary sync-tail retrace wait per logical update. Win32 QPC wall-clock behavior remains a separate nonblocking historical-port question.
 - **State:** raw values `0..8`, `13`, and `99` are semantically mapped and represented by a narrow clean protocol module.
 - **FLY/trajectory:** X/Y/AUX, path index/step/wrap, short-file reachability, group modes/counts/staggering and breakaway lifecycle are solved. Static template cataloging and special-family substitutions remain.
-- **Rendering/entity:** the common Win32 `0x154` sprite/entity and transparent blitter are established; remaining fields, object-family variants, collision edge semantics, and the DOS `0x14F` correspondence remain open.
+- **Rendering/entity:** `Q-ENTITY-002` is resolved: Win32 `0x154` ↔ DOS `0x14F` core layout/correspondence, combat tail, contextual overlays and reserved block are mapped. Only subsystem-specific behavior and the separate exact collision-edge quirk remain open.
 - **Determinism:** Win32 `srand`/`rand` are anchored; seed ownership and call-order parity still need recovery before PRNG can become a trace oracle.
