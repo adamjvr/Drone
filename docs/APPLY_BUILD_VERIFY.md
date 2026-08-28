@@ -189,3 +189,15 @@ git commit -m "Advance Drone Phase 2 gameplay reconstruction"
 ```
 
 Before committing, confirm no `.reference/`, Ghidra project/database, decoded original asset, executable, or other proprietary payload has been staged.
+
+## Optional Phase-3 framebuffer validation
+
+After a normal build, local indexed-framebuffer captures can be checked without adding original frame bytes to Git:
+
+```bash
+./build/drone_framecheck info /path/to/frame.drfb
+./build/drone_framecheck compare /path/to/reference.drfb /path/to/candidate.drfb
+python3 scripts/framebuffer_fixture.py verify /path/to/metadata.json /path/to/reference.drfb
+```
+
+See `docs/FRAMEBUFFER_VALIDATION.md` for the `DRONEFB1` format and provenance requirements.

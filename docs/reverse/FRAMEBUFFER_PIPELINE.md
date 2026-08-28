@@ -134,3 +134,9 @@ See [`PALETTE_EFFECTS.md`](PALETTE_EFFECTS.md) for exact animated bands, random 
 Phase 3 now records the complete ordinary state-2 presentation ordering from the world compositor at `0x004100D8` through the final framebuffer copy at `0x004115A5`. In particular, debris-particle pixels and Drone detonation radial noise are inserted between separate ordinary-sprite spans; scaled overlays follow those world/effect spans; HUD/shield/status layers are later still; palette mutation and host palette upload happen only after indexed-framebuffer drawing is complete.
 
 See [`PRESENTATION_ORDER.md`](PRESENTATION_ORDER.md) and `drone::fidelity::canonical_win32_gameplay_presentation_order()`.
+
+## Reference snapshot boundary
+
+Phase 3 now defines a clean local `DRONEFB1` snapshot that stores the 64,000 indexed pixels and 256×RGB8 working palette together. This is **not** an original game format; it is the comparison boundary used by `drone_framecheck` and the hash-only fixture workflow.
+
+The preferred Win32 capture point is immediately after indexed-framebuffer drawing/palette mutation state has reached the intended comparison landmark and before host presentation artifacts can alter interpretation. See [`../FRAMEBUFFER_VALIDATION.md`](../FRAMEBUFFER_VALIDATION.md).

@@ -14,6 +14,7 @@ add_library(drone_core
     src/formats/demo.cpp
     src/formats/scores.cpp
     src/fidelity/indexed_framebuffer.cpp
+    src/fidelity/framebuffer_snapshot.cpp
     src/fidelity/sprite_sheet.cpp
     src/fidelity/sprite_blit.cpp
     src/fidelity/font2.cpp
@@ -60,6 +61,9 @@ target_link_libraries(drone_inspect PRIVATE drone_core)
 add_executable(drone_gameplay_probe tools/drone_gameplay_probe.cpp)
 target_link_libraries(drone_gameplay_probe PRIVATE drone_core)
 
+add_executable(drone_framecheck tools/drone_framecheck.cpp)
+target_link_libraries(drone_framecheck PRIVATE drone_core)
+
 option(DRONE_BUILD_FIDELITY_HOST "Build the native indexed-framebuffer fidelity host" ON)
 
 if(DRONE_BUILD_FIDELITY_HOST)
@@ -105,6 +109,10 @@ if(DRONE_BUILD_TESTS)
         add_test(
             NAME drone_phase2_exit
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase2_exit.py
+        )
+        add_test(
+            NAME drone_framebuffer_fixture_tool
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_framebuffer_fixture.py
         )
     endif()
 endif()

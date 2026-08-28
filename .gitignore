@@ -16,3 +16,6 @@ __pycache__/
 *.rep/
 /reverse/work/
 /reverse/local/
+
+# Local indexed-framebuffer captures; publish hashes/metadata, not original frame bytes.
+*.drfb

@@ -81,3 +81,7 @@ The portable contract lives in:
 
 It intentionally stores original instruction-address spans as evidence anchors,
 not as runtime dependencies.
+
+## Framebuffer comparison boundary
+
+The presentation contract makes the local fidelity oracle explicit: after all indexed-framebuffer drawing is complete, the clean project can snapshot the 64,000 index bytes plus the current working palette before host-surface behavior is allowed to obscure the result. Phase 3 encodes that oracle as the local-only `DRONEFB1` format and compares it with `drone_framecheck`; see [`../FRAMEBUFFER_VALIDATION.md`](../FRAMEBUFFER_VALIDATION.md).

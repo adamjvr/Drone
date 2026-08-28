@@ -80,3 +80,5 @@ Machine-readable research ledgers live under `reverse/ledger/`, `reverse/corresp
 - [`PHASE3.md`](PHASE3.md) — current gameplay-reconstruction findings, validation state, and remaining Phase 2 work.
 
 Every future phase should add or update its own milestone document and update `STATUS.md`, `ROADMAP.md`, `RESEARCH_LOG.md`, and the relevant machine-readable ledgers in the same commit.
+
+- [`FRAMEBUFFER_VALIDATION.md`](FRAMEBUFFER_VALIDATION.md) — copyright-safe indexed framebuffer snapshot, comparison, and hash-metadata workflow.

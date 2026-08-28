@@ -1,8 +1,10 @@
+#include <drone/fidelity/framebuffer_snapshot.hpp>
 #include <drone/fidelity/palette_effects.hpp>
 #include <drone/fidelity/presentation_order.hpp>
 
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -231,6 +233,70 @@ int main() {
         assert(!order[11].conditional); // shield meter is always invoked
         assert(!order[16].conditional); // some upload range is always emitted
         assert(!order[17].conditional);
+    }
+
+
+    {
+        FramebufferSnapshot reference;
+        reference.pixels.resize(IndexedFramebuffer::pixel_count);
+        for (std::size_t y = 0; y < IndexedFramebuffer::height; ++y) {
+            for (std::size_t x = 0; x < IndexedFramebuffer::width; ++x) {
+                reference.pixels[y * IndexedFramebuffer::width + x] =
+                    static_cast<std::uint8_t>((x + y) & 0xffu);
+            }
+        }
+        for (std::size_t i = 0; i < reference.palette.size(); ++i) {
+            reference.palette[i] = {
+                static_cast<std::uint8_t>(i),
+                static_cast<std::uint8_t>((i * 3u) & 0xffu),
+                static_cast<std::uint8_t>(255u - i),
+            };
+        }
+
+        const auto path = std::filesystem::temp_directory_path() / "drone-test-framebuffer.drfb";
+        write_framebuffer_snapshot(reference, path);
+        assert(std::filesystem::file_size(path) == framebuffer_snapshot_file_size);
+        const auto loaded = load_framebuffer_snapshot(path);
+        std::filesystem::remove(path);
+
+        auto exact = compare_framebuffer_snapshots(reference, loaded);
+        assert(exact.exact());
+        assert(exact.pixel_mismatch_count == 0);
+        assert(exact.rendered_rgb_mismatch_count == 0);
+        assert(exact.palette_entry_mismatch_count == 0);
+        assert(!exact.pixel_mismatch_bounds);
+
+        auto candidate = loaded;
+        candidate.pixels[10 * IndexedFramebuffer::width + 20] ^= 7;
+        candidate.pixels[12 * IndexedFramebuffer::width + 25] ^= 3;
+        candidate.palette[7].r ^= 1;
+        candidate.palette[7].g ^= 2;
+
+        const auto mismatch = compare_framebuffer_snapshots(reference, candidate);
+        assert(!mismatch.exact());
+        assert(mismatch.pixel_mismatch_count == 2);
+        assert(mismatch.palette_entry_mismatch_count == 1);
+        assert(mismatch.palette_channel_mismatch_count == 2);
+        assert(mismatch.pixel_mismatch_bounds.has_value());
+        assert(mismatch.pixel_mismatch_bounds->x == 20);
+        assert(mismatch.pixel_mismatch_bounds->y == 10);
+        assert(mismatch.pixel_mismatch_bounds->width == 6);
+        assert(mismatch.pixel_mismatch_bounds->height == 3);
+
+        const auto clean_region = compare_framebuffer_snapshot_region(
+            reference, candidate, FramebufferRect{100, 100, 4, 4});
+        assert(clean_region.pixel_mismatch_count == 0);
+        assert(clean_region.rendered_rgb_mismatch_count == 0);
+        assert(clean_region.palette_channel_mismatch_count == 0);
+
+        bool rejected = false;
+        try {
+            (void)compare_framebuffer_snapshot_region(
+                reference, candidate, FramebufferRect{319, 199, 2, 1});
+        } catch (const std::out_of_range&) {
+            rejected = true;
+        }
+        assert(rejected);
     }
 
     std::cout << "fidelity tests passed\n";

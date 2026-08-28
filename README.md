@@ -13,7 +13,7 @@ The long-term goal is a documented, behaviorally validated reconstruction of the
 
 ## Current status
 
-**Phase 3 — Rendering & World Reconstruction is in progress.** Phase 2 is complete and remains the stable gameplay-architecture baseline: state orchestration, the Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, timing/input contracts, trajectory groups/templates, collision/projectile boundaries, scenery scrolling, mission progression, post-game flow, and multiple clean gameplay slices are recovered and regression-tested. Phase 3 now concentrates on renderer/world fidelity: the late dynamic-palette helper cluster and Windows small-JBA/embedded-PCX format are recovered and clean-tested, and the ordinary state-2 renderer is partitioned into an explicit 18-pass composition/palette/present order; next are finer HUD/effect ownership and reference framebuffer comparison.
+**Phase 3 — Rendering & World Reconstruction is in progress.** Phase 2 is complete and remains the stable gameplay-architecture baseline: state orchestration, the Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, timing/input contracts, trajectory groups/templates, collision/projectile boundaries, scenery scrolling, mission progression, post-game flow, and multiple clean gameplay slices are recovered and regression-tested. Phase 3 now concentrates on renderer/world fidelity: the late dynamic-palette helper cluster and Windows small-JBA/embedded-PCX format are recovered and clean-tested, the ordinary state-2 renderer is partitioned into an explicit 18-pass composition/palette/present order, and copyright-safe `DRONEFB1` framebuffer comparison/fingerprint tooling is implemented; next are lawful reference captures, finer HUD/effect ownership, and native-host validation.
 
 Phase-2 closure is enforced by `scripts/check_phase2_exit.py`; it fails if a critical simulation-architecture question is reopened or the roadmap regresses. See [`docs/PHASE2.md`](docs/PHASE2.md), [`docs/PHASE3.md`](docs/PHASE3.md), [`docs/STATUS.md`](docs/STATUS.md), and [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -117,3 +117,5 @@ manifests/                 hashes and non-payload corpus metadata
 ## Rights boundary
 
 The repository contains independently written project code, tools, specifications, and metadata—not original game payloads. No project source-code license has been selected yet; see [`docs/LICENSE_AND_RIGHTS.md`](docs/LICENSE_AND_RIGHTS.md) before public release/contribution setup.
+
+- Phase 3 framebuffer parity tooling: see `docs/FRAMEBUFFER_VALIDATION.md`.
