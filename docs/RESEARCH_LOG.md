@@ -193,3 +193,9 @@ This file records major findings and engineering decisions chronologically. It i
 - Resolved the long-standing `Q-ENTITY-001` 0x14-byte stride as the FONT2 glyph descriptor/cache, not a gameplay entity: Win32 builds 64 records at `0x00466C90` and DOS independently builds the same 64×0x14 layout at data offset `0x6F80`, with exact 16×4 / 7×5 gutter geometry, character-0x20 indexing, mask allocation/extraction/render helpers, a new DOS↔Win32 correspondence, and clean `fidelity/font2.*` regression coverage.
 
 - Closed `Q-ENTITY-002`: promoted DOS `0x00068220` / `0x000682D0` / `0x00068300` as the init/free/blit counterparts of the Win32 common entity family and established the `0x14F` ↔ `0x154` field map. Recovered common damage accumulator `+0x30`, destruction threshold `+0x31`, destruction-burst count (DOS `+0x14D`, Win32 `+0x14F`) and score value (DOS `+0x14E`, Win32 `+0x150`); classified contextual overlays and the 128-byte unreferenced middle block; added exact combat metadata to all 17 trajectory templates.
+
+## 2026-08-27 — Phase 2 closure / Phase 3 transition
+
+Phase 2 closes after `Q-ENTITY-002` established the field-level Win32 `0x154` ↔ DOS `0x14F` common entity correspondence. The machine-readable queue has no unresolved critical simulation-architecture question. The roadmap now advances to Phase 3 rather than retaining renderer completeness, complete-game simulation, deterministic trace parity, or retail-only evidence as artificial Phase-2 blockers.
+
+A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Phase 3 begins from the existing indexed-framebuffer, sprite blit/extraction, world viewport, FONT2, debris/effect, and simulation→presentation ordering contracts.

@@ -96,5 +96,9 @@ if(DRONE_BUILD_TESTS)
             NAME drone_research_metadata
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_research_docs.py
         )
+        add_test(
+            NAME drone_phase2_exit
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase2_exit.py
+        )
     endif()
 endif()

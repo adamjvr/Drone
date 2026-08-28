@@ -1,7 +1,7 @@
 # Project Status
 
 **Repository:** `Drone`  
-**Current engineering phase:** Phase 2 — Gameplay Reconstruction (in progress)  
+**Current engineering phase:** Phase 3 — Rendering & World Reconstruction  
 **Primary decompilation reference:** canonical 1999 Win32 shareware executable (`BIN-WIN-SW-01`)  
 **Independent cross-check:** canonical 1997 DOS shareware executable (`BIN-DOS-SW-01`)
 
@@ -11,7 +11,7 @@
 - **PARTIAL** — structure/control path is known but semantics remain incomplete.
 - **OPEN** — not yet established.
 
-## Phase 2 checkpoint
+## Phase 2 closure baseline
 
 | area | status | current result |
 |---|---|---|
@@ -80,12 +80,12 @@
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
 | simulation reconstruction | PARTIAL implementation | player, lifecycle, missiles, shield, Probe/Stinger, bombs, scoring/high scores, collision, semantic input/replay, trajectory groups/templates, four-phase scheduler, game-state protocol, world scroll, and objective/encounter mission progression now exist as independently written tested `drone_core` modules |
 
-## Current blockers to completing Phase 2
+## Phase 3 current priorities
 
-1. The canonical DOS fidelity cadence and Win32 four-phase gameplay substep are established; the remaining timing architecture work is complete branch-aware whole-frame update/render partitioning and the separate nonblocking historical Win32 QPC wall-clock question.
-3. The trajectory-group lifecycle, all 17 fixed startup templates, and canonical FLY path/AUX/short-file behavior are resolved; only dynamic special-family trajectory substitutions/producers and their whole-frame integration still need broader classification.
-4. Full Probe disarm consequences, remaining Mothership/special-weapon details, the proper identity/resource loader for registered boss slot 2, enemy-specific Stinger consequences, bomb live-scheduler ownership, retail reachability/history for dormant world branches, remaining retail-only result presentation details still need reconstruction.
-5. Typed demo replay checkpoints now exist, but deterministic whole-frame trace/framebuffer parity against the original runtime has not yet been established.
+1. Classify the remaining late palette/HUD/effect presentation helpers and make their ordering explicit (`Q-RENDER-001`).
+2. Finish the small Windows JBA / embedded-PCX container family (`Q-JBA-002`).
+3. Add reference framebuffer capture/comparison fixtures around the already recovered 320×200 indexed pipeline.
+4. Keep later-phase work in its proper scope: complete gameplay integration in Phase 4, deterministic trace parity in Phase 6, and retail-only content in Phase 8.
 
 The supplied evidence set remains shareware. Full seven-level parity eventually requires a lawful full-game reference copy; missing retail behavior must not be invented.
 

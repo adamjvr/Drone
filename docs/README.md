@@ -75,6 +75,7 @@ Machine-readable research ledgers live under `reverse/ledger/`, `reverse/corresp
 
 - [`PHASE1.md`](PHASE1.md) — Phase 1 completed work and Phase 2 handoff.
 - [`PHASE1_DOCUMENTATION_HARDENING.md`](PHASE1_DOCUMENTATION_HARDENING.md) — documentation/ledger hardening applied before Phase 2.
-- [`PHASE2.md`](PHASE2.md) — current gameplay-reconstruction findings, validation state, and remaining Phase 2 work.
+- [`PHASE2.md`](PHASE2.md)
+- [`PHASE3.md`](PHASE3.md) — current gameplay-reconstruction findings, validation state, and remaining Phase 2 work.
 
 Every future phase should add or update its own milestone document and update `STATUS.md`, `ROADMAP.md`, `RESEARCH_LOG.md`, and the relevant machine-readable ledgers in the same commit.

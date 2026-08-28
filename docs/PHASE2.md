@@ -1,9 +1,22 @@
 # Phase 2 — Gameplay Reconstruction
 
-**Status:** in progress.  
+**Status:** complete.  
 **Scope rule:** Phase 2 is one engineering phase. The workstreams below are not numbered subphases and should not become separate roadmap phases unless the project scope materially changes.
 
 Phase 2 turns the Phase 1 archaeology/tooling foundation into an executable model of Drone's gameplay architecture. The immediate objective is not to write a speculative remake. It is to recover enough original structure, timing, trajectory, rendering, and state behavior that clean code can prove each interpretation.
+
+## Completion gate
+
+Phase 2 closed after the common Win32 `0x154` / DOS `0x14F` entity correspondence was promoted from a partial candidate to an established cross-build lifecycle contract. At closure:
+
+- all machine-tracked `critical` architecture questions are resolved;
+- state, timing, semantic input, trajectory, collision/projectile, world-scroll, mission-progression, post-game, and entity-layout contracts exist in clean code or durable evidence;
+- several meaningful gameplay subsystems execute in `drone_core` with synthetic regression coverage;
+- the native indexed-framebuffer host builds on the current Linux validation environment;
+- canonical DOS/Windows evidence identities and the existing gameplay probe remain stable.
+
+`python3 scripts/check_phase2_exit.py` makes this boundary durable. It deliberately does **not** require Phase-3 rendering completion, Phase-4 full simulation, Phase-6 trace parity, or Phase-8 retail evidence.
+
 
 ## Confirmed during the current Phase 2 checkpoint
 

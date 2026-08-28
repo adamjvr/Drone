@@ -12,11 +12,13 @@ Preserve/hash DOS and Windows releases, extract the Wise installer without execu
 
 Build reproducible analysis tooling, recover initial formats, map executable/runtime anchors, establish Ghidra/ledger/documentation workflows, and create the clean C++20 foundation. Phase 1 is the canonical baseline merged into `main`.
 
-## Phase 2 — Gameplay Reconstruction — IN PROGRESS
+## Phase 2 — Gameplay Reconstruction — COMPLETE
 
 Recover the real gameplay architecture: state orchestration, entity/object layouts, DOS/Windows timing, input representation, FLY trajectories, movement/update paths, collision/projectile boundaries, scrolling/level behavior, and the first native fidelity host. At least one meaningful gameplay subsystem must execute in clean code with reference validation before this phase closes.
 
-## Phase 3 — Rendering & World Reconstruction
+**Exit achieved:** the user-facing state protocol, canonical DOS cadence, semantic input boundary, Win32/DOS common entity family, trajectory lifecycle/templates, collision/projectile boundaries, scrolling/mission progression, post-game control flow, native fidelity host, and multiple clean gameplay subsystems are recovered and tested. No unresolved `critical` research question remains. Later renderer completeness, complete-game simulation, deterministic trace parity, and retail-only behavior stay assigned to their roadmap phases rather than keeping Phase 2 artificially open.
+
+## Phase 3 — Rendering & World Reconstruction — IN PROGRESS
 
 Recover sprite/frame loading, animation, clipping, layering, scrolling, palettes, HUD, text, effects, scenery composition, and reference framebuffer comparison.
 
