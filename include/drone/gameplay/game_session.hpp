@@ -8,6 +8,7 @@
 #include <drone/gameplay/enemy_bomb.hpp>
 #include <drone/gameplay/game_state.hpp>
 #include <drone/gameplay/input.hpp>
+#include <drone/gameplay/lid_top_boss.hpp>
 #include <drone/gameplay/mission_outcome.hpp>
 #include <drone/gameplay/mission_progression.hpp>
 #include <drone/gameplay/original_random.hpp>
@@ -71,7 +72,7 @@ struct GameEncounterState {
     StingerDisplayState stinger_display{};
     // Original 0x00466B04: encounter-local alien total used by the interstitial
     // hit/miss summary. It starts at the seven primary Loop actors and grows as
-    // actors are inserted; campaign-wide folding remains a separate milestone.
+    // actors are inserted; recovered interstitials fold it into mission totals.
     std::int32_t encounter_alien_ships_total = canonical_initial_encounter_alien_ships_total;
     std::int32_t encounter_alien_ships_hit = 0;
     BossEncounterState boss{};
@@ -126,8 +127,10 @@ struct GameSessionTargetContext {
     const TrajectorySpriteMaskCatalogView* trajectory_sprite_masks = nullptr;
     bool mothership_destruction_active = false;
 
-    // Exact boss-local collision/damage remains outside this owner. These are
-    // already-validated destruction transitions, not broad-phase/raw hits.
+    // Lid/Top combat is now native except for immutable top.jba frame pixels
+    // used by the original rapid-missile opaque-pixel shield test. Gemini's
+    // exact local damage producer remains an already-validated semantic input.
+    const LidTopBossSpriteMaskView* lid_top_sprite_mask = nullptr;
     std::span<const SharewareBossDestructionTrigger> boss_destruction_triggers{};
 };
 
@@ -206,6 +209,17 @@ struct GameSessionTickResult {
     std::size_t boss_components_retired = 0;
     std::int32_t boss_score_delta = 0;
     bool lid_top_motion_stop_requested = false;
+    bool lid_top_root_moved = false;
+    bool lid_top_vertical_retreat_started = false;
+    bool lid_top_enemy_bomb_spawned = false;
+    std::optional<std::size_t> lid_top_enemy_bomb_spawn_index{};
+    std::size_t lid_top_rapid_missiles_consumed = 0;
+    std::size_t lid_top_rapid_top_opaque_collisions = 0;
+    std::size_t lid_top_rapid_open_collisions = 0;
+    bool lid_top_lid_opened = false;
+    bool lid_top_lid_close_started = false;
+    bool lid_top_special_closed_top_impact = false;
+    bool lid_top_stinger_core_hit = false;
 
     bool probe_decode_phase1_completed = false;
     bool probe_decode_completed = false;
@@ -267,8 +281,8 @@ void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 // continuously owned. Stinger target priority/retention is also native while
 // candidate boss geometry/activity remains an explicit actor-owner input.
 // Primary group-0 replenishment and transient formation selection are native;
-// direct detonation visuals, boss movement/attacks and remaining enemy actor
-// producers remain later Phase-4 edges.
+// direct detonation visuals, Gemini movement/local combat and remaining enemy
+// actor producers remain later Phase-4 edges.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,

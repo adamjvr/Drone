@@ -64,16 +64,18 @@ This paired lifecycle is the strongest evidence that `lid/top/retro1/level1` for
 Established behavior includes:
 
 - `top_entity.activity = 1`;
-- root X = 0;
-- root Y = -100;
-- fixed-point position fields mirror that initial location;
-- motion parameters differ between live and demo playback paths and depend on difficulty in live play;
-- the lid frame is reset;
+- root X = 0 and root Y = -100;
+- 16.16 fixed-point X/Y mirror that initial location;
+- live initial horizontal velocity is `10923 * difficulty`;
+- live initial vertical velocity is `0x4001 + 0x1555 * difficulty`;
+- live horizontal speed cap is `(difficulty + 3) * 3 * 0x1000`;
+- demo playback instead uses X/Y velocity `0x8000` and horizontal cap `0x12000`;
+- the lid frame resets to 0;
 - `lid.activity = 6` at encounter start;
 - several companion-object positions are derived from the root;
 - dedicated boss audio is started/reset.
 
-The exact meanings of every lid state (`0`, `1`, `2`, `6` are observed) are not yet all named. We preserve the raw state values wherever semantics are incomplete.
+The clean Phase-4 owner now preserves these exact gameplay fields while leaving audio-only companion state outside the portable simulation.
 
 ## Active update — `0x00416700`
 
@@ -91,11 +93,45 @@ The update path establishes that this is a gameplay boss rather than decorative 
 - emits explosion/debris effects;
 - eventually transitions the top/root entity into a destruction state.
 
-### Special-weapon transition
+### Native movement and bomb emission
 
-Around `0x00416BE4..0x00416C42`, a special-weapon collision can advance lid activity from state 1 to state 2. The special projectile is then moved into the already established state-10 impact-consumed terminal state, and the lid's `+0x34` progression counter is reset.
+While `top.activity == 1`, the updater advances the root's 16.16 position and derives integer X/Y with arithmetic right-shift semantics. Horizontal tracking compares `root.x + 34` (the 68-pixel top sprite's center) against the **player's left X**, not the player center:
 
-This is direct evidence that the lid entity is not merely graphical decoration: its state is part of the boss's damage/destruction protocol.
+```text
+if boss_center_x < player.x: velocity_x += 0x44C
+else:                        velocity_x -= 0x44C
+```
+
+The result is clamped to the initializer's horizontal speed cap. When root Y reaches 240 or below-screen, vertical velocity is replaced with `-100 << 16`, beginning the upward retreat.
+
+Boss bomb emission is live-only and phase-2-only. The updater consumes `rand()%100` **before** the shared bomb-gate/capacity checks and succeeds when the result is below `2*difficulty`. It then requires the shared gate to equal 5 and an available slot, chooses the first inactive bomb, consumes `rand()%10`, and spawns at either `(root.x+30, root.y+53)` or `(root.x+41, root.y+53)`. The reused bomb's horizontal step and animation frame are intentionally not reset. The shared gate is reset to zero after a successful spawn.
+
+### Rapid-missile lid opening
+
+The rapid-missile loop has two distinct collision tests in slot order:
+
+1. if `missile.x < root.x + 39`, `0x00401FA0` tests the missile against the single current `top.jba` frame's opaque pixels; an opaque hit consumes the missile;
+2. if `lid.activity == 6` and `lid.frame == 0`, `0x00401F60` tests the retained missile point against an 11×6 helper at `(root.x+53, root.y+23)` with inclusive 9×5 common hitbox extents; a hit consumes the missile and changes the lid to activity 1.
+
+Because the top-mask pre-gate ends at `root.x+38` and the weakpoint begins at `root.x+53`, these are separate geometric lanes even though the original loop does not re-read missile activity between them. Active missile count is decremented only once at the end of a consumed slot's iteration.
+
+On phase 2, an activity-1 lid advances its frame toward 8. Once the increment would reach frame 9, it clamps back to 8; in live play only, `rand()%200 < difficulty` begins closing by switching to activity 6. The closing branch is a second `if`, so that same update immediately decrements frame 8 to 7. Activity 6 continues decrementing toward frame 0, clamping byte underflow back to zero. A missile that opens the lid on phase 2 therefore advances from frame 0 to frame 1 in that same boss update.
+
+### Special-weapon vulnerability
+
+There are two different launched-special paths. With `top.activity == 1` and a closed lid (`lid.activity == 6`), `0x00401F60` tests the special point against the 68×56 top/root common hitbox. A hit consumes the special into state 10 and zeros its Y motion, but does not open the lid.
+
+The destructive core is narrower. It requires:
+
+- `lid.activity == 1`;
+- the special kind/frame to be **Stinger** (`1`);
+- `lid.y > 0`;
+- `lid.frame > 6`;
+- a point hit on the 13×5 helper at `(root.x+29, root.y+32)`, whose common 0.85 extents are 11×4.
+
+A valid hit changes the lid to activity 2, resets its destruction counter, consumes the Stinger into state 10 and then immediately enters the activity-2 progression block, so destruction progress finishes that same update at **1**, not zero. Common special dispatch occurs earlier in state 2 than the boss call, so state 10 persists until the next gameplay update before being settled to inactive.
+
+This is direct evidence that the lid entity is not merely graphical decoration: its opening animation and exposed Stinger-only core are the boss's actual vulnerability protocol.
 
 ## +100 destruction milestone
 
@@ -126,7 +162,7 @@ The 25 count is a progression/update threshold, not a claim of “25 hits.”
 
 The same updater contains the subsequent top/root activity-2 tail at `0x004169E6..0x00416A12`. Unlike the lid's 25-count progression, this counter advances only when the shared gameplay substep argument is phase 2. The word at `top + 0x32` (`0x00446E32`) increments to exactly **30**, then `top.activity` is cleared to 0. Because this block occurs earlier in the function than the lid's 25-count transition, a top destruction state created by the lid milestone does not consume its first 30-count tick until a later gameplay update.
 
-The Phase-4 clean boss-lifecycle owner preserves that ordering while leaving randomized explosion/debris emission and boss geometry/motion in their own producers.
+The Phase-4 clean boss owner preserves that ordering and now owns root geometry/motion, bomb emission, lid opening/closing, and boss-local weapon collision. Randomized explosion/debris rendering and audio remain presentation-side events; immutable `top.jba` frame pixels remain asset input only for the exact rapid-missile opaque-mask test.
 
 ## Where this boss appears
 
@@ -167,16 +203,19 @@ This means resource availability alone must not be used to infer normal campaign
 - load/release pair is `0x00417350` / `0x00417450`;
 - encounter initializer is `0x00417220`;
 - active update is `0x00416700`;
-- the update handles bombs, player weapons, special-weapon interaction and destruction effects;
+- root 16.16 movement, player-X tracking, horizontal acceleration/cap and Y>=240 retreat are exact;
+- live phase-2 boss bomb chance/gate/slot/position behavior is exact;
+- rapid missiles open a frame-0 closed lid through the recovered weakpoint and `top.jba` opaque pixels shield the separate top lane;
+- activity 1 opens toward frame 8 and activity 6 closes toward frame 0 with the recovered difficulty-scaled close chance;
+- only a launched Stinger can enter the exposed frame>6 core and begin destruction;
 - lid state 2 advances a 25-count destruction progression;
 - reaching 25 awards +100 and transitions the top/root into activity state 2;
 - progress-index dispatch selects this family for processed Drone counts 0 and 4.
 
 ### Open
 
-- exact semantic names of lid states 1/2/6 beyond their established transition roles;
-- complete movement/attack phase meanings;
-- identity and state of every companion subobject positioned around the root;
+- original source-level names for the provisional lid states beyond their established gameplay roles;
+- identity and state of every audio/debris-only companion subobject positioned around the root;
 - the five other boss-initializer table entries as original asset families/names;
 - exact campaign/demo reachability for each boss in the shareware build;
 - DOS correspondence for this specific boss family.

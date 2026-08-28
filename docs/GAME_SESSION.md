@@ -99,10 +99,11 @@ The session accepts `GameSessionTargetContext` for facts produced by encounter s
 - immutable trajectory path samples;
 - the registered-only Mothership destruction-state fact that suppresses the live trajectory producer until that encounter is session-owned;
 - immutable current-frame trajectory sprite-mask pixels used by the native rapid-missile producer;
-- already-validated Lid/Top or Gemini destruction transitions from their boss-local collision/damage producers;
+- immutable `top.jba` frame pixels used by native Lid/Top rapid-missile opaque collision;
+- already-validated Gemini destruction transitions from its still-external boss-local collision/damage producer;
 - whether the player-death presentation actor is inactive, the one remaining presentation-side fact required by the exact deferred life-settlement gate.
 
-This is intentional. Mutable trajectory lifecycle, encounter-local alien hit/total statistics plus their source-sensitive mission accounting/fold, the exact Probe attachment/decode/disarm chain, ordered enemy-bomb collision ownership for Probe/Stinger and player, lethal player entry plus the shared -540 quiet period, deferred life consumption/respawn/game-over settlement, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Immutable trajectory path/mask asset data remains external, but rapid-missile opaque-pixel, launched-special point-hitbox, and Stinger-display broad-phase trajectory collision production are now session-owned. Non-owned hostile actor geometry/AI, direct framebuffer detonation rendering, and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. Live transient trajectory timing/template selection and its CRT-random path/offset variation are now native. Red-Stinger target **selection** is now native; only candidate facts for actors not yet owned by the session remain external. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
+This is intentional. Mutable trajectory lifecycle, encounter-local alien hit/total statistics plus their source-sensitive mission accounting/fold, the exact Probe attachment/decode/disarm chain, ordered enemy-bomb collision ownership for Probe/Stinger and player, lethal player entry plus the shared -540 quiet period, deferred life consumption/respawn/game-over settlement, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Immutable trajectory path/mask asset data remains external, but rapid-missile opaque-pixel, launched-special point-hitbox, and Stinger-display broad-phase trajectory collision production are now session-owned. Non-owned hostile actor geometry/AI, direct framebuffer detonation rendering, and Gemini movement/local hit validation remain separate producers. Lid/Top root geometry/movement, bomb attacks, lid animation/vulnerability and missile/Stinger hit validation are native. Live transient trajectory timing/template selection and its CRT-random path/offset variation are now native. Red-Stinger target **selection** is now native; only candidate facts for actors not yet owned by the session remain external. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
 
 ## Headless state oracle
 
@@ -128,8 +129,9 @@ same reviewed milestone rather than silently moving the whole-session state.
 Not yet session-integrated:
 
 - loading immutable extracted trajectory frame masks from original assets for the now-native rapid-missile opaque-pixel producer;
-- remaining non-trajectory enemy state and full boss geometry/movement/attack ownership;
-- exact Lid/Top/Gemini boss-local collision/damage producers (the session consumes only their validated destruction transitions);
+- remaining non-trajectory enemy state and Gemini geometry/movement/attack ownership;
+- exact Gemini boss-local collision/damage producer (the session still consumes its validated destruction transitions);
+- randomized Lid/Top debris/audio presentation and immutable top.jba pixels for its rapid-missile opaque-mask test;
 - remaining non-Drone special-weapon collision consequences and non-owned hostile actor geometry/AI feeding the now-native Stinger selector;
 - randomized/direct-framebuffer Drone detonation presentation emitted from the owned logical effect events;
 - reconstruction of the player-death presentation/effect actor itself (the session consumes only its established inactive/settled fact);

@@ -15,9 +15,9 @@ inline constexpr std::uint8_t boss_activity_inactive = 0;
 inline constexpr std::uint8_t boss_activity_active = 1;
 inline constexpr std::uint8_t boss_activity_destruction = 2;
 
-// Lid/Top initializes the top/root active and the lid in activity 6. The
-// unrecovered activity-6 -> vulnerable/activity-1 movement/attack producer is
-// intentionally not guessed here.
+// Lid/Top initializes the top/root active and the lid in activity 6. Native
+// movement, bomb emission and vulnerability transitions are reconstructed in
+// lid_top_boss.hpp; these constants remain shared with the lifecycle owner.
 inline constexpr std::uint8_t lid_top_initial_lid_activity = 6;
 inline constexpr std::uint16_t lid_top_lid_destruction_updates = 25;
 inline constexpr std::uint16_t lid_top_top_destruction_phase2_ticks = 30;
@@ -32,6 +32,19 @@ struct LidTopBossLifecycleState {
     std::uint8_t lid_activity = boss_activity_inactive;
     std::uint16_t lid_destruction_progress = 0;
     std::uint16_t top_destruction_progress = 0;
+
+    // Native Win32 0x00417220 / 0x00416700 runtime state. The original stores
+    // integer position at +0/+4, 16.16 position at +8/+0x0C, and motion at
+    // +0x10/+0x14 on the 68x56 top/root common entity.
+    std::uint8_t lid_frame = 0;
+    std::int32_t root_x = 0;
+    std::int32_t root_y = -100;
+    std::int32_t root_fixed_x = 0;
+    std::int32_t root_fixed_y = -100 * 65536;
+    std::int32_t root_velocity_x = 0;
+    std::int32_t root_velocity_y = 0;
+    std::int32_t horizontal_speed_cap = 0;
+    bool runtime_initialized = false;
 };
 
 struct GeminiBossSideLifecycleState {
@@ -45,20 +58,18 @@ struct GeminiBossLifecycleState {
     GeminiBossSideLifecycleState side_b{};
 };
 
-// Phase 4 owns the persistent lifecycle/score state for the two bosses that are
-// reachable by the canonical shareware campaign. Geometry, movement, bombs,
-// exact sprite-mask collisions, audio and debris/effect emission remain their
-// own producers until those contracts are integrated.
+// Phase 4 owns persistent state for both shareware bosses. Lid/Top geometry,
+// movement, bombs and weapon vulnerability are native; Gemini local movement
+// and damage production remain separate until their contracts are integrated.
 struct BossEncounterState {
     std::optional<BossFamily> family{};
     LidTopBossLifecycleState lid_top{};
     GeminiBossLifecycleState gemini{};
 };
 
-// These are not raw collision hits. They are already-validated transitions
-// emitted by the exact boss-local collision/damage producer. Keeping that
-// distinction explicit prevents this clean owner from inventing hit masks,
-// vulnerability gates or Gemini damage-threshold semantics.
+// These are not raw collision hits. GameSession now produces Lid/Top combat
+// natively; this legacy enum remains useful to the low-level lifecycle tests and
+// carries Gemini already-validated transitions until its producer is native.
 enum class SharewareBossDestructionTrigger : std::uint8_t {
     LidTopLid,
     GeminiSideA,
@@ -70,9 +81,8 @@ struct BossEncounterStepResult {
     std::size_t components_retired = 0;
     std::int32_t score_delta = 0;
 
-    // Lid/Top's 25-count transition zeros the top/root motion in the original.
-    // Movement is still externally owned, so publish that exact side effect as
-    // an event instead of introducing guessed boss-motion state here.
+    // Legacy lifecycle-only callers still surface the Lid/Top motion-stop side
+    // effect as an event; GameSession native Lid/Top owns the actual root motion.
     bool lid_top_motion_stop_requested = false;
 };
 

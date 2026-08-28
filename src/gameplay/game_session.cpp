@@ -338,18 +338,14 @@ GameSessionTickResult step_game_session(
             campaign.mission.processed_count);
         if (result.boss_activated) {
             result.boss_activated_family = encounter.boss.family;
+            if (encounter.boss.family == BossFamily::LidTop) {
+                initialize_lid_top_boss_runtime(
+                    encounter.boss.lid_top,
+                    session.runtime.difficulty,
+                    session.runtime.demo_playback_mode);
+            }
         }
     }
-
-    const auto boss_result = step_shareware_boss_encounter(
-        encounter.boss,
-        encounter.gameplay_substep_phase,
-        targets.boss_destruction_triggers,
-        campaign.score);
-    result.boss_destruction_transitions = boss_result.destruction_transitions;
-    result.boss_components_retired = boss_result.components_retired;
-    result.boss_score_delta = boss_result.score_delta;
-    result.lid_top_motion_stop_requested = boss_result.lid_top_motion_stop_requested;
 
     // Both recovered cooldown/gate scalars advance once per active state-2
     // update before their producer paths can consume the ready values. The
@@ -436,6 +432,12 @@ GameSessionTickResult step_game_session(
             } else if (stinger_boss_snapshot.family == BossFamily::LidTop) {
                 stinger_context.lid_top_top_active =
                     stinger_boss_snapshot.lid_top.top_activity == boss_activity_active;
+                stinger_context.lid_current_frame =
+                    stinger_boss_snapshot.lid_top.lid_frame;
+                stinger_context.lid_top_top = StingerTargetGeometry{
+                    .x = stinger_boss_snapshot.lid_top.root_x,
+                    .width = lid_top_top_width,
+                };
             }
 
             const auto selection = select_stinger_target(
@@ -494,6 +496,62 @@ GameSessionTickResult step_game_session(
         retire_rapid_missiles_above_top(encounter.rapid_missiles);
     result.enemy_bombs_retired =
         retire_enemy_bombs_below_bottom(encounter.enemy_bombs);
+
+    // Shareware boss updates occur in the original after common projectile
+    // movement and before the later global bomb/special/Drone collision region.
+    // Keeping native Lid/Top here is important: a boss collision that changes a
+    // launched special to terminal state 10 must not be settled until the next
+    // gameplay update. Newly spawned boss bombs likewise begin moving later.
+    if (encounter.boss.family == BossFamily::LidTop) {
+        const auto lid_top_result = step_lid_top_boss(
+            encounter.boss.lid_top,
+            encounter.gameplay_substep_phase,
+            encounter.player.x,
+            session.runtime.difficulty,
+            session.runtime.demo_playback_mode,
+            session.original_random,
+            encounter.enemy_bombs,
+            encounter.enemy_bomb_spawn_gate,
+            encounter.rapid_missiles,
+            encounter.special_weapon,
+            campaign.score,
+            targets.lid_top_sprite_mask);
+        result.boss_destruction_transitions += lid_top_result.destruction_transitions;
+        result.boss_components_retired += lid_top_result.components_retired;
+        result.boss_score_delta += lid_top_result.score_delta;
+        result.lid_top_motion_stop_requested = lid_top_result.top_motion_stopped;
+        result.lid_top_root_moved = lid_top_result.root_moved;
+        result.lid_top_vertical_retreat_started =
+            lid_top_result.vertical_retreat_started;
+        result.lid_top_enemy_bomb_spawned = lid_top_result.enemy_bomb_spawned;
+        result.lid_top_enemy_bomb_spawn_index =
+            lid_top_result.enemy_bomb_spawn_index;
+        result.lid_top_rapid_missiles_consumed =
+            lid_top_result.rapid_missiles_consumed;
+        result.lid_top_rapid_top_opaque_collisions =
+            lid_top_result.rapid_top_opaque_collisions;
+        result.lid_top_rapid_open_collisions =
+            lid_top_result.rapid_lid_open_collisions;
+        result.lid_top_lid_opened = lid_top_result.lid_opened;
+        result.lid_top_lid_close_started = lid_top_result.lid_close_started;
+        result.lid_top_special_closed_top_impact =
+            lid_top_result.special_closed_top_impact;
+        result.lid_top_stinger_core_hit = lid_top_result.stinger_core_hit;
+    } else {
+        // Gemini still consumes only its already-validated threshold transitions
+        // until its movement/local damage producer is reconstructed. Calling it
+        // at the shared original boss-dispatch position preserves scheduler order.
+        const auto boss_result = step_shareware_boss_encounter(
+            encounter.boss,
+            encounter.gameplay_substep_phase,
+            targets.boss_destruction_triggers,
+            campaign.score);
+        result.boss_destruction_transitions += boss_result.destruction_transitions;
+        result.boss_components_retired += boss_result.components_retired;
+        result.boss_score_delta += boss_result.score_delta;
+        result.lid_top_motion_stop_requested =
+            boss_result.lid_top_motion_stop_requested;
+    }
 
     // The original late bomb loop is per-slot, not two independent global
     // passes: Probe/Stinger is tested first and the player second for each bomb.

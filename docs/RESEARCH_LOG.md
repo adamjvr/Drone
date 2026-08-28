@@ -307,3 +307,12 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Corrected accounting attribution: `0x0040EFD1..0x0040EFDF` belongs to Stinger-display AoE destruction and increments encounter hits only. Direct launched Probe/Stinger trajectory destruction is a separate path and does not increment the encounter hit counter at the recovered site.
 - Integrated `gameplay/trajectory_collision.*`, the owned six-frame Stinger-display state, and immutable trajectory-frame mask input into `GameSession`; removed external `trajectory_hits` semantic injection. Direct special destruction deliberately preserves the actor's retained damage byte.
 - Added dedicated regression coverage for transparent/opaque pixels, actor-major missile consumption, Stinger display frame gating/retirement, multi-actor Probe direct destruction, Stinger display activation, source-sensitive accounting and the same-update Drone-attach-to-trajectory-scan quirk.
+
+## 2026-08-28 — Native Lid/Top combat integration
+
+- Promoted Win32 `0x00417220` / `0x00416700` from a lifecycle-only boss shell into native Phase-4 gameplay ownership.
+- Recovered exact 16.16 root initialization/movement, player-left-X tracking, horizontal acceleration/cap, Y>=240 retreat, live phase-2 bomb chance/gate/slot/position behavior, and reused-bomb field preservation.
+- Recovered the distinct rapid-missile paths: `top.jba` opaque-pixel shielding under the `root.x+39` pre-gate and the separate frame-0 lid-opening weakpoint at `root+(53,23)`.
+- Recovered lid activity-1 opening, activity-6 closing and same-update close fallthrough, plus the Stinger-only exposed core at frame>6 and lid Y>0.
+- Confirmed state-2 scheduler ordering: common special dispatch precedes the boss call at `0x0040E858`, so boss collision state 10 persists until the next gameplay update.
+- Kept randomized debris/audio as presentation events and retained only immutable `top.jba` frame pixels as the boss's remaining collision asset input.

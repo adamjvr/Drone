@@ -314,13 +314,28 @@ int main() {
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(!result.boss_activated);
 
-        const std::array lid_hit{SharewareBossDestructionTrigger::LidTopLid};
-        targets.boss_destruction_triggers = lid_hit;
+        // Lid/Top destruction is no longer a semantic host trigger. Expose the
+        // native Stinger core and let the boss-local collision producer enter
+        // the same-update count-1 destruction tail.
+        auto& lid_top = session.encounter.boss.lid_top;
+        lid_top.root_x = 40;
+        lid_top.root_y = 10;
+        lid_top.root_fixed_x = 40 << 16;
+        lid_top.root_fixed_y = 10 << 16;
+        lid_top.root_velocity_x = 0;
+        lid_top.root_velocity_y = 0;
+        lid_top.horizontal_speed_cap = 0;
+        lid_top.lid_activity = boss_activity_active;
+        lid_top.lid_frame = 7;
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
+        session.encounter.special_weapon.x = 69;
+        session.encounter.special_weapon.y = 44; // common homing moves to 42
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(result.boss_destruction_transitions == 1);
+        assert(result.lid_top_stinger_core_hit);
         assert(session.encounter.boss.lid_top.lid_destruction_progress == 1);
 
-        targets.boss_destruction_triggers = {};
         for (int i = 0; i < 24; ++i) {
             result = step_game_session(session, GameplayInputFrame{}, targets);
         }
