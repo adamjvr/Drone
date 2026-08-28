@@ -53,10 +53,11 @@ void initialize_actor_from_template(
 bool retire_actor(
     TrajectoryEncounterState& encounter,
     TrajectoryGroupState& group,
-    TrajectoryActorState& actor) noexcept {
+    TrajectoryActorState& actor,
+    const bool clear_damage = true) noexcept {
     if (actor.activity == TrajectoryEntityActivity::Inactive) return false;
     actor.activity = TrajectoryEntityActivity::Inactive;
-    actor.damage_accumulator = 0;
+    if (clear_damage) actor.damage_accumulator = 0;
     const bool group_retired = retire_trajectory_group_entity(group.lifecycle);
     if (group_retired && encounter.active_group_count > 0) --encounter.active_group_count;
     return group_retired;
@@ -263,6 +264,28 @@ TrajectoryHitResult apply_trajectory_hit(
     result.score_delta = actor.score_value;
     apply_score_delta(score, actor.score_value);
     result.group_retired = retire_actor(encounter, group, actor);
+    return result;
+}
+
+TrajectoryHitResult destroy_trajectory_actor_direct(
+    TrajectoryEncounterState& encounter,
+    const std::uint8_t group_index,
+    const std::uint8_t actor_index,
+    ScoreState& score) noexcept {
+    TrajectoryHitResult result{};
+    if (group_index >= encounter.groups.size()) return result;
+    auto& group = encounter.groups[group_index];
+    if (actor_index >= group.actors.size()) return result;
+    auto& actor = group.actors[actor_index];
+    if (group.lifecycle.mode == TrajectoryGroupMode::Inactive ||
+        actor.activity == TrajectoryEntityActivity::Inactive) return result;
+
+    result.accepted = true;
+    result.destroyed = true;
+    result.destruction_burst_count = actor.destruction_burst_count;
+    result.score_delta = actor.score_value;
+    apply_score_delta(score, actor.score_value);
+    result.group_retired = retire_actor(encounter, group, actor, false);
     return result;
 }
 

@@ -51,6 +51,7 @@ add_library(drone_core
     src/gameplay/trajectory.cpp
     src/gameplay/trajectory_templates.cpp
     src/gameplay/trajectory_encounter.cpp
+    src/gameplay/trajectory_collision.cpp
     src/gameplay/trajectory_spawn.cpp
     src/gameplay/gameplay_phase.cpp
     src/gameplay/world_scroll.cpp
@@ -155,6 +156,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_alien_accounting_tests tests/test_alien_accounting.cpp)
     target_link_libraries(drone_alien_accounting_tests PRIVATE drone_core)
     add_test(NAME drone_alien_accounting COMMAND drone_alien_accounting_tests)
+
+    add_executable(drone_trajectory_collision_tests tests/test_trajectory_collision.cpp)
+    target_link_libraries(drone_trajectory_collision_tests PRIVATE drone_core)
+    add_test(NAME drone_trajectory_collision COMMAND drone_trajectory_collision_tests)
 
     add_executable(drone_fidelity_tests tests/test_fidelity.cpp)
     target_link_libraries(drone_fidelity_tests PRIVATE drone_core)

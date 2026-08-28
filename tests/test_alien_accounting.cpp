@@ -32,6 +32,11 @@ void arm_single_trajectory_actor(drone::gameplay::GameSession& session) {
     group.lifecycle.active_entity_count = 1;
     group.lifecycle.activated_entity_count = 1;
     group.actors[0].activity = TrajectoryEntityActivity::FollowingPath;
+    group.actors[0].x = 40;
+    group.actors[0].y = 50;
+    group.actors[0].sprite_width = 10;
+    group.actors[0].sprite_height = 10;
+    group.actors[0].current_frame = 0;
     group.actors[0].damage_accumulator = 0;
     group.actors[0].destruction_threshold = 3;
     group.actors[0].score_value = 1;
@@ -97,14 +102,20 @@ int main() {
         assert(session.campaign.alien_ships_total == 8);
     }
 
-    // Both weapon kill paths increment local hits, but only rapid missiles also
-    // increment the mission-wide hit counter immediately.
+    // The now-native producers preserve the mixed hit accounting: rapid-missile
+    // opaque-pixel kills increment local and mission hits immediately, while
+    // stinger-display AoE kills increment the local encounter hit only.
     {
         GameSession rapid{};
         arm_single_trajectory_actor(rapid);
-        const std::array rapid_hits{TrajectoryHitEvent{1, 0, 3, TrajectoryHitSource::RapidMissile}};
+        rapid.encounter.rapid_missiles.missiles[0] = {.x = 42, .y = 52, .active = true};
+        rapid.encounter.rapid_missiles.active_count = 1;
+        std::array<std::uint8_t, 100> rapid_frame{};
+        rapid_frame[22] = 1;
+        TrajectorySpriteMaskCatalogView masks{};
+        masks.frames[1][0] = rapid_frame;
         GameSessionTargetContext targets{};
-        targets.trajectory_hits = rapid_hits;
+        targets.trajectory_sprite_masks = &masks;
         const auto tick = step_game_session(rapid, GameplayInputFrame{}, targets);
         assert(tick.trajectory_actors_destroyed == 1);
         assert(rapid.encounter.encounter_alien_ships_hit == 1);
@@ -112,9 +123,9 @@ int main() {
 
         GameSession special{};
         arm_single_trajectory_actor(special);
-        const std::array special_hits{TrajectoryHitEvent{1, 0, 3, TrajectoryHitSource::SpecialWeapon}};
-        targets.trajectory_hits = special_hits;
-        const auto special_tick = step_game_session(special, GameplayInputFrame{}, targets);
+        special.encounter.trajectories.groups[1].actors[0].destruction_threshold = 15;
+        special.encounter.stinger_display = {.x = 10, .y = 20, .current_frame = 3, .active = true};
+        const auto special_tick = step_game_session(special, GameplayInputFrame{});
         assert(special_tick.trajectory_actors_destroyed == 1);
         assert(special.encounter.encounter_alien_ships_hit == 1);
         assert(special.campaign.alien_ships_hit == 0);

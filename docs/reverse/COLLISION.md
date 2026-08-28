@@ -62,7 +62,17 @@ drone.x <= projectile.x <= drone.x + 12
 drone.y <= projectile.y <= drone.y + 32
 ```
 
-Both destructive paths additionally require Drone activity 1 and destruction countdown `0x00491CAC > 99`. A rapid missile or red Stinger starts the shared countdown at zero. A blue Probe instead enters attached/decode state 2, awards +10 and initializes the exact two-stage decoder. This corrects the earlier project assumption that the weapon-to-Drone producer belonged to the opaque-pixel workstream; **trajectory actor hits still do require their extracted-frame sprite masks.**
+Both destructive paths additionally require Drone activity 1 and destruction countdown `0x00491CAC > 99`. A rapid missile or red Stinger starts the shared countdown at zero. A blue Probe instead enters attached/decode state 2, awards +10 and initializes the exact two-stage decoder. This corrects the earlier project assumption that the weapon-to-Drone producer belonged to the opaque-pixel workstream. Trajectory weapons use three distinct producers: only rapid missiles require extracted-frame sprite masks.
+
+## Trajectory weapon callsites
+
+The common trajectory/late-special regions establish three different collision producers; they must not be collapsed into one generic hit event:
+
+- **Rapid missile -> trajectory actor** (`0x00416495..0x00416607`) uses `0x00401FA0` against the actor's **current frame**. Palette index zero misses; a nonzero pixel consumes that missile and adds exactly **+3** to the actor damage byte. Actor iteration owns the outer loop and missile slots are scanned in ascending order. A threshold destruction increments both encounter-local and mission-wide hit counters immediately.
+- **Launched Probe/Stinger -> trajectory actor** (late state-3 block around `0x0040F805`) uses `0x00401F60` point-vs-the actor's 0.85 hitbox and destroys the actor directly rather than accumulating damage. The block captures state 3 before the Drone collision; if that Drone collision changes the special to attached/inactive, the subsequent trajectory scan still runs with retained coordinates. The scan does not re-test activity after each actor, so a Probe made inactive by its first direct hit can destroy multiple overlapping actors in the same update. This direct path does **not** increment the encounter alien-hit counter at the recovered site.
+- **`stinger.jba` display -> trajectory actor** (`0x0040ED85..0x0040F05B`) uses `0x00402FC0`: the separate 61x53 display entity contributes its centered **51x45** hitbox and the trajectory actor contributes its full sprite rectangle. Only display frames **3, 4 and 5** apply **+15** damage. Threshold destruction increments encounter-local hits only. The display then advances every gameplay update and retires after frame 5.
+
+The Stinger display is centered on the projectile when activated (`x = special.x - 30`, `y = special.y - 26`) and activation does not explicitly reset its current frame. This producer split is now represented directly in `gameplay/trajectory_collision.*`; callers supply only immutable sprite-mask pixels for the rapid-missile path.
 
 ## Clean implementation
 

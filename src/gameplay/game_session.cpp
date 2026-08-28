@@ -242,6 +242,27 @@ GameSessionTickResult step_game_session(
         result.trajectory_score_delta += trajectory_result.escape_score_delta;
     }
 
+    // Rapid-missile trajectory collision is part of the trajectory updater in
+    // Win32: post-path/current-frame actor state is tested against pre-movement
+    // missile coordinates through the current extracted sprite mask.
+    if (targets.trajectory_sprite_masks != nullptr) {
+        const auto rapid_trajectory = collide_rapid_missiles_with_trajectories(
+            encounter.trajectories,
+            encounter.rapid_missiles,
+            *targets.trajectory_sprite_masks,
+            campaign.score);
+        result.trajectory_rapid_collisions = rapid_trajectory.collisions;
+        result.trajectory_rapid_missiles_consumed = rapid_trajectory.rapid_missiles_consumed;
+        result.trajectory_actors_destroyed += rapid_trajectory.actors_destroyed;
+        result.trajectory_groups_retired += rapid_trajectory.groups_retired;
+        result.trajectory_destruction_bursts += rapid_trajectory.destruction_bursts;
+        result.trajectory_score_delta += rapid_trajectory.score_delta;
+        encounter.encounter_alien_ships_hit +=
+            static_cast<std::int32_t>(rapid_trajectory.actors_destroyed);
+        campaign.alien_ships_hit +=
+            static_cast<std::int32_t>(rapid_trajectory.actors_destroyed);
+    }
+
     // update_drone_detonation_effect is called after trajectory processing and
     // before the normal Drone/boss region. The portable core publishes only its
     // proven logical events; random explosion placement and framebuffer
@@ -440,6 +461,21 @@ GameSessionTickResult step_game_session(
     result.shield_active = shield_result.active;
     result.shield_sound_requested = shield_result.play_sound;
 
+    // The separate six-frame stinger.jba display is processed before the later
+    // bomb/special collision block. Frames 3..5 deal +15 trajectory damage; the
+    // display then advances and retires after frame 5. Activations caused later
+    // in this update therefore cannot damage trajectories until a future tick.
+    const auto stinger_display_trajectory = collide_stinger_display_with_trajectories(
+        encounter.trajectories, encounter.stinger_display, campaign.score);
+    result.trajectory_stinger_display_collisions = stinger_display_trajectory.collisions;
+    result.trajectory_actors_destroyed += stinger_display_trajectory.actors_destroyed;
+    result.trajectory_groups_retired += stinger_display_trajectory.groups_retired;
+    result.trajectory_destruction_bursts += stinger_display_trajectory.destruction_bursts;
+    result.trajectory_score_delta += stinger_display_trajectory.score_delta;
+    encounter.encounter_alien_ships_hit +=
+        static_cast<std::int32_t>(stinger_display_trajectory.actors_destroyed);
+    advance_stinger_display(encounter.stinger_display);
+
     step_rapid_missiles(encounter.rapid_missiles, animation_tick);
 
     const bool attached_probe =
@@ -503,6 +539,19 @@ GameSessionTickResult step_game_session(
     result.special_launched = result.special_launched ||
         bomb_collision.loaded_special_auto_launched;
 
+    if (bomb_special_hit.stinger_impact_effect_requested) {
+        activate_stinger_display_at(
+            encounter.stinger_display, encounter.special_weapon.x, encounter.special_weapon.y);
+        result.trajectory_stinger_display_activated = true;
+    }
+
+    // Win32 enters the late special block only when state == 3 *here*, after
+    // bomb collisions. A later Drone collision inside that block may change the
+    // activity byte, but the subsequent trajectory scan still executes using
+    // the retained special coordinates.
+    const bool special_entered_late_block_as_launched =
+        encounter.special_weapon.activity == SpecialWeaponActivity::LaunchedHoming;
+
     // The original rapid-missile pool is checked before the common special
     // projectile. Both Drone interactions use 0x00401F60 point-vs-hitbox, not
     // the opaque-pixel primitive. The first destructive hit changes countdown
@@ -536,27 +585,26 @@ GameSessionTickResult step_game_session(
         result.drone_weapon_hit_explosion_spawns_requested +
         special_drone_hit.explosion_spawns_requested);
 
-    // Collision detection for trajectory actors still owns their extracted-frame
-    // masks. Drone weapon entry producers above are now internal because their
-    // canonical paths use the already-recovered point/hitbox primitive. Once a
-    // trajectory hit is proven, destruction/score/group teardown belongs to the
-    // continuously owned trajectory encounter and is dispatched here.
-    for (const auto& hit : targets.trajectory_hits) {
-        const auto hit_result = apply_trajectory_hit(encounter.trajectories, hit, campaign.score);
-        if (!hit_result.destroyed) continue;
-        // Both established trajectory-kill paths increment encounter-local
-        // 0x0047EC3C. The rapid-missile path at 0x004165E4 also increments
-        // mission-wide 0x0044084C immediately, while the special-weapon path at
-        // 0x0040EFD1 does not. The later fold then adds the local hit again.
-        ++encounter.encounter_alien_ships_hit;
-        if (hit.source == TrajectoryHitSource::RapidMissile) {
-            ++campaign.alien_ships_hit;
-        }
-        ++result.trajectory_actors_destroyed;
-        result.trajectory_destruction_bursts += hit_result.destruction_burst_count;
-        result.trajectory_score_delta += hit_result.score_delta;
-        if (hit_result.group_retired) ++result.trajectory_groups_retired;
-    }
+    // The launched Probe/Stinger trajectory scan is distinct from both rapid
+    // sprite-mask hits and the Stinger-display AoE. It uses point-vs-0.85
+    // actor hitboxes and directly destroys every overlapping actor without
+    // re-testing special activity after the first collision. These direct kills
+    // do not touch the encounter/mission hit counters at this site.
+    const auto direct_special_trajectory = collide_launched_special_with_trajectories(
+        encounter.trajectories,
+        encounter.special_weapon,
+        special_entered_late_block_as_launched,
+        session.runtime.demo_playback_mode,
+        encounter.stinger_display,
+        campaign.score);
+    result.trajectory_direct_special_collisions = direct_special_trajectory.collisions;
+    result.trajectory_stinger_display_activated =
+        result.trajectory_stinger_display_activated ||
+        direct_special_trajectory.stinger_display_activated;
+    result.trajectory_actors_destroyed += direct_special_trajectory.actors_destroyed;
+    result.trajectory_groups_retired += direct_special_trajectory.groups_retired;
+    result.trajectory_destruction_bursts += direct_special_trajectory.destruction_bursts;
+    result.trajectory_score_delta += direct_special_trajectory.score_delta;
 
     encounter.world_scroll_row = advance_gameplay_world_scroll_row(
         encounter.world_scroll_row,

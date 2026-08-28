@@ -19,6 +19,7 @@
 #include <drone/gameplay/special_weapon.hpp>
 #include <drone/gameplay/stinger_targeting.hpp>
 #include <drone/gameplay/trajectory_encounter.hpp>
+#include <drone/gameplay/trajectory_collision.hpp>
 #include <drone/gameplay/trajectory_spawn.hpp>
 #include <drone/gameplay/world_scroll.hpp>
 
@@ -67,6 +68,7 @@ struct GameEncounterState {
     EnemyBombSpawnGate enemy_bomb_spawn_gate{};
     TrajectoryEncounterState trajectories{};
     TrajectorySpawnSchedulerState trajectory_spawn{};
+    StingerDisplayState stinger_display{};
     // Original 0x00466B04: encounter-local alien total used by the interstitial
     // hit/miss summary. It starts at the seven primary Loop actors and grows as
     // actors are inserted; campaign-wide folding remains a separate milestone.
@@ -117,11 +119,12 @@ struct GameSessionTargetContext {
     // Immutable trajectory samples remain external asset data, but live
     // transient formation selection/timing/RNG are now session-owned. The
     // registered-only Mothership destruction gate remains an explicit fact
-    // until that encounter is reconstructed. Exact sprite-mask hit detection
-    // also remains a separate fidelity/collision producer.
+    // until that encounter is reconstructed. Rapid-missile collision needs only
+    // immutable extracted trajectory-frame masks; hit production itself is now
+    // owned by GameSession.
     const TrajectoryPathCatalogView* trajectory_paths = nullptr;
+    const TrajectorySpriteMaskCatalogView* trajectory_sprite_masks = nullptr;
     bool mothership_destruction_active = false;
-    std::span<const TrajectoryHitEvent> trajectory_hits{};
 
     // Exact boss-local collision/damage remains outside this owner. These are
     // already-validated destruction transitions, not broad-phase/raw hits.
@@ -191,6 +194,11 @@ struct GameSessionTickResult {
     std::size_t trajectory_groups_retired = 0;
     std::uint32_t trajectory_destruction_bursts = 0;
     std::int32_t trajectory_score_delta = 0;
+    std::size_t trajectory_rapid_collisions = 0;
+    std::size_t trajectory_rapid_missiles_consumed = 0;
+    std::size_t trajectory_stinger_display_collisions = 0;
+    std::size_t trajectory_direct_special_collisions = 0;
+    bool trajectory_stinger_display_activated = false;
 
     bool boss_activated = false;
     std::optional<BossFamily> boss_activated_family{};

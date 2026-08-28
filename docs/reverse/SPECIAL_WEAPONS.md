@@ -216,6 +216,14 @@ At the exact phase-1 threshold the original writes status 3 and resets phase-2 e
 
 The normal Drone owner later observes status 1 on the same gameplay update, releases the Y=45 hold, commits the normal outcome at Y=201, and clears the completed decoder status/counters after the Drone passes Y=230. This completes the executable-backed normal attach/decode/disarm chain.
 
+## Trajectory collision and Stinger display
+
+The late special block has a trajectory path distinct from the Drone collision. After bomb processing, the original tests whether the special is state 3 and enters the late block. Inside that captured block the Drone is tested first. Even if the Drone collision then changes the special activity (for example a blue Probe attaches), the later trajectory scan still executes with the retained projectile coordinates.
+
+That scan tests the special point against each active trajectory actor through `0x00401F60` and the actor's 0.85-derived hitbox. A hit directly destroys the actor; it is not a +damage threshold path. The actor scan does not re-read special activity between actors, so a blue Probe that is set inactive on the first direct trajectory hit can still destroy later overlapping actors in the same scan. Direct destruction also does not explicitly clear the actor damage byte, which matters for persistent group-0 actors that may later be replenished.
+
+For a live red Stinger, a direct trajectory hit keeps the projectile launched and activates the separate six-frame `stinger.jba` entity at `0x00434C10`, centered at projectile X-30/Y-26. The display's current frame is not explicitly reset on activation. While active, display frames 3..5 use `0x00402FC0` with its centered 51x45 hitbox against trajectory actors' full sprite rectangles and add +15 damage. That AoE destruction path is the `0x0040EFD1` site that increments encounter alien hits only. Enemy-bomb destruction of a red Stinger can also activate this display; because the display/AoE stage occurs earlier in the update, that new activation cannot damage trajectories until a later tick.
+
 ## Enemy-bomb knockoff / decoder interruption
 
 The late bomb collision loop at `0x0040F35F..0x0040F4B8` tests every active bomb against any nonzero Probe/Stinger state through `0x00402000`. That primitive adds 9 to the bomb Y coordinate and tests against the special entity hitbox. Because the special entity is 3x8 and common initialization uses 0.85-derived collision extents, the inclusive special hitbox is 2x6.

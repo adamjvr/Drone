@@ -250,12 +250,10 @@ int main() {
         assert(session.encounter.special_weapon.x == 160);
     }
 
-    // Phase-4 whole-session integration now owns live transient formation
-    // timing/template selection as well as the mutable trajectory collection.
-    // Force the next phase-2 interval crossing and prove a native spawn; then
-    // feed the still-external sprite-mask hit producer on a later update. The
-    // separate original encounter/campaign alien-accounting scalars remain a
-    // later ownership boundary and are not aliased here.
+    // Phase-4 whole-session integration owns live transient formation timing,
+    // template selection, and native weapon collision production. Force the
+    // next phase-2 interval crossing and prove a native spawn; then destroy its
+    // first actor through the launched Probe point-hitbox path on a later update.
     {
         std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count> storage{};
         const auto paths = make_session_trajectory_paths(storage);
@@ -276,9 +274,17 @@ int main() {
         assert(spawned.trajectory_spawned_group.has_value());
 
         const auto group_index = *spawned.trajectory_spawned_group;
-        const TrajectoryHitEvent hit{group_index, 0, 255};
-        const std::array<TrajectoryHitEvent, 1> hits{hit};
-        targets.trajectory_hits = hits;
+        auto& actor = session.encounter.trajectories.groups[group_index].actors[0];
+        actor.x = 100;
+        actor.y = 100;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Probe;
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
+        session.encounter.drone.x = actor.x - 4;
+        session.encounter.special_weapon.x = actor.x;
+        session.encounter.special_weapon.y = actor.y + 2;
+        // Freeze the spawned actor for this focused collision update; the
+        // direct special producer itself no longer depends on path samples.
+        targets.trajectory_paths = nullptr;
 
         const auto destroyed = step_game_session(session, GameplayInputFrame{}, targets);
         assert(destroyed.trajectory_actors_destroyed == 1);

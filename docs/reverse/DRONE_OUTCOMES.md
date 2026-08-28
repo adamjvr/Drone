@@ -176,6 +176,6 @@ The surrounding Win32 region beginning at `0x004115BE` is now partitioned at the
 ## Open questions
 
 - Complete semantics of Mothership core-target states other than the established state-2 destruction outcome; see [`MOTHERSHIP.md`](MOTHERSHIP.md).
-- Exact rapid-missile/Stinger collision producers that start the same owned destruction countdown; their opaque-pixel masks remain in the collision-integration workstream.
+- Exact rapid-missile/Stinger point-hitbox producers that start the same owned destruction countdown are session-integrated; Drone collision does not require opaque-pixel masks.
 - Direct-framebuffer/randomized detonation presentation parity driven from the new logical effect events.
 - DOS-side storage/selection correspondence for the same six objective outcomes.

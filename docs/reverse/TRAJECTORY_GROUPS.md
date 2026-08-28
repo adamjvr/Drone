@@ -192,7 +192,7 @@ Once a free group is chosen, it becomes mode 2 and consumes the original optiona
 
 For non-Swarm live non-recording waves, one `rand()%22` decides whether every fixed actor receives independent X/Y formation offsets in `[-30,29]`; the randomization branch is taken when the roll is below `P+2`. Otherwise all actor formation offsets are zeroed. The common activation tail then resets every slot, activates slot 0 at sample zero and seeds the mode-2 stagger lifecycle already documented above.
 
-A successful transient first-actor activation increments original scalar `0x00466B04`. Cross-site recovery establishes that scalar as the **encounter-local alien total** paired with encounter-local hit counter `0x0047EC3C`: reset seeds 7/0; primary replenishment and transient first-actor insertion increment only the local total; each later non-primary stagger activation at `0x0041610E` increments **both** local total and mission-wide `0x00446078`. Likewise, a rapid-missile trajectory destruction at `0x004165E4` increments both local hit and mission-wide `0x0044084C`, while the special-weapon destruction at `0x0040EFD1` increments local hit only. The encounter interstitial still renders hit/miss/total/percentage from the local pair and `0x0041E237` later adds that entire pair into the mission pair. The original therefore double-counts stagger activations and rapid-missile kills in mission Results; the clean engine preserves that quirk explicitly rather than aliasing or normalizing the counters.
+A successful transient first-actor activation increments original scalar `0x00466B04`. Cross-site recovery establishes that scalar as the **encounter-local alien total** paired with encounter-local hit counter `0x0047EC3C`: reset seeds 7/0; primary replenishment and transient first-actor insertion increment only the local total; each later non-primary stagger activation at `0x0041610E` increments **both** local total and mission-wide `0x00446078`. Likewise, a rapid-missile trajectory destruction at `0x004165E4` increments both local hit and mission-wide `0x0044084C`, while the **Stinger-display AoE** destruction at `0x0040EFD1` increments local hit only; the launched Probe/Stinger direct-destruction scan is a separate path and does not increment that counter at the recovered site. The encounter interstitial still renders hit/miss/total/percentage from the local pair and `0x0041E237` later adds that entire pair into the mission pair. The original therefore double-counts stagger activations and rapid-missile kills in mission Results; the clean engine preserves that quirk explicitly rather than aliasing or normalizing the counters.
 
 ## FLY relationship
 
@@ -249,7 +249,7 @@ Evidence-backed helpers live in:
 - `tests/test_gameplay.cpp`
 - `tests/test_trajectory_encounter.cpp`
 
-The implementation covers path-index arithmetic, AUX frame control, the complete 17-template startup catalog, stagger activation, mode-2 retirement, zero-active teardown, breakaway eligibility, 16.16 breakaway movement, off-screen bounds, breakaway frame direction, owned mutable actor/group state, the common live transient-wave activation contract, and proven-hit damage/destruction/score/group teardown. `GameSession` owns this encounter state continuously when immutable path samples are supplied.
+The implementation covers path-index arithmetic, AUX frame control, the complete 17-template startup catalog, stagger activation, mode-2 retirement, zero-active teardown, breakaway eligibility, 16.16 breakaway movement, off-screen bounds, breakaway frame direction, owned mutable actor/group state, the common live transient-wave activation contract, proven-hit damage/destruction/score/group teardown, and native rapid-missile/current-frame-mask plus direct-special/Stinger-display collision production. `GameSession` owns this encounter state continuously when immutable path samples are supplied.
 
 ## Whole-session integration and remaining boundaries
 
@@ -257,8 +257,8 @@ Phase 4 now owns all 17 groups inside `GameSession`. The established common live
 
 Still intentionally separate:
 
-- the higher-level random/template-selection policy that chooses which inactive group to activate;
-- exact opaque-pixel collision detection, which must continue to use the extracted sprite mask rather than a rectangle substitute;
+- immutable FLY/generated path samples and extracted current-frame mask pixels remain asset inputs; live template selection and collision production are now native;
+- immutable extracted current-frame mask pixels, which remain asset data while the rapid-missile opaque-pixel producer itself is now native;
 - remaining dynamic special-family substitutions/producers beyond the fixed startup templates;
 - deterministic original-runtime trace comparison, which remains Phase 6.
 

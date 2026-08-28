@@ -122,13 +122,22 @@ void reset_trajectory_encounter(
     std::int32_t gameplay_phase,
     ScoreState& score) noexcept;
 
-// Collision detection remains a separate producer because the original uses
-// the actor's extracted opaque sprite mask. This dispatcher applies an already
-// established hit to the continuously owned actor: byte damage accumulation,
-// threshold destruction, score award, burst-count handoff and group teardown.
+// Shared threshold-damage dispatcher used by the now-native rapid-missile and
+// Stinger-display trajectory collision producers. The producers own their
+// distinct collision primitives; this helper owns byte damage accumulation,
+// threshold destruction, score award, burst handoff and group teardown.
 [[nodiscard]] TrajectoryHitResult apply_trajectory_hit(
     TrajectoryEncounterState& encounter,
     const TrajectoryHitEvent& hit,
+    ScoreState& score) noexcept;
+
+// The launched Probe/Stinger trajectory path destroys an actor immediately
+// rather than accumulating damage. The original does not clear the actor's
+// retained damage byte here, so primary-group replenishment may later reuse it.
+[[nodiscard]] TrajectoryHitResult destroy_trajectory_actor_direct(
+    TrajectoryEncounterState& encounter,
+    std::uint8_t group_index,
+    std::uint8_t actor_index,
     ScoreState& score) noexcept;
 
 } // namespace drone::gameplay
