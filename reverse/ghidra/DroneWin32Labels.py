@@ -100,6 +100,8 @@ globals_ = {
     0x00438C20: "joystick_move_left",
     0x004D6430: "joystick_move_right",
     0x00464B30: "joystick_move_up",
+    0x00464B38: "trajectory_spawn_interval_threshold",
+    0x0045BEFC: "trajectory_spawn_interval_counter",
     0x004D8508: "stinger_target_entity_pointer",
     0x004D850C: "joystick_move_down",
     0x004D95A8: "joystick_rapid_fire",

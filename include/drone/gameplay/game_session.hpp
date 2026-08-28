@@ -18,6 +18,7 @@
 #include <drone/gameplay/special_weapon.hpp>
 #include <drone/gameplay/stinger_targeting.hpp>
 #include <drone/gameplay/trajectory_encounter.hpp>
+#include <drone/gameplay/trajectory_spawn.hpp>
 #include <drone/gameplay/world_scroll.hpp>
 
 #include <cstddef>
@@ -48,6 +49,7 @@ struct GameCampaignState {
 struct GameRuntimeOptions {
     DifficultyLevel difficulty = DifficultyLevel::Beginner;
     bool demo_playback_mode = false;
+    bool demo_recording_mode = false;
 };
 
 // State rebuilt for every encounter by the recovered reset architecture.
@@ -60,6 +62,7 @@ struct GameEncounterState {
     EnemyBombPool enemy_bombs{};
     EnemyBombSpawnGate enemy_bomb_spawn_gate{};
     TrajectoryEncounterState trajectories{};
+    TrajectorySpawnSchedulerState trajectory_spawn{};
     BossEncounterState boss{};
     DroneObjectiveState drone{};
 
@@ -102,15 +105,13 @@ struct GameSessionTargetContext {
     // without forcing the gameplay core to invent the effect's pixel behavior.
     bool player_death_effect_inactive = false;
 
-    // Phase-4 encounter integration. Asset/path samples remain immutable input;
-    // mutable 17-group lifecycle/actor state lives inside GameSession. A caller
-    // may request one already-selected transient template activation at the
-    // formation stage and provide collision hits detected by the exact sprite-
-    // mask collision layer later in the same logical update.
+    // Immutable trajectory samples remain external asset data, but live
+    // transient formation selection/timing/RNG are now session-owned. The
+    // registered-only Mothership destruction gate remains an explicit fact
+    // until that encounter is reconstructed. Exact sprite-mask hit detection
+    // also remains a separate fidelity/collision producer.
     const TrajectoryPathCatalogView* trajectory_paths = nullptr;
-    std::optional<std::uint8_t> trajectory_spawn_group{};
-    std::int16_t trajectory_spawn_x_offset = 0;
-    std::int16_t trajectory_spawn_y_offset = 0;
+    bool mothership_destruction_active = false;
     std::span<const TrajectoryHitEvent> trajectory_hits{};
 
     // Exact boss-local collision/damage remains outside this owner. These are
@@ -152,6 +153,14 @@ struct GameSessionTickResult {
     bool player_game_over_banner_requested = false;
 
     bool trajectory_group_spawned = false;
+    bool trajectory_spawn_forced = false;
+    bool trajectory_spawn_roll_passed = false;
+    std::optional<std::uint8_t> trajectory_spawned_group{};
+    std::optional<std::uint8_t> trajectory_spawn_sound_index{};
+    TrajectoryPathFamily trajectory_spawn_runtime_family = TrajectoryPathFamily::Loop;
+    std::int16_t trajectory_spawn_x_offset = 0;
+    std::int16_t trajectory_spawn_y_offset = 0;
+    bool trajectory_spawn_actor_offsets_randomized = false;
     std::size_t trajectory_actors_activated = 0;
     std::size_t trajectory_actors_escaped = 0;
     std::size_t trajectory_actors_destroyed = 0;

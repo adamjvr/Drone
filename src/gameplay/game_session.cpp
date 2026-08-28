@@ -6,6 +6,8 @@ namespace drone::gameplay {
 
 GameSession::GameSession() {
     reset_trajectory_encounter(encounter.trajectories);
+    reset_trajectory_spawn_scheduler(
+        encounter.trajectory_spawn, runtime.difficulty, campaign.mission.processed_count);
 }
 
 void reset_game_session(GameSession& session, const GameplaySessionResetScope scope) {
@@ -16,6 +18,10 @@ void reset_game_session(GameSession& session, const GameplaySessionResetScope sc
 
     session.encounter = GameEncounterState{};
     reset_trajectory_encounter(session.encounter.trajectories);
+    reset_trajectory_spawn_scheduler(
+        session.encounter.trajectory_spawn,
+        session.runtime.difficulty,
+        session.campaign.mission.processed_count);
     // Encounter rebuilds reactivate the player entity while preserving the
     // campaign life count. The active flag lives in the older combined helper
     // type, so normalize it here at the session ownership boundary.
@@ -137,19 +143,37 @@ GameSessionTickResult step_game_session(
         (void)mark_drone_disarm_completed(encounter.drone);
     }
 
-    // The recovered state-2 formation producer runs before trajectory updates.
-    // This milestone keeps random/template selection external but owns the
-    // actual mode-2 activation and all subsequent group/actor lifecycle here.
-    if (targets.trajectory_paths != nullptr && targets.trajectory_spawn_group.has_value()) {
-        result.trajectory_group_spawned = activate_transient_trajectory_group(
-            encounter.trajectories,
-            *targets.trajectory_spawn_group,
-            *targets.trajectory_paths,
-            targets.trajectory_spawn_x_offset,
-            targets.trajectory_spawn_y_offset);
-    }
-
+    // Win32 0x0040D390..0x0040D947 owns live transient formation timing,
+    // template selection, path-side randomization and the accompanying CRT RNG
+    // draws before normal trajectory advancement. Demo playback remains driven
+    // by replay channels; registered-only Mothership destruction is still an
+    // explicit suppression fact until that encounter is native.
     if (targets.trajectory_paths != nullptr) {
+        const auto spawn_result = step_live_trajectory_spawn(
+            encounter.trajectory_spawn,
+            encounter.trajectories,
+            *targets.trajectory_paths,
+            session.original_random,
+            TrajectorySpawnContext{
+                .difficulty = session.runtime.difficulty,
+                .processed_drone_count = static_cast<std::int32_t>(campaign.mission.processed_count),
+                .gameplay_phase = encounter.gameplay_substep_phase,
+                .demo_playback_mode = session.runtime.demo_playback_mode,
+                .demo_recording_mode = session.runtime.demo_recording_mode,
+                .drone_y = encounter.drone.y,
+                .drone_activity = encounter.drone.activity,
+                .mothership_destruction_active = targets.mothership_destruction_active,
+            });
+        result.trajectory_group_spawned = spawn_result.activated;
+        result.trajectory_spawn_forced = spawn_result.spawn_roll_forced;
+        result.trajectory_spawn_roll_passed = spawn_result.spawn_roll_passed;
+        result.trajectory_spawned_group = spawn_result.group_index;
+        result.trajectory_spawn_sound_index = spawn_result.sound_index;
+        result.trajectory_spawn_runtime_family = spawn_result.runtime_path_family;
+        result.trajectory_spawn_x_offset = spawn_result.group_x_offset;
+        result.trajectory_spawn_y_offset = spawn_result.group_y_offset;
+        result.trajectory_spawn_actor_offsets_randomized =
+            spawn_result.actor_offsets_randomized;
         const auto trajectory_result = advance_trajectory_encounter(
             encounter.trajectories,
             *targets.trajectory_paths,

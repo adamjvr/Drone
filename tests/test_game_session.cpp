@@ -10,7 +10,7 @@
 namespace {
 
 drone::gameplay::TrajectoryPathCatalogView make_session_trajectory_paths(
-    std::array<std::vector<drone::formats::FlyRecord>, 10>& storage) {
+    std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count>& storage) {
     for (std::size_t family = 0; family < storage.size(); ++family) {
         auto& path = storage[family];
         path.resize(1000);
@@ -46,6 +46,8 @@ int main() {
         assert(session.encounter.drone_settlement_tick == canonical_drone_settlement_tick_cap);
         assert(session.encounter.enemy_bomb_spawn_gate.counter == -450);
         assert(session.encounter.rapid_missiles.fire_cooldown == RapidMissilePool::cooldown_ready);
+        assert(session.encounter.trajectory_spawn.interval_threshold == 280);
+        assert(session.encounter.trajectory_spawn.interval_counter == 250);
         assert(!session.encounter.boss.family.has_value());
     }
 
@@ -79,6 +81,8 @@ int main() {
         assert(session.encounter.player.x == canonical_respawn_x);
         assert(session.encounter.world_scroll_row == canonical_world_scroll_initial_row);
         assert(session.encounter.gameplay_updates == 0);
+        assert(session.encounter.trajectory_spawn.interval_threshold == 260);
+        assert(session.encounter.trajectory_spawn.interval_counter == 230);
         assert(!session.encounter.boss.family.has_value());
         assert(session.total_gameplay_updates == 400);
 
@@ -241,39 +245,40 @@ int main() {
         assert(session.encounter.special_weapon.x == 160);
     }
 
-    // Phase-4 whole-session integration owns the trajectory collection and can
-    // execute the established formation -> path update -> proven-hit ->
-    // destruction/score path in one logical tick. Group 1 is the canonical
-    // weak LeftDive template (threshold 1, burst 1, score 1).
+    // Phase-4 whole-session integration now owns live transient formation
+    // timing/template selection as well as the mutable trajectory collection.
+    // Force the next phase-2 interval crossing and prove a native spawn; then
+    // feed the still-external sprite-mask hit producer on a later update. The
+    // separate original encounter/campaign alien-accounting scalars remain a
+    // later ownership boundary and are not aliased here.
     {
-        std::array<std::vector<drone::formats::FlyRecord>, 10> storage{};
+        std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count> storage{};
         const auto paths = make_session_trajectory_paths(storage);
 
         GameSession session{};
-        const TrajectoryHitEvent hit{1, 0, 3};
-        const std::array<TrajectoryHitEvent, 1> hits{hit};
+        seed_original_random(session.original_random, 11);
+        session.encounter.gameplay_substep_phase = 1;
+        session.encounter.trajectory_spawn.interval_counter =
+            static_cast<std::int16_t>(session.encounter.trajectory_spawn.interval_threshold - 3);
 
         GameSessionTargetContext targets{};
         targets.trajectory_paths = &paths;
-        targets.trajectory_spawn_group = 1;
-        targets.trajectory_spawn_x_offset = 7;
-        targets.trajectory_spawn_y_offset = -3;
+
+        const auto spawned = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(spawned.advanced);
+        assert(spawned.trajectory_group_spawned);
+        assert(spawned.trajectory_spawn_forced);
+        assert(spawned.trajectory_spawned_group.has_value());
+
+        const auto group_index = *spawned.trajectory_spawned_group;
+        const TrajectoryHitEvent hit{group_index, 0, 255};
+        const std::array<TrajectoryHitEvent, 1> hits{hit};
         targets.trajectory_hits = hits;
 
-        const auto result = step_game_session(session, GameplayInputFrame{}, targets);
-        assert(result.advanced);
-        assert(result.trajectory_group_spawned);
-        assert(result.trajectory_actors_destroyed == 1);
-        assert(result.trajectory_groups_retired == 1);
-        assert(result.trajectory_destruction_bursts == 1);
-        assert(result.trajectory_score_delta == 1);
-        assert(session.campaign.score.total == 1);
-        assert(session.campaign.score.extra_life_progress == 1);
-        assert(session.encounter.trajectories.groups[1].lifecycle.mode ==
-               TrajectoryGroupMode::Inactive);
-        assert(session.encounter.trajectories.groups[1].actors[0].activity ==
-               TrajectoryEntityActivity::Inactive);
-        assert(session.encounter.trajectories.active_group_count == 1);
+        const auto destroyed = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(destroyed.trajectory_actors_destroyed == 1);
+        assert(destroyed.trajectory_destruction_bursts > 0);
+        assert(destroyed.trajectory_score_delta > 0);
     }
 
     // Drone travel is now continuously owned. Reaching -200 on the recovered

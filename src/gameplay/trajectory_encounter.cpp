@@ -129,7 +129,7 @@ bool activate_transient_trajectory_group(
     const TrajectoryPathCatalogView& paths,
     const std::int16_t group_x_offset,
     const std::int16_t group_y_offset) noexcept {
-    if (group_index == 0 || group_index >= encounter.groups.size()) return false;
+    if (group_index >= encounter.groups.size()) return false;
     auto& group = encounter.groups[group_index];
     if (group.lifecycle.mode != TrajectoryGroupMode::Inactive || group.lifecycle.entity_count <= 0) return false;
 

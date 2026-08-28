@@ -23,7 +23,11 @@ enum class TrajectoryPathFamily : std::uint8_t {
     LeftDrop,
     Generated402,
     Generated422,
+    RightDive,
+    RightDrop,
 };
+
+inline constexpr std::size_t canonical_trajectory_path_family_count = 12;
 
 struct TrajectoryCombatProfile {
     std::uint8_t destruction_threshold{};

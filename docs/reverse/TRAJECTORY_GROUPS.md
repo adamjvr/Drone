@@ -142,6 +142,42 @@ x < -59 or x > 320 or y < -59 or y > 200
 
 The same active-count/group teardown rule then applies.
 
+## Live transient formation producer
+
+The normal-live producer at `0x0040D390..0x0040D947` is now recovered and clean-integrated rather than supplied as an already-selected group from the host. It runs only on shared gameplay phase 2 while demo playback is off.
+
+Encounter setup derives two signed 16-bit scheduler values from processed-Drone count `P` and difficulty `D` (`1..3`):
+
+```text
+interval_threshold = 310 - 20*P - 30*D
+interval_counter   = interval_threshold - 30
+```
+
+On every eligible phase-2 call, the counter advances by **3**. Reaching/exceeding the threshold resets the counter to zero and forces the current spawn chance to `1200`. Otherwise the ordinary live chance is `3*P + 4*D`; recording mode substitutes **28**. The producer always consumes `rand()%1200` before the later position/activity gates, so a suppressed attempt still advances the original CRT RNG.
+
+After a passing roll, spawning is suppressed when Drone Y is at least 200, the active-group count is already `group_count-1` (16), Drone activity is destruction state 2, or the registered-only Mothership-core destruction state is 2.
+
+The fixed-group draw is progression-dependent:
+
+- `P < 2`: `rand()%12`, so canonical shareware progression draws only groups **0..11**;
+- `P == 2 or 3`: `rand()%16 + 1`, but candidates **12/13** are rerolled through `rand()%12`;
+- `P >= 4`: `rand()%16 + 1`.
+
+A subtle pool rule matters: an initially selected **group 0 is legal if it has become inactive**. Busy scanning increments the index and wraps `17 -> 1`, so group 0 is not revisited after the first candidate. This corrects the earlier simplified description of the live producer as strictly non-primary.
+
+Once a free group is chosen, it becomes mode 2 and consumes the original optional flight-SFX RNG (`rand()&0x7f < 0x50`, then `rand()%14`). Runtime path/offset substitution then follows the selected template family:
+
+- Swarm: X offset `rand()%200 - 50`;
+- Swoop/NewCurly: X offset `rand()%250 - 50`;
+- Frisbee1/Generated402/Generated422: Y offset `rand()%100 - 50`, X zero;
+- Frisbee2: X zero;
+- LeftDrop/RightDrop: X zero and a `rand()%10` coin flip selects left vs right drop;
+- Loop/LeftDive/RightDive/default dive family: a `rand()%10` coin flip selects left vs right dive, then X offset `rand()%200 - 100`.
+
+For non-Swarm live non-recording waves, one `rand()%22` decides whether every fixed actor receives independent X/Y formation offsets in `[-30,29]`; the randomization branch is taken when the roll is below `P+2`. Otherwise all actor formation offsets are zeroed. The common activation tail then resets every slot, activates slot 0 at sample zero and seeds the mode-2 stagger lifecycle already documented above.
+
+The producer also increments original scalar `0x00466B04`. That scalar participates in broader encounter/campaign alien accounting and is intentionally **not** aliased to the already-established mission result total `0x00446078`; its complete accounting semantics are being kept separate until all of its transition/update sites are reconciled.
+
 ## FLY relationship
 
 Normal path-following entities use the parallel FLY X/Y/AUX arrays documented in [`../formats/FLY.md`](../formats/FLY.md). AUX controls sprite animation; the group lifecycle described here determines when an entity follows, acquires, loops, retires, or abandons that path.

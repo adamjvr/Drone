@@ -16,7 +16,7 @@ namespace drone::gameplay {
 // indices/activity/combat state while a caller supplies immutable recovered FLY
 // samples (or generated-path samples) for the current data set.
 struct TrajectoryPathCatalogView {
-    std::array<std::span<const formats::FlyRecord>, 10> families{};
+    std::array<std::span<const formats::FlyRecord>, canonical_trajectory_path_family_count> families{};
 
     [[nodiscard]] std::span<const formats::FlyRecord> path(
         TrajectoryPathFamily family) const noexcept;
@@ -88,8 +88,9 @@ void reset_trajectory_encounter(
     const TrajectoryPathCatalogView* paths = nullptr);
 
 // Find an inactive non-primary group, beginning at preferred_index and cycling
-// through 1..16. This captures the live state-2 allocator's skip-busy behavior
-// without coupling selection to CRT rand(). Returns -1 when no slot is free.
+// through 1..16. This older helper remains useful for callers that deliberately
+// exclude primary group 0; the exact live producer has its own 0-capable scan.
+// Returns -1 when no slot is free.
 [[nodiscard]] std::int32_t select_inactive_trajectory_group(
     const TrajectoryEncounterState& encounter,
     std::int32_t preferred_index) noexcept;

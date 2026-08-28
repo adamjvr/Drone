@@ -9,7 +9,7 @@
 namespace {
 
 drone::gameplay::TrajectoryPathCatalogView make_paths(
-    std::array<std::vector<drone::formats::FlyRecord>, 10>& storage) {
+    std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count>& storage) {
     for (std::size_t family = 0; family < storage.size(); ++family) {
         auto& path = storage[family];
         path.resize(1000);
@@ -30,7 +30,7 @@ drone::gameplay::TrajectoryPathCatalogView make_paths(
 int main() {
     using namespace drone::gameplay;
 
-    std::array<std::vector<drone::formats::FlyRecord>, 10> storage{};
+    std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count> storage{};
     const auto paths = make_paths(storage);
 
     // Startup reconstruction owns all 17 fixed records. The primary Loop group

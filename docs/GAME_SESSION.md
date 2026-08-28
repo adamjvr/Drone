@@ -63,7 +63,7 @@ The integrated tick composes already-established atomic behavior:
 2. advance the shared four-phase state-2 substep, then the logical Drone detonation tick (capped at 330) and phase-2 settlement scalar;
 3. settle a completed Drone destruction when its phase-0 effect-side field is >70, running the mission interstitial first when more than one life remains, then consuming the life and rebuilding/repositioning the encounter when applicable;
 4. advance an already-attached Probe decoder before normal Drone movement: status 0 phase-1 timing, same-update fallthrough into status 3 phase 2, status 1 completion, +500 score/progress and the required completion PRNG draw; a completion marks the owned Drone disarmed immediately;
-5. apply an explicitly selected live transient trajectory-group activation, when requested;
+5. when immutable trajectory paths are supplied, run the native live phase-2 transient formation scheduler: advance/force the recovered interval, consume the exact CRT spawn roll, select a free fixed group with progression-dependent pool rules, apply runtime path/group/formation randomization, and activate mode 2 when all gates pass;
 6. advance owned trajectory groups, stagger activation and mode-2 escape retirement;
 7. run the post-trajectory logical detonation updater on phase 0, including captured-center drift, four presentation-spawn requests, tick-329 settlement reset and tick>329 settlement increments;
 8. advance owned normal Drone travel/hover/settlement state; completed decode releases the Y=45 hold in the same update, and the exact 4200-tick unresolved hover starts the internal destructive countdown; after Y>230 the session clears completed decode state as the original does;
@@ -95,12 +95,12 @@ The session accepts `GameSessionTargetContext` for facts produced by encounter s
 - the independently recovered but still unnamed condition that redirects enemy
   bombs toward an attached Probe;
 - immutable trajectory path samples;
-- an already-selected transient trajectory template to activate during the formation stage;
+- the registered-only Mothership destruction-state fact that suppresses the live trajectory producer until that encounter is session-owned;
 - exact sprite-mask collision hits already proven for trajectory actors;
 - already-validated Lid/Top or Gemini destruction transitions from their boss-local collision/damage producers;
 - whether the player-death presentation actor is inactive, the one remaining presentation-side fact required by the exact deferred life-settlement gate.
 
-This is intentional. Mutable trajectory lifecycle, the exact Probe attachment/decode/disarm chain, ordered enemy-bomb collision ownership for Probe/Stinger and player, lethal player entry plus the shared -540 quiet period, deferred life consumption/respawn/game-over settlement, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Random trajectory/template selection, immutable asset data, trajectory opaque-pixel collision detection, non-owned hostile actor geometry/AI, direct framebuffer detonation rendering, and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. Red-Stinger target **selection** is now native; only candidate facts for actors not yet owned by the session remain external. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
+This is intentional. Mutable trajectory lifecycle, the exact Probe attachment/decode/disarm chain, ordered enemy-bomb collision ownership for Probe/Stinger and player, lethal player entry plus the shared -540 quiet period, deferred life consumption/respawn/game-over settlement, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Immutable trajectory asset data, trajectory opaque-pixel collision detection, non-owned hostile actor geometry/AI, direct framebuffer detonation rendering, and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. Live transient trajectory timing/template selection and its CRT-random path/offset variation are now native. Red-Stinger target **selection** is now native; only candidate facts for actors not yet owned by the session remain external. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
 
 ## Headless state oracle
 
@@ -125,7 +125,6 @@ same reviewed milestone rather than silently moving the whole-session state.
 
 Not yet session-integrated:
 
-- the live random/template-selection producer that chooses which inactive trajectory group to activate;
 - exact opaque-pixel collision detection feeding trajectory hit events;
 - remaining non-trajectory enemy state and full boss geometry/movement/attack ownership;
 - exact Lid/Top/Gemini boss-local collision/damage producers (the session consumes only their validated destruction transitions);

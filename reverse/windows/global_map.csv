@@ -158,3 +158,5 @@ address,provisional_name,confidence,notes
 0x004460B2,drone_destruction_settlement_phase0_ticks,high,Drone +0x32 WORD; detonation updater resets tick329/increments >329 phase0; early state2 gate accepts >70
 0x0042C0F4,crt_random_state,high,exact MSVC LCG uint32 state used by 0x00421ED0; seed supplied via 0x00421EC0
 0x004D8508,stinger_target_entity_pointer,high,"stateful red-Stinger hostile target pointer; load resets to dummy 0x0045A708 at X160 width0; no qualifying priority branch retains prior pointer"
+0x00464B38,trajectory_spawn_interval_threshold,high,WORD = 310 - 20*processed Drone count - 30*difficulty; live phase-2 formation producer forces when counter reaches threshold
+0x0045BEFC,trajectory_spawn_interval_counter,high,WORD initialized threshold-30; live phase-2 producer adds3/reset0; temporarily reused as busy-slot scan scratch after a passing spawn roll
