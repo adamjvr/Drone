@@ -143,6 +143,19 @@ The host currently presents a decoded full-screen JBA through the clean 320×200
 
 Use `Escape` or `Q` to exit. The optional final argument is integer scale.
 
+Linux can validate the same host binary without an X display by using a clean snapshot and landmark capture:
+
+```bash
+./build/drone_fidelity_host \
+  /tmp/clean-frame.drfb \
+  --headless \
+  --capture-dir /tmp/drone-captures \
+  --landmark "validation frame" \
+  --sequence 1
+```
+
+See `docs/LINUX_FIDELITY_HOST.md` for the capture + fingerprint workflow.
+
 ## Reproduce the DOS LE object image
 
 ```bash

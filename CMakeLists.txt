@@ -15,6 +15,7 @@ add_library(drone_core
     src/formats/scores.cpp
     src/fidelity/indexed_framebuffer.cpp
     src/fidelity/framebuffer_snapshot.cpp
+    src/fidelity/host_capture.cpp
     src/fidelity/sprite_sheet.cpp
     src/fidelity/sprite_blit.cpp
     src/fidelity/font2.cpp
@@ -114,5 +115,11 @@ if(DRONE_BUILD_TESTS)
             NAME drone_framebuffer_fixture_tool
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_framebuffer_fixture.py
         )
+        if(UNIX AND NOT APPLE AND TARGET drone_fidelity_host)
+            add_test(
+                NAME drone_linux_fidelity_host_capture
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_linux_fidelity_host.py $<TARGET_FILE:drone_fidelity_host>
+            )
+        endif()
     endif()
 endif()

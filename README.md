@@ -13,7 +13,7 @@ The long-term goal is a documented, behaviorally validated reconstruction of the
 
 ## Current status
 
-**Phase 3 — Rendering & World Reconstruction is in progress.** Phase 2 is complete and remains the stable gameplay-architecture baseline: state orchestration, the Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, timing/input contracts, trajectory groups/templates, collision/projectile boundaries, scenery scrolling, mission progression, post-game flow, and multiple clean gameplay slices are recovered and regression-tested. Phase 3 now concentrates on renderer/world fidelity: the late dynamic-palette helper cluster and Windows small-JBA/embedded-PCX format are recovered and clean-tested, the ordinary state-2 renderer is partitioned into an explicit 18-pass composition/palette/present order, and copyright-safe `DRONEFB1` framebuffer comparison/fingerprint tooling is implemented; next are lawful reference captures, finer HUD/effect ownership, and native-host validation.
+**Phase 3 — Rendering & World Reconstruction is in progress.** Phase 2 is complete and remains the stable gameplay-architecture baseline: state orchestration, the Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, timing/input contracts, trajectory groups/templates, collision/projectile boundaries, scenery scrolling, mission progression, post-game flow, and multiple clean gameplay slices are recovered and regression-tested. Phase 3 now concentrates on renderer/world fidelity: the late dynamic-palette helper cluster and Windows small-JBA/embedded-PCX format are recovered and clean-tested, the ordinary state-2 renderer is partitioned into an explicit 18-pass composition/palette/present order, and copyright-safe `DRONEFB1` framebuffer comparison/fingerprint tooling is implemented; the Linux/X11 host now has deterministic display-free landmark capture and metadata plumbing; next are lawful original-runtime captures and finer HUD/effect ownership.
 
 Phase-2 closure is enforced by `scripts/check_phase2_exit.py`; it fails if a critical simulation-architecture question is reopened or the roadmap regresses. See [`docs/PHASE2.md`](docs/PHASE2.md), [`docs/PHASE3.md`](docs/PHASE3.md), [`docs/STATUS.md`](docs/STATUS.md), and [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -85,7 +85,7 @@ On supported desktop hosts, the project now builds `drone_fidelity_host`, which 
 ./build/drone_fidelity_host .reference/work/windows/Sights/Titlesh.jba 3
 ```
 
-Linux uses X11, Windows uses Win32/GDI, and macOS uses Cocoa/CoreGraphics. This host is a presentation shell, not yet the reconstructed game simulation.
+Linux uses X11, Windows uses Win32/GDI, and macOS uses Cocoa/CoreGraphics. The Linux host additionally accepts `DRONEFB1` input and supports `--headless` capture for shell/CI validation; see [`docs/LINUX_FIDELITY_HOST.md`](docs/LINUX_FIDELITY_HOST.md). This host is a presentation shell, not yet the reconstructed game simulation.
 
 ## Inspect recovered formats
 

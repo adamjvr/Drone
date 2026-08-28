@@ -73,6 +73,11 @@ The deterministic gameplay probe remains backward-compatible and can optionally 
 
 The snapshot is generated from the clean indexed framebuffer and its active palette. This is useful for regression work without changing the established PPM probe oracle.
 
+
+## Linux native-host capture plumbing
+
+The Linux/X11 fidelity host can now consume either a full-screen JBA or an existing `DRONEFB1` frame. With `--headless` it writes a capture without opening X11, enabling deterministic validation on CI or a remote shell. `--capture-dir`, `--landmark`, and `--sequence` produce stable landmark filenames; `scripts/capture_linux_fidelity_host.py` couples that capture to the SHA-256 metadata workflow documented above. See [`LINUX_FIDELITY_HOST.md`](LINUX_FIDELITY_HOST.md).
+
 ## Publishable fingerprint metadata
 
 `scripts/framebuffer_fixture.py` computes SHA-256 metadata without placing original framebuffer bytes in Git:

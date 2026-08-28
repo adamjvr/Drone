@@ -1,4 +1,5 @@
 #include <drone/fidelity/framebuffer_snapshot.hpp>
+#include <drone/fidelity/host_capture.hpp>
 #include <drone/fidelity/palette_effects.hpp>
 #include <drone/fidelity/presentation_order.hpp>
 
@@ -235,6 +236,35 @@ int main() {
         assert(!order[17].conditional);
     }
 
+
+    {
+        IndexedFramebuffer framebuffer;
+        for (std::size_t i = 0; i < framebuffer.pixels().size(); ++i) {
+            framebuffer.pixels()[i] = static_cast<std::uint8_t>(i & 0xffu);
+        }
+        for (std::size_t i = 0; i < framebuffer.palette().size(); ++i) {
+            framebuffer.palette()[i] = {
+                static_cast<std::uint8_t>(i),
+                static_cast<std::uint8_t>(255u - i),
+                static_cast<std::uint8_t>((i * 5u) & 0xffu),
+            };
+        }
+        const auto before = make_framebuffer_snapshot(framebuffer);
+        const auto root = std::filesystem::temp_directory_path() / "drone-host-capture-test";
+        std::filesystem::remove_all(root);
+        const FidelityHostCaptureLandmark landmark{.label = "Boss / Arrival #1", .sequence = 42};
+        assert(sanitize_fidelity_capture_label(landmark.label) == "boss-arrival-1");
+        const auto expected = root / "00000042-boss-arrival-1.drfb";
+        assert(fidelity_capture_landmark_path(root, landmark) == expected);
+        const auto written = write_fidelity_host_landmark_capture(framebuffer, root, landmark);
+        assert(written == expected);
+        assert(std::filesystem::exists(written));
+        const auto captured = load_framebuffer_snapshot(written);
+        assert(compare_framebuffer_snapshots(before, captured).exact());
+        const auto after = make_framebuffer_snapshot(framebuffer);
+        assert(compare_framebuffer_snapshots(before, after).exact());
+        std::filesystem::remove_all(root);
+    }
 
     {
         FramebufferSnapshot reference;
