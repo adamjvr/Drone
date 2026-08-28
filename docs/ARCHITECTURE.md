@@ -58,6 +58,8 @@ The eventual simulation layer should own only behavior that can affect game stat
 
 Original memory layout does not dictate clean class/structure design, but original update order and numerical behavior may be compatibility requirements.
 
+The recovered input boundary now makes `canonical inputs` concrete: `drone::gameplay::GameplayInputFrame` contains independent semantic booleans. Platform hosts OR their physical sources before handing the frame to the simulation; original demo playback replaces only the six recorded controls while leaving unrecorded vertical/meta input live. See [`reverse/INPUT.md`](reverse/INPUT.md).
+
 ## Host layer
 
 The host owns:
@@ -70,7 +72,9 @@ The host owns:
 - filesystem/config locations;
 - OS lifecycle events.
 
-SDL3 remains the leading first-host candidate because it spans all target families. It should be introduced as a host dependency, not a core dependency.
+Phase 2 now includes a dependency-light native fidelity host rather than committing the project to a cross-platform framework. The current host backends are X11 on Linux, Win32/GDI on Windows, and Cocoa/CoreGraphics on macOS. They all present the same `drone::fidelity::IndexedFramebuffer` produced by `drone_core`.
+
+This native shell is deliberately small and replaceable. It proves the host boundary while keeping `drone_core` independent of X11, Win32, Cocoa, SDL, JUCE, or any other presentation framework. iPadOS remains a later host implementation using the same core/framebuffer contracts.
 
 ## Tooling/validation layer
 

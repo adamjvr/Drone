@@ -1,10 +1,31 @@
 address,provisional_name,confidence,notes
-0x00067F1C,vga_palette_update,medium,"palette-side routine mapped during JBA work"
-0x00067F60,image_buffer_alloc,medium,"adjacent image setup"
-0x00067F90,load_fullscreen_jba,high,"matches Win32 JBA behavior"
-0x0007ECB4,hmi_sample_loader,medium,"DOS/HMI sound-side loader"
-0x0008A4A4,watcom_malloc_like,high,"runtime"
-0x0008A848,watcom_free_like,high,"runtime"
-0x0008A777,watcom_fopen_like,high,"runtime"
-0x0008AA2E,watcom_fclose_like,high,"runtime"
-0x0008BE83,watcom_fscanf_like,high,"runtime"
+0x00067F1C,vga_palette_update,medium,palette-side routine mapped during JBA work
+0x00067F60,image_buffer_alloc,medium,adjacent image setup
+0x00067F90,load_jba_320x200,high,matches Win32 JBA behavior
+0x0007ECB4,hmi_sample_loader,medium,DOS/HMI sound-side loader
+0x0008A4A4,watcom_malloc_like,high,runtime
+0x0008A848,watcom_free_like,high,runtime
+0x0008A777,watcom_fopen_like,high,runtime
+0x0008AA2E,watcom_fclose_like,high,runtime
+0x0008BE83,watcom_fscanf_like,high,runtime
+0x0006940C,wait_vga_vertical_retrace,high,polls port 0x3DA until bit 0x08 set; proven gameplay/presentation caller 0x0007DC92 is gated by sync scalar data offset 0xD0 == +1
+0x00067E78,vga_dac_write_entry,high,writes VGA DAC index/data ports
+0x00067E94,vga_dac_read_entry,high,reads VGA DAC through 0x3C7/0x3C9
+0x000894FC,save_high_scores_file,high,opens scores wt; writes ten 30-byte-name + four-number records using obfuscated helpers
+0x000895CC,encode_obfuscated_high_score_name,high,DOS implementation of 3 noise digits + rand()%400+300 padding + 3 noise digits + A-Z filler before each meaningful byte
+0x0008974C,encode_obfuscated_high_score_number,high,DOS numeric counterpart with decimal length and random decimal filler
+0x000898C8,load_high_scores_file,high,opens scores rt; reads ten records
+0x00089954,decode_obfuscated_high_score_name,high,skips stored padding filler and recovers name bytes through NUL
+0x00089C60,decode_obfuscated_high_score_number,high,recovers filler-separated decimal integer
+0x0006C964,load_mothership_assets,high,loads hull/panel/damage/hub/motor/hole Mothership asset cluster; LE xrefs verified
+0x0006CDB0,release_mothership_assets,high,guarded cleanup paired with DOS Mothership loader
+0x00067E50,set_bios_video_mode,high,startup passes 0x13; helper invokes INT 10h AH=0 using DPMI real-mode interrupt wrapper
+0x000809B0,draw_bitmap_text,high,DOS FONT2.JBA lazy 64 x 0x14 glyph cache and ASCII-0x20 renderer
+0x00083CB0,draw_bitmap_glyph_mask,high,DOS per-glyph nonzero-mask renderer
+0x000694EC,extract_font2_glyph_mask,high,DOS 320-stride FONT2 mask extractor
+0x0006958C,allocate_bitmap_record_pixels,high,DOS width*height+1 descriptor buffer allocator
+0x000695AC,release_bitmap_record_pixels,medium,DOS bitmap-record pixel-pointer release helper; FONT2 lifetime call not overclaimed
+0x00068220,sprite_entity_init,high,initializes common DOS 0x14F entity; exact field-level correspondent of Win32 0x00401780
+0x000682D0,sprite_entity_release_frames,high,frees +0x3E frame pointers up to +0x13F frame count
+0x00068300,blit_sprite_transparent_clipped,high,transparent clipped blitter using current frame +0x13E and frame table +0x3E
+0x000684D0,entity_collision_overlap,high,common DOS entity collision helper used by damage/destruction paths

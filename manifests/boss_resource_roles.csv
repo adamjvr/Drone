@@ -1,0 +1,28 @@
+family,processed_drone_slots,kind,relative_path,present_in_windows_shareware,size,sha256,evidence
+LidTop,0;4,image,Sights/Lid.jba,yes,64768,d881e692528dd06e347585b829e66c03cdef6e006c3ac485fc9ebc349fe10f9f,load 0x00417350
+LidTop,0;4,image,Sights/Top.jba,yes,64768,50285b7fc676ba2dcbc696a0b34a0d39f77871522c4387633bd462d16bf6f347,load 0x00417350
+LidTop,0;4,audio,Sounds/Retro1.wav,yes,20972,108930558aefd942ac216860c624ac840ba04d5075768c5265aaacfd1dfda397,load 0x00417350
+LidTop,0;4,audio,Sounds/Level1.wav,yes,86088,1619f661a69e2cb53c7b631ca1ce84c07faa0f69fdf69ada7b8284562d5ff215,load 0x00417350
+Gemini,1,image,Sights/Gemini1.jba,yes,64768,e4030574fdd887a1f5a48d8a0780ce99d4d716998b440952063930df9ff8e538,load 0x00405FB0
+Gemini,1,image,Sights/Gemini2.jba,yes,64768,41efab84068a3f78cd67117b50a7c94cc9a2f975533e986d259ee5460e5e402f,load 0x00405FB0
+Gemini,1,image,Sights/Gemhead.jba,yes,64768,2eedcca9a6aab515c35bcbcba041f2189cb11da73ea8059095b2f4e08c441663,load 0x00405FB0
+Gemini,1,audio,Sounds/Gemini.wav,yes,13850,724c6a134ff4978ecddaa5a26f8340cba8a318fa484e9bb0969ed42dabbb6d2e,load 0x00405FB0
+Gemini,1,audio,Sounds/Level2.wav,yes,64100,99e18499e2b1f365156c938d48dc01fb62ebb250d0e06edebc661a8c19d894ed,load 0x00405FB0
+Spidey,3,image,Sights/Spidey1.jba,no,,,load 0x00415C80
+Spidey,3,image,Sights/Spidey2.jba,no,,,load 0x00415C80
+Spidey,3,image,Sights/Spidey3.jba,no,,,load 0x00415C80
+Spidey,3,image,Sights/Spidey01.jba,no,,,load 0x00415C80
+Spidey,3,image,Sights/Spidey02.jba,no,,,load 0x00415C80
+Spidey,3,image,Sights/Spidey03.jba,no,,,load 0x00415C80
+Spidey,3,image,Sights/Spideydo.jba,no,,,load 0x00415C80
+Spidey,3,audio,Sounds/Spidey.wav,no,,,load 0x00415C80
+Spidey,3,audio,Sounds/Level4.wav,no,,,load 0x00415C80
+Bomber,5,image,Sights/Bombmid.jba,no,,,load 0x004044B0
+Bomber,5,image,Sights/Bombleft.jba,no,,,load 0x004044B0
+Bomber,5,image,Sights/Bombrite.jba,no,,,load 0x004044B0
+Bomber,5,image,Sights/Bombtop.jba,no,,,load 0x004044B0
+Bomber,5,audio,Sounds/Bomber1.wav,no,,,load 0x004044B0
+Bomber,5,audio,Sounds/Squish1.wav,no,,,load 0x004044B0
+Bomber,5,audio,Sounds/Absorb.wav,no,,,load 0x004044B0
+Bomber,5,audio,Sounds/Level3.wav,no,,,load 0x004044B0
+RegisteredSlot2Unknown,2,unresolved,,unknown/not identified,,,init 0x00407980; update 0x00406CC0; release 0x00407AB0; no dedicated loader identified

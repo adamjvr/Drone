@@ -28,15 +28,20 @@ Shared asset names, demo sets, level names, and load sequences can identify the 
 
 Examples include DirectDraw surface management, DirectInput object creation, DOS VGA palette I/O, and HMI sound-driver plumbing. These help define host interfaces but should not be forced into one-to-one function mappings.
 
-## Confirmed/established Phase 1 relationships
+## Confirmed/established relationships
 
 | subsystem | DOS evidence | Windows evidence | status |
 |---|---|---|---|
 | full-screen JBA load | `0x00067F90` | `0x004012B0` | high-confidence algorithm correspondence |
 | palette update | `0x00067F1C` candidate | `0x004011E0` | medium correspondence; surrounding platform details differ |
 | audio asset family | CLV/HMI path near `0x0007ECB4` | WAV loader `0x00406200` + DirectSound | behavioral/data correspondence; not function equivalence |
-| FLY records | original consumers/parser family | original consumers/parser family | physical layout established; semantic/function map incomplete |
+| FLY trajectories | raw/count parser family; DOS consumer mapping in progress | hard-coded raw trajectory loaders + trajectory groups | X/Y, normal AUX frame control, path index/step/wrap, and short-loader-slot reachability established; DOS consumer mapping/special families still partial |
 | C runtime file parsing | Watcom runtime anchors | Microsoft runtime-like anchors | useful analysis anchors, not game-function correspondence |
+| frame pacing/presentation timing | VGA vertical-retrace wait `0x0006940C` | QPC limiter in gameplay path | behavioral correspondence candidate; exact simulation cadence unresolved |
+| common sprite/entity object | `0x14F` family initialized at `0x00068220` | `0x154` family initialized at `0x00401780` | **established field-level correspondence**; DOS frame/status/tail region is systematically two bytes earlier and Win32 adds three tail bytes; see `ENTITY_LAYOUT.md` |
+| legacy high-score persistence | save/load `0x000894FC` / `0x000898C8` plus helpers | save/load `0x0041F120` / `0x004174D0` plus helpers | high-confidence exact physical-format algorithm correspondence: ten records, 30-byte name stride, four numbers, identical random-padding scheme |
+| gameplay input actions | game-port normalizers `0x0006BAD0` / `0x0006BB4C` plus state-2 keyboard/replay consumers | DirectInput poll/normalizer `0x00406AC0` / `0x00420090` plus state-2 keyboard/replay consumers | high-confidence semantic correspondence: independent live actions converge on the same six replay controls; physical APIs remain platform-specific |
+| FONT2 bitmap text/cache | `0x000809B0` + `0x000694EC`/`0x0006958C`/`0x00083CB0` | `0x00401470` + `0x004015D0`/`0x00401630`/`0x00401570` | exact cross-build UI correspondence: 64×0x14 descriptors, 16×4 gutter grid, 7×5 masks, character-0x20 indexing, width*height+1 allocation and nonzero-mask rendering |
 
 ## Procedure for adding a mapping
 
@@ -50,3 +55,9 @@ A new correspondence row should include:
 - status (`candidate`, `established`, `rejected`, `superseded`).
 
 Do not create a mapping just because two routines are similar in size or appear at similar points in a file. Prefer shared constants, data flow, call role, asset interaction, and runtime behavior.
+
+## Mothership asset lifecycle
+
+`CORR-MSHIP-001` is an established cross-build correspondence. The DOS/Watcom pair `0x0006C964` / `0x0006CDB0` and Win32 pair `0x00413290` / `0x00413870` load and release the same coherent Mothership object family: `hull0..3`, `panel0..3`, `damage0/1`, `hub`, `motor`, and `hole`.
+
+DOS xrefs are recovered from LE internal fixup records rather than inferred from raw immediates. See `reverse/dos/mothership_asset_xrefs.csv` and `scripts/find_dos_le_internal_xrefs.py`. This establishes the asset-lifecycle correspondence; the DOS gameplay/destruction state machine is the next cross-build target.

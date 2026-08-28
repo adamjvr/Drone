@@ -13,9 +13,9 @@ The long-term goal is a documented, behaviorally validated reconstruction of the
 
 ## Current status
 
-**Phase 1 is complete and the project is at Phase 2 entry.** The evidence/tooling layer is reproducible, several core formats are recovered, the Win32 outer loop/state dispatcher/timing limiter are mapped, and clean C++20 format code is tested. Phase 2 focuses on timing, gameplay subsystem/structure recovery, and the first interactive fidelity host.
+**Phase 3 — Rendering & World Reconstruction is in progress.** Phase 2 is complete and remains the stable gameplay-architecture baseline: state orchestration, the Win32 `0x154` ↔ DOS `0x14F` common entity correspondence, timing/input contracts, trajectory groups/templates, collision/projectile boundaries, scenery scrolling, mission progression, post-game flow, and multiple clean gameplay slices are recovered and regression-tested. Phase 3 now concentrates on renderer/world fidelity: remaining palette/HUD/effect helpers, small-JBA container semantics, layering/composition, and reference framebuffer comparison.
 
-See [`docs/STATUS.md`](docs/STATUS.md) for the exact confirmed/partial/open matrix and [`docs/ROADMAP.md`](docs/ROADMAP.md) for milestone exit criteria.
+Phase-2 closure is enforced by `scripts/check_phase2_exit.py`; it fails if a critical simulation-architecture question is reopened or the roadmap regresses. See [`docs/PHASE2.md`](docs/PHASE2.md), [`docs/PHASE3.md`](docs/PHASE3.md), [`docs/STATUS.md`](docs/STATUS.md), and [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ### High-confidence Phase 1 results
 
@@ -24,11 +24,11 @@ See [`docs/STATUS.md`](docs/STATUS.md) for the exact confirmed/partial/open matr
 | full-screen `.JBA` | 768-byte RGB6 palette + 64,000 indexed pixels; 320×200; 10-lane stored pixel order |
 | DOS `.CLV` | raw unsigned 8-bit stereo PCM at 22,050 Hz |
 | DOS→Windows audio relation | corresponding Win mono sample is integer floor-average of DOS stereo sample pair over compared common regions |
-| `.FLY` | count followed by records stored as `int16,int16,int8`; semantics unresolved |
-| demo `.DAT` | flat ASCII stream of 14-signed-integer records; semantics unresolved |
+| `.FLY` | `CURRENT.FLY` counted; runtime paths are raw `int16 x,int16 y,int8 aux` triples with hard-coded loader counts; X/Y semantics established |
+| demo `.DAT` | 2,101×14 ASCII integers; controls, trajectory-script data, bomb checkpoints, and Drone X/Y channels mapped; four DOS/Windows files byte-identical |
 | Windows installer | known Wise payload recovered as 207 raw-DEFLATE streams; 192 installed files; CRC-32 validated |
 | Win32 loop | startup/surface/message loop rooted at `0x00404E30`; game update rooted at `0x0040BA50` |
-| Win32 pacing | optional busy wait for QPC low-32 delta >= 15,000 counts; intended Hz deliberately unresolved |
+| timing | canonical DOS fidelity cadence is established at ~70.0863 Hz from mode 13h + one ordinary retrace wait per logical update; Win32 QPC limiter frequency remains a separate host-history question |
 
 ## Documentation is a project deliverable
 
@@ -73,7 +73,18 @@ The source package hashes are checked before extraction. The Windows installer i
 Full known corpus metadata is publishable in:
 
 - `manifests/dos_shareware_files.csv` — 187 files;
-- `manifests/windows_shareware_files.csv` — 192 files.
+- `manifests/windows_shareware_files.csv` — 192 files;
+- `manifests/fly_trajectories.csv` — FLY hashes/counts/ranges and recovered loader-count metadata.
+
+## Native fidelity host
+
+On supported desktop hosts, the project now builds `drone_fidelity_host`, which presents an original full-screen JBA through the clean 320×200 indexed framebuffer contract:
+
+```bash
+./build/drone_fidelity_host .reference/work/windows/Sights/Titlesh.jba 3
+```
+
+Linux uses X11, Windows uses Win32/GDI, and macOS uses Cocoa/CoreGraphics. This host is a presentation shell, not yet the reconstructed game simulation.
 
 ## Inspect recovered formats
 
@@ -81,6 +92,7 @@ Full known corpus metadata is publishable in:
 ./build/drone_inspect jba-info .reference/work/windows/Sights/Titlesh.jba /tmp/drone-title.ppm
 ./build/drone_inspect clv-info .reference/work/dos/DRONE.CLV /tmp/drone.wav
 ./build/drone_inspect fly-info .reference/work/windows/Data/Current.fly
+./build/drone_inspect fly-info .reference/work/windows/Data/Rightdiv.fly
 ./build/drone_inspect demo-info .reference/work/windows/Data/Demoa2.dat
 ```
 

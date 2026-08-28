@@ -1,10 +1,125 @@
 address,provisional_name,confidence,notes
-0x0042B188,game_state_raw,high,"dispatcher selector; values beyond 0..5 also used as transition/sentinel values"
-0x0042B1B4,frame_limiter_enabled,high,"when ==1, gameplay path busy-waits on QPC threshold"
-0x00440DF8,qpc_buffer_ptr,high,"8-byte allocation passed to QueryPerformanceCounter"
-0x004677E8,previous_qpc_low,high,"low 32 bits used for delta/pacing"
-0x0045A140,current_qpc_low,medium,"updated from QPC buffer in gameplay path"
-0x0048003C,qpc_delta_low,high,"current low32 minus previous low32"
-0x004D9580,main_hwnd,high,"window handle saved by WinMain-like routine"
-0x004D9584,framebuffer_or_surface_pixels,medium,"updated from locked DirectDraw surface data"
-0x004DA780,framebuffer_pitch,medium,"updated from DirectDraw surface descriptor"
+0x0042B188,game_state_raw,high,user-facing protocol mapped: 0 exit; 1 menu-reset; 2 gameplay; 3 instructions; 4 menu re-entry; 5 pause; 6 quit confirm; 7 ordering; 8 high scores; 13 demo launch; 99 nine-lives notice
+0x0042B1B4,vertical_retrace_sync_mode,high,default +1; VK_TAB negates +/-1; UI says VERTICAL RETRACE / SYNC ON/OFF; +1 enables 15000-count QPC wait
+0x00440DF8,qpc_buffer_ptr,high,8-byte allocation passed to QueryPerformanceCounter
+0x004677E8,previous_qpc_low,high,low 32 bits used for delta/pacing
+0x0045A140,current_qpc_low,medium,updated from QPC buffer in gameplay path
+0x0048003C,qpc_delta_low,high,current low32 minus previous low32
+0x004D9580,main_hwnd,high,window handle saved by WinMain-like routine
+0x004D9584,locked_surface_pixels,high,DirectDraw Lock descriptor pixel pointer
+0x004DA780,locked_surface_pitch,high,DirectDraw Lock byte pitch; used by 320x200 copy/fill helpers
+0x00446C30,trajectory_loop_arrays,high,Loop.fly X/Y/AUX pointer slots; loader count 380
+0x004417C0,trajectory_leftdrop_arrays,high,Leftdrop.fly X/Y/AUX pointer slots; loader count 200
+0x00464B18,trajectory_ritedrop_arrays,high,Ritedrop.fly X/Y/AUX pointer slots; loader count 200
+0x0043FDF8,trajectory_frisbee1_arrays,high,Frisbee1.fly X/Y/AUX pointer slots; loader count 937
+0x0043FE08,trajectory_frisbee2_arrays,high,Frisbee2.fly X/Y/AUX pointer slots; loader count 426
+0x00454AF0,trajectory_leftdive_arrays,high,Leftdive.fly X/Y/AUX pointer slots; loader count 119
+0x00466C78,trajectory_rightdiv_arrays,high,Rightdiv.fly X/Y/AUX pointer slots; loader count 119; canonical file has 118 records
+0x00454B08,trajectory_swarm_arrays,high,Swarm.fly X/Y/AUX pointer slots; loader count 950; canonical file has 949 records
+0x00466AF0,trajectory_swoop_arrays,high,Swoop.fly X/Y/AUX pointer slots; loader count 190
+0x00441A80,trajectory_newcurly_arrays,high,Newcurly.fly X/Y/AUX pointer slots; loader count 232
+0x004D9594,software_framebuffer,high,logical guarded 320x200 indexed framebuffer; 0xFF00 allocation + 0x280 pointer offset; 0xFA00 presented
+0x0042EFD8,explosion_sfx_variant_cycle,high,cycles 1..4 across explode2/3/4 voice pools
+0x0042EFD4,composite_explosion_cadence_counter,high,every 19 calls selects large explosion effect path
+0x00466B18,player_entity,high,0x154 common entity; 22x22 ship.jba / 15 frames; input/render/death paths
+0x0042F200,rapid_missile_pool,high,8 x 0x154 entities; 1x9 / 3 shared missile.jba frames
+0x0042B198,rapid_missile_capacity,high,static value 8
+0x00440274,rapid_missile_active_count,high,increment spawn; decrement collision/retirement pass
+0x004406F4,rapid_missile_fire_cooldown,high,saturates at 8; successful fire resets 0
+0x00446028,rapid_missile_sfx_voice_pool,high,20-voice missile.wav pool
+0x004336A8,shield_sfx_voice_pool,high,20-voice shields.wav pool used by Space shield path
+0x0045A148,special_projectile_entity,high,3x8 common entity; Probe/Stinger are frame 0/1; lifecycle in +0x142
+0x0045A288,special_weapon_kind_current_frame,high,"entity +0x140; 0 Probe, 1 Stinger"
+0x0045A28A,special_weapon_activity_state,high,"entity +0x142; 0 inactive,1 loaded/tracking,2 Probe attached/decode,3 launched/homing,4 hole interaction,10 one-update impact-consumed terminal"
+0x0045A17E,special_switch_progress,high,entity +0x36 scratch; increments to 12 while state1
+0x0045A184,special_switch_threshold,high,entity +0x3C scratch; reset/init value 12
+0x0042EFE4,special_launch_sound,high,probe3.wav DirectSound buffer
+0x00446C2C,special_load_toggle_sound,high,ignite2.wav DirectSound buffer
+0x00464B40,stinger_sfx_voice_pool,high,20-voice stinger1.wav pool
+0x00446080,drone_target_entity,high,0x154 common entity populated from drone.jba; +0x00 X and +0x04 Y are the canonical Drone objective/Probe target coordinates; boss dispatch tests Y == -200
+0x0042B1A8,difficulty_level,high,"1 Beginner, 2 Intermediate, 3 Advanced"
+0x0045BDDA,probe_decode_phase1_elapsed,high,state2 decode counter
+0x0045BDE0,probe_decode_phase1_threshold,high,live formula (rand%70+450)*difficulty
+0x0045BDDC,probe_decode_phase2_elapsed,high,second decode counter
+0x0045BDE2,probe_decode_phase2_threshold,high,live formula (rand%70+300)*difficulty
+0x00440594,demo_playback_mode,high,1 during attract/demo playback; substitutes replay channels and suppresses selected live random paths
+0x00466B00,demo_recording_enabled,high,nonzero gates live writes into replay channels and save-at-end path; setter still open
+0x0047EBD4,demo_frame_index,high,indexes all 14 replay arrays; canonical range 0..2100
+0x004651A0,bomb_projectile_pool,high,1x9 0x154 entities; three shared bomb.jba frames; replay fields 10-12 recreate spawns
+0x0043E588,demo_ch07_trajectory_group_slot,high,signed byte array; 99 no-event sentinel
+0x00462A48,demo_ch08_trajectory_x_offset,high,signed word array; copied to trajectory group +0x08
+0x0047EC40,demo_ch09_trajectory_path_family,high,signed byte array; 0..3 selector; 99 sentinel
+0x00467DE8,demo_ch10_bomb_spawned,high,signed byte array; bomb checkpoint flag
+0x004D6438,demo_ch11_bomb_x,high,signed word bomb X
+0x004D4360,demo_ch12_bomb_y,high,signed word bomb Y
+0x0046C0B8,demo_ch13_drone_x,high,signed word Drone X checkpoint
+0x00469FE8,demo_ch14_drone_y,high,signed word Drone Y checkpoint
+0x0042B1A4,bomb_projectile_capacity,high,initialized data value 10; bounds bomb pool loops
+0x00446F6C,bomb_projectile_active_count,high,spawn increments; later collision/cleanup decrements
+0x0047FCB0,player_shield_energy,high,32-bit accumulator; HUD uses high16 units; nominal reset 75<<16; regen +0x514; active drain 0xBB80
+0x0046198C,player_shield_active,high,per-update protection/render flag set only when requested active-player shield retains energy
+0x004603A8,player_hit_bigexp3_sfx_voice_pool,high,20-voice DirectSound pool cloned from bigexp3.wav; used by lethal bomb/player impacts and other destruction paths
+0x0042B1AC,player_lives,high,normal init=3; L-key cheat=9; deferred death settlement decrements; state2 <=0 enters post-game/results
+0x004671E8,game_over_banner_entity,high,117x20 gameover.jba common entity; slide starts X325/Y90; fixed X and velocity stored in common scratch fields
+0x00438C14,enemy_bomb_spawn_gate_counter,high,saturates at 5; bomb spawn resets 0; session init -450; player death -540; respawn requires >-356
+0x00472590,drone_outcomes,high,six-Drone result bytes: 0 unresolved; 1 disarmed; 2 detonated
+0x00433B54,drone_outcome_processed_count,high,processed objective count/index; increments on committed Drone outcome; canonical max six
+0x004D95F4,total_score,high,signed 32-bit player score; read by HUD/results/high-score flow
+0x004D95F8,extra_life_progress,high,rolling signed progress bucket; one life per 500 threshold/update
+0x004461D8,high_score_disqualified,high,session init clears; L cheat sets; post-results qualifier bypasses when nonzero
+0x00434D68,high_score_scores,high,10 signed 16-bit scores ordered lowest to highest
+0x00469EB8,high_score_names,high,10 name slots stride 30; interactive entry max 25 chars
+0x00446F58,high_score_drones_disarmed,high,10 signed 16-bit values; insertion counts mission outcomes==disarmed
+0x00440428,high_score_mothership_destroyed,high,10 signed 16-bit values; persisted Mothership-destroyed flag
+0x00446DE8,high_score_percentage_hit,high,10 signed 16-bit integer Percentage-hit values
+0x00464B90,mothership_destroyed,high,live 0/1 completion flag persisted into high-score table; set after Mothership destruction milestone
+0x00472598,mothership_core_target_entity,high,0x154 common entity; +0x142 state drives Mothership destruction/results semantics
+0x004725CA,mothership_destruction_counter,high,16-bit destruction-sequence progression counter
+0x004725D0,mothership_destruction_award_threshold,high,16-bit threshold initialized to 15
+0x004406F8,lid_top_boss_lid_entity,high,36x40 common entity; 9 lid.jba frames
+0x0044083A,lid_top_boss_lid_state,high,lid entity +0x142; states 0/1/2/6 observed
+0x0044072C,lid_top_boss_destruction_counter,high,lid entity +0x34 word; state2 increments to 25
+0x00446E00,lid_top_boss_top_entity,high,68x56 top.jba common entity and composite root
+0x00446F42,lid_top_boss_top_state,high,"top entity +0x142; state1 active, state2 destruction"
+0x004D95B8,lid_top_boss_assets_loaded,high,resource lifecycle guard
+0x00438C18,lid_top_boss_retro1_sound,high,DirectSound buffer loaded from retro1.wav volume70
+0x0042EFEC,lid_top_boss_level1_sound,high,DirectSound buffer loaded from level1.wav volume90
+0x004D9598,world_scenery_buffer,high,pointer to three 64000-byte indexed screens
+0x00467538,gemini_body_a,high,56x41 body; owns shared 30-frame Gemini body bank
+0x00467690,gemini_body_b,high,second 56x41 body sharing Gemini frame pointers
+0x00464D40,gemini_head_a,high,43x34 Gemhead entity
+0x00464E98,gemini_head_b,high,paired 43x34 head entity
+0x004D95BC,gemini_boss_assets_loaded,high,Gemini resource lifecycle guard
+0x00464BE8,bomber_boss_root_entity,high,registered Bomber central 0x154 entity
+0x00464D2A,bomber_boss_state,high,Bomber root +0x142
+0x00464C1C,bomber_boss_destruction_counter,high,Bomber root +0x34; threshold60
+0x004D95C8,bomber_boss_assets_loaded,high,Bomber resource guard
+0x004402D0,spidey_boss_root_entity,high,registered Spidey central 0x154 entity
+0x00440412,spidey_boss_state,high,Spidey root +0x142
+0x00440304,spidey_boss_destruction_counter,high,Spidey root +0x34; threshold45
+0x004D95C4,spidey_boss_assets_loaded,high,Spidey resource guard
+0x0047EA80,registered_boss_slot2_root_entity,high,dormant registered boss central 0x154 entity
+0x0047EBC2,registered_boss_slot2_state,high,slot2 root +0x142
+0x0047EAB4,registered_boss_slot2_destruction_counter,high,slot2 root +0x34; threshold45
+0x004D95C0,registered_boss_slot2_assets_loaded,medium,release guard survives; no established set-to-1 writer in shareware PE
+0x0042B18C,trajectory_group_count,high,canonical value 17; outer bound for fixed trajectory group pool
+0x0042B190,active_trajectory_group_count,high,incremented on group activation and decremented when group active_entity_count reaches zero
+0x00495CF0,trajectory_group_pool,high,17 fixed 0x2148-byte group records; recovered 0x14-byte lifecycle header + inline 0x154 entities
+0x0053C4D8,gameplay_substep_phase,high,active state-2 cycle 0->1->2->3->0; phase 2 gates selected slower work; storage reused outside gameplay
+0x004462F0,generated_trajectory_402_descriptor,high,adjacent generated X/Y/AUX pointer slots; group14 runtime family; group15 startup seed-source quirk
+0x004462E0,generated_trajectory_422_descriptor,high,adjacent generated X/Y/AUX pointer slots; group15 runtime family
+0x0042B1B0,drone_detonation_tick,high,reset by detonation setup; state2 increments to cap330; effect/render/completion timing while Drone state2
+0x004603A0,drone_detonation_center_x,high,captured Drone center X used by detonation explosion/radial effect
+0x004603A4,drone_detonation_center_y,high,captured Drone center Y; drifts +1 on eligible phase0 detonation-effect updates
+0x004D9590,world_scroll_row,high,cyclic 0..599 scenery row; gameplay init=599 and phase-2 decrement/wrap; Ordering Information temporarily resets/reuses it with an independent 3-step cadence
+0x00472B00,debris_particle_group_pool,high,0x61C group stride; 0x18 particle records updated/rendered by 0x402B40/0x402CA0
+0x00440FF8,secondary_debris_group_active,high,active flag for secondary 0x18-record particle bank
+0x00440FFA,secondary_debris_active_count,high,active record count; zero clears secondary group flag
+0x0042FCA0,junk1_debris_sprite_pool,high,15 common entities; junk1.jba 7x7 debris
+0x00431090,junk2_debris_sprite_pool,high,15 common entities; junk2.jba 12x9 debris
+0x0045A9B8,wheel_debris_sprite_pool,high,15 common entities; wheel.jba 5x5 debris
+0x0042F1FC,suppress_post_game_presentation,high,8-bit flag; quit/demo-terminal abort suppresses Results and Ordering Information but not score qualification
+0x0044084C,alien_ships_hit,high,mission-wide hit counter; Results field 1 and Percentage Hit numerator
+0x00446078,alien_ships_total,high,"mission-wide alien total; Results Total, Missed and Percentage Hit denominator"
+0x00466C90,font2_glyph_table,high,64 x 0x14 FONT2 descriptors indexed by ASCII-0x20
+0x0042EFD0,font2_glyph_cache_initialized,high,lazy FONT2 table initialization flag

@@ -4,41 +4,60 @@ This is the human-readable research queue. Machine-readable tracking lives in `r
 
 ## Critical — blocks simulation architecture
 
-### Q-TIME-001 — What is the intended simulation cadence?
+### Resolved — Q-TIME-001 canonical DOS fidelity cadence
 
-Win32 mechanically waits for a low-32-bit `QueryPerformanceCounter` delta of at least 15,000 when the limiter is enabled, but the executable does not query counter frequency. Recover the DOS timer path and compare runtime behavior before asserting an Hz/FPS value.
+Cross-build placement now establishes the ordinary DOS gameplay boundary: replay/update advances once and the sync-enabled gameplay tail performs one VGA retrace wait while running BIOS mode 13h. The clean DOS fidelity scheduler therefore uses the standard mode-13h cadence of approximately **70.0863 Hz**. The Win32 15,000-QPC-count wall-clock behavior remains separately tracked as `Q-TIME-003` because the executable does not query QPC frequency.
 
-### Q-STATE-001 — What do all values of `game_state_raw` mean?
+### Resolved — Q-STATE-001 Win32 user-facing state protocol
 
-The direct dispatcher handles 0..5, while 6, 7, 8, 13, and 99 are written elsewhere. Determine which are persistent states, transition requests, return/status codes, or sentinels.
+The tracked values are now mapped: `0` exit transition, `1` menu-reset entry, `2` active gameplay, `3` instructions, `4` menu re-entry, `5` pause, `6` quit confirmation, `7` ordering information, `8` high scores, `13` demo-launch sentinel, and `99` the nine-lives/disqualification notice. The direct dispatcher still handles only `0..5`; larger values are consumed by subordinate menu/modal/gameplay paths. See [`../reverse/windows/state_machine.md`](../reverse/windows/state_machine.md).
 
-### Q-ENTITY-001 — What structure uses the observed 0x14-byte cleanup stride?
+### Resolved — Q-ENTITY-001 FONT2 0x14-byte glyph descriptor/cache
 
-Collect allocation, initialization, update, and destruction sites. Do not call it an enemy/entity structure until consumers establish the role.
+The repeated `0x14` stride is not a gameplay entity family. Win32 `0x00401470` builds 64 descriptors at `0x00466C90`, indexed by `character - 0x20`; DOS `0x000809B0` independently builds the same 64×`0x14` FONT2 cache at data offset `0x6F80`. Both establish mutable X/Y, 7×5 dimensions, a glyph-mask pointer at `+0x10`, identical 16×4 gutter geometry, and the same mask renderer. The clean engine models the semantic font layout without reproducing the pointer-bearing original record. See [`reverse/BITMAP_FONT.md`](reverse/BITMAP_FONT.md).
 
-## High — blocks gameplay reconstruction
 
-### Q-INPUT-001 — What is the canonical input bit/action representation?
+### Resolved — Q-ENTITY-002 common Win32/DOS sprite-entity family
 
-Map DirectInput polling and DOS keyboard/joystick behavior to player movement, rapid fire, shield, probe/stinger selection/launch, pause, and escape.
+Producer/consumer tracing now establishes the Win32 `0x154` and DOS `0x14F` records as a field-level common sprite/entity correspondence rather than a loose candidate. The core position/velocity/dimension/collision/frame/activity fields align; DOS places the frame table and later metadata two bytes earlier; both preserve an unreferenced 128-byte middle block; and matched destruction paths establish `+0x30/+0x31` damage/threshold plus the shifted destruction-burst and score-value tail fields. Family overlays remain owned by their subsystems instead of being forced into one universal clean struct. See [`reverse/ENTITY_LAYOUT.md`](reverse/ENTITY_LAYOUT.md).
 
-### Q-FLY-001 — What do the three FLY record fields represent?
+## High — active cross-phase research
 
-Storage is confirmed as `int16,int16,int8`. Locate consumers and correlate records with runtime object motion/script progression.
+### Resolved — Q-INPUT-001 canonical gameplay-action aggregation
 
-### Q-DEMO-001 — What are the 14 demo fields?
+Neither original build owns one packed gameplay-action bitfield. Win32 combines direct key tests with normalized DirectInput joystick action bytes; DOS combines keyboard/game-port paths; both then replace exactly the same six controls with replay channels 1–6 during demo playback. Live vertical movement remains outside replay substitution. The clean engine therefore uses independent semantic booleans in `GameplayInputFrame`, with physical-device normalization kept in platform hosts. See [`reverse/INPUT.md`](reverse/INPUT.md).
 
-Locate playback/recording routines and correlate per-record changes. Determine whether records represent input, state snapshots, timing, RNG, or a mixture.
+### Resolved — Q-FLY-001 normal FLY AUX/path semantics
 
-### Q-RENDER-001 — Which routines implement core software blitting/HUD composition?
+Win32 `0x00415FA0` establishes trajectory index/step/wrap and normal AUX animation: AUX `<=1` is a signed relative frame delta and AUX `>1` selects absolute frame `aux-2`. The broader group lifecycle is also recovered; remaining work is limited to special-family substitutions/producers and full template cataloging. See [`formats/FLY.md`](formats/FLY.md) and [`reverse/TRAJECTORY_GROUPS.md`](reverse/TRAJECTORY_GROUPS.md).
 
-Name framebuffer source/destination pointers, pitches, transparent/color-key semantics, clipping, and object coordinate conventions.
+### Q-RENDER-001 — Which late palette/HUD/effect helpers remain around the established rendering pipeline?
 
-### Q-LEVEL-001 — How are scrolling scenery, encounter sequencing, and level completion represented?
+The ordinary transparent blitter, scaled blitter, framebuffer ownership, 320×600 viewport compositor, FONT2 masks, and simulation→presentation boundary are already established. Phase 3 now classifies the remaining late presentation helpers—especially `0x00403490`, `0x0041EE90`, and `0x0041EFE0`—and their palette/HUD/effect ownership.
 
-Map level initialization, scenery assets, script/trajectory selection, counters, and transition conditions.
+### Q-LEVEL-001 — What registered/endgame world-transition semantics remain beyond the recovered shareware scroll?
+
+The three-screen scenery buffer, exact cyclic gameplay scroll cadence, Ordering Information's modal reuse, Drone Y=-200 boss-approach gate, river/desert/isle/house/night transition table, and dedicated second-outcome shareware termination gate are now mapped. The branch-6 condition is now established as six clean disarms -> river/Mothership and any detonation -> results. Remaining work is exact original level/mission naming and retail-only reachability once lawful full-game evidence is available. See [`reverse/WORLD_SCENERY.md`](reverse/WORLD_SCENERY.md).
+
+
+### Resolved — Q-RESULT-001 Win32 post-game/results control flow
+
+The inline state-2 tail beginning at `0x004115BE` is now partitioned: lives<=0 entry, the independent results/Ordering-Information suppression flag, six numeric result statistics, 58-presentation confirmation lock, shareware Ordering Information handoff, exact high-score call mode and slot-zero no-save quirk, state1/state4 returns, and the six-disarm Mothership completion credits path are established and clean-tested. See [`reverse/POST_GAME_FLOW.md`](reverse/POST_GAME_FLOW.md) and [`reverse/HIGH_SCORES.md`](reverse/HIGH_SCORES.md).
 
 ## Medium — format/presentation completeness
+
+### Resolved — Q-BOSS-001 pre-Drone boss-family dispatch
+
+The six-entry dispatch is now family-classified as Lid/Top → Gemini → registered-slot-2 unknown → Spidey → Lid/Top reused → Bomber. Gemini, Spidey and Bomber lifecycle ownership is established; only the proper asset/name identity and missing loader for registered slot 2 remains open as `Q-BOSS-002`. See [`reverse/BOSS_PROGRESSION.md`](reverse/BOSS_PROGRESSION.md).
+
+
+### Resolved — high-score statistics and DOS score semantics
+
+The two former unknown Win32 arrays are now established as **Mothership destroyed** (`0x00440428`) and **Percentage hit** (`0x00446DE8`). DOS producer arithmetic and score-file ordering corroborate the same four logical numeric fields: Drones disarmed, score, Mothership destroyed, Percentage hit. See [`reverse/HIGH_SCORES.md`](reverse/HIGH_SCORES.md), [`reverse/MOTHERSHIP.md`](reverse/MOTHERSHIP.md), and [`formats/SCORES.md`](formats/SCORES.md).
+
+### Q-MSHIP-001 — What are the complete Mothership encounter state semantics?
+
+The load/core-hit/destruction milestones are established and `lid.jba` ownership is now resolved as a separate boss family. The complete hull/panel/hub/motor/core state machines, attack/movement behavior, late destruction thresholds, and live DOS destruction producer remain open. DOS `0x00085D10` is presentation-only, not the live +500 producer.
 
 ### Q-JBA-002 — What is the complete small-JBA/embedded-PCX container format?
 
@@ -53,3 +72,13 @@ The relationship is exact over compared common sample regions for nearly all mat
 ### Q-FULL-001 — Which exact full/registered release should become the canonical retail reference?
 
 When a lawful full release is obtained, hash and identify it before analysis. Do not mix retail addresses/content into shareware ledgers without a distinct evidence ID.
+
+## Phase 2 closure
+
+Phase 2 is complete. Its architecture questions have narrowed or resolved as follows:
+
+- **Timing:** canonical DOS fidelity cadence is solved at ~70.0863 Hz from mode 13h plus one ordinary sync-tail retrace wait per logical update. Win32 QPC wall-clock behavior remains a separate nonblocking historical-port question.
+- **State:** raw values `0..8`, `13`, and `99` are semantically mapped and represented by a narrow clean protocol module.
+- **FLY/trajectory:** X/Y/AUX, path index/step/wrap, short-file reachability, group modes/counts/staggering, breakaway lifecycle, and all 17 static templates are solved. Dynamic special-family substitutions remain later integration/detail work.
+- **Rendering/entity:** `Q-ENTITY-002` is resolved: Win32 `0x154` ↔ DOS `0x14F` core layout/correspondence, combat tail, contextual overlays and reserved block are mapped. Only subsystem-specific behavior and the separate exact collision-edge quirk remain open.
+- **Determinism:** Win32 `srand`/`rand` are anchored; seed ownership and call-order parity still need recovery before PRNG can become a trace oracle.

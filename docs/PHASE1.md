@@ -37,7 +37,7 @@ Phase 1 addresses and findings are tied to the exact shareware evidence IDs/hash
 - the semantic meaning of FLY fields is unknown;
 - the semantic meaning of 14 demo fields is unknown;
 - state values beyond the direct 0..5 dispatcher remain unresolved protocol values;
-- the observed 0x14-byte structure stride does not yet justify naming an entity type;
+- at the Phase 1 exit, the observed 0x14-byte stride did not justify naming an entity type; Phase 2 later resolved it as the cross-build `FONT2.JBA` glyph descriptor/cache rather than gameplay state;
 - small Windows JBA/embedded-PCX container semantics remain partial;
 - full-game levels/content are outside the supplied shareware evidence set.
 

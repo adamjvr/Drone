@@ -1,0 +1,18 @@
+group_index,record_address,path_family,initial_sample_family,entity_count,initial_mode,initial_active_count,group_x_offset,group_y_offset,stagger_interval,path_end_index,sprite_width,sprite_height,frame_count,damage_threshold,destruction_burst_count,score_value,initial_activity,explicit_initial_path_step,slot_layout,evidence_region
+0,0x00495CF0,Loop,Loop,7,1,7,0,0,0,375,28,21,15,2,1,1,1,1,path_index=53*i for i=0..6,0x00409060..0x0040911E
+1,0x00497E38,LeftDive,LeftDive,6,0,0,0,0,18,117,26,26,16,1,1,1,0,,all zero,0x0040911F..0x004091C8
+2,0x00499F80,LeftDive,LeftDive,7,0,0,0,0,13,117,28,21,15,1,1,1,0,,all zero,0x004091C9..0x00409272
+3,0x0049C0C8,Swarm,Swarm,4,0,0,0,0,1,945,35,22,16,1,2,1,0,,"(0,-25);(25,0);(0,25);(-25,0)",0x00409273..0x00409375
+4,0x0049E210,Swarm,Swarm,1,0,0,0,0,1,945,44,46,16,25,5,25,0,,all zero,0x00409376..0x00409442
+5,0x004A0358,Swoop,Swoop,7,0,0,0,0,13,185,28,21,15,1,1,1,0,,all zero,0x00409443..0x004094F3
+6,0x004A24A0,NewCurly,NewCurly,9,0,0,0,0,10,230,35,30,32,1,1,1,0,,all zero,0x004094F4..0x004095A4
+7,0x004A45E8,Frisbee1,Frisbee1,9,0,0,0,0,9,935,14,12,32,1,1,1,0,,all zero,0x004095A5..0x0040964E
+8,0x004A6730,Frisbee2,Frisbee2,9,0,0,0,0,5,425,14,12,32,1,1,1,0,,all zero,0x0040964F..0x00409708
+9,0x004A8878,LeftDrop,LeftDrop,5,0,0,0,0,16,195,44,46,16,25,5,25,0,,all zero,0x00409709..0x004097C5
+10,0x004AA9C0,LeftDrop,LeftDrop,6,0,0,0,0,12,195,35,22,16,1,2,1,0,,all zero,0x004097C6..0x0040988D
+11,0x004ACB08,LeftDrop,LeftDrop,6,0,0,0,0,12,195,26,26,16,1,1,1,0,,all zero,0x0040988E..0x00409957
+12,0x004AEC50,LeftDive,LeftDive,4,0,0,0,0,18,117,31,41,32,25,6,25,0,,all zero,0x00409958..0x00409A09
+13,0x004B0D98,LeftDrop,LeftDrop,5,0,0,0,0,16,195,31,41,32,25,6,25,0,,all zero,0x00409A0A..0x00409AB9
+14,0x004B2EE0,Generated402,Generated402,6,0,0,0,0,11,402,16,11,16,1,1,1,0,,all zero,0x00409ABA..0x00409B6E
+15,0x004B5028,Generated422,Generated402,6,0,0,0,0,11,422,16,11,16,1,1,1,0,,all zero,0x00409B6F..0x00409C23
+16,0x004B7170,LeftDive,LeftDive,6,0,0,0,0,11,117,23,23,32,1,1,1,0,,all zero,0x00409C24..0x00409CD5

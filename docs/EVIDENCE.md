@@ -48,3 +48,7 @@ Full levels 3–7 parity requires a separately identified lawful full-game evide
 - **rejected/superseded** — retained record of a disproven or replaced claim.
 
 The detailed finding lifecycle is defined in `docs/RE_HANDBOOK.md`.
+
+## DOS video-mode evidence
+
+Canonical startup at `0x0006E005` passes `0x13` to `0x00067E50`, which constructs BIOS interrupt `INT 10h` with `AH=0`. The DOS build therefore explicitly selects standard VGA/MCGA mode 13h (320x200x256). This is used in the timing reconstruction together with the independently recovered VGA retrace gate.
