@@ -24,19 +24,25 @@ The first modern host should provide:
 - filesystem/config paths;
 - logging and trace capture.
 
-SDL3 is the leading Phase 2 host candidate because it can cover Linux, macOS, Windows, and iOS/iPadOS families while keeping the game core framework-independent. It is intentionally not embedded in the core library.
+Phase 2 has implemented the first fidelity host as thin native backends around a shared indexed-framebuffer contract:
+
+- Linux: X11;
+- Windows: Win32/GDI;
+- macOS: Cocoa/CoreGraphics.
+
+This is not a permanent ban on a future shared host library. It is an intentionally small proof that host code can remain outside `drone_core` and that the original 320×200 indexed presentation can be exercised without committing the reconstruction to a heavyweight framework.
 
 ## Linux
 
-Initial development target for the portable desktop host should support common Wayland/X11 environments through the selected host library. Packaging is deferred until behavioral parity is farther along; early deliverables should at least provide a normal CMake/Ninja build.
+The Phase 2 fidelity host currently targets X11 directly and builds through CMake/Ninja. Wayland-native presentation can be added later or supplied through a future host abstraction; it is not allowed to change simulation behavior. Packaging is deferred until behavioral parity is farther along.
 
 ## macOS
 
-The same desktop host should build natively for Apple Silicon and, where practical, x86_64 only if maintaining that target remains useful. Signing/notarization and app-bundle polish belong to release hardening, not the reconstruction core.
+The Phase 2 tree contains a Cocoa/CoreGraphics fidelity-host backend intended for native macOS builds. Apple Silicon is the primary target; x86_64 support is optional if it remains useful. Signing/notarization and app-bundle polish belong to release hardening, not the reconstruction core.
 
 ## Windows
 
-The remaster is a new native executable. It does not need to preserve DirectDraw/DirectInput/DirectSound APIs; those original APIs are evidence for contracts. Visual Studio and/or Ninja-based CMake builds should remain supported.
+The remaster is a new native executable. The Phase 2 tree contains a Win32/GDI fidelity-host backend; it intentionally does not preserve DirectDraw/DirectInput/DirectSound APIs because those original APIs are evidence for contracts rather than compatibility requirements. Visual Studio and/or Ninja-based CMake builds should remain supported.
 
 ## iPadOS
 

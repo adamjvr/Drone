@@ -25,3 +25,11 @@ After deinterleaving, the logical image is row-major 320×200 indexed color.
 Win32 loader: `0x004012B0`.
 
 Several smaller Windows-only `.JBA` files are a different container case and are not accepted by the clean full-screen decoder yet; at least three contain embedded 128×128 8-bit PCX resources.
+
+## Sprite-sheet use
+
+The 64,768-byte form is not limited to literal full-screen presentation. The Windows build also loads sprite sheets through the same `0x004012B0` routine and then crops individual frames with `0x00401860`.
+
+Those sheets remain decoded as ordinary 320×200 indexed images. Sprite cells use a one-pixel gutter and are extracted using entity-specific width/height. See [`../reverse/SPRITE_SHEETS.md`](../reverse/SPRITE_SHEETS.md).
+
+For that reason the clean loader is named `load_jba_320x200`; Phase 1's provisional `load_fullscreen_jba` terminology is superseded.

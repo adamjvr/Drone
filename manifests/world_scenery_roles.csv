@@ -1,0 +1,16 @@
+family,role,asset_name,world_buffer_offset,referenced_by_executable,present_in_windows_shareware,bytes,sha256
+river,top,rivertop.jba,0x00000,1,1,64768,adf92cebd316bb9809e72e88d5401b7e19840a4394f60aa34568f40e6c4bfb71
+river,middle,rivermid.jba,0x0FA00,1,1,64768,02ed5ec12f33d0a2ab29820d725aaa155f1438c8cad5568ebab05eb6747dded2
+river,bottom,riverbot.jba,0x1F400,1,1,64768,290b8e24607f2df930bc9336d5dadd7db263bf16ce788523af796b2788d6b3f3
+desert,top,desertop.jba,0x00000,1,1,64768,e6a6d00565b6d8da454766464d1cbe6050cd32c138c1e5efb0707b1461b127b6
+desert,middle,desermid.jba,0x0FA00,1,1,64768,806a7fe30e2c3319bebe00b2aed4f08eacf69c827a25d4c118f0290cedbbf13a
+desert,bottom,deserbot.jba,0x1F400,1,1,64768,2fad5a1045952789297f7c1ce4a1664ef0177228899eb2314ca4d3044eb6fbf6
+isle,top,isletop.jba,0x00000,1,0,,
+isle,middle,islemid.jba,0x0FA00,1,0,,
+isle,bottom,islebot.jba,0x1F400,1,0,,
+house,top,housetop.jba,0x00000,1,0,,
+house,middle,housemid.jba,0x0FA00,1,0,,
+house,bottom,housebot.jba,0x1F400,1,0,,
+night,top,nighttop.jba,0x00000,1,0,,
+night,middle,nightmid.jba,0x0FA00,1,0,,
+night,bottom,nightbot.jba,0x1F400,1,0,,

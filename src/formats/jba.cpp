@@ -12,10 +12,10 @@ std::vector<std::uint8_t> read_all(const std::filesystem::path& path) {
 }
 }
 
-JbaImage load_fullscreen_jba(const std::filesystem::path& path) {
+JbaImage load_jba_320x200(const std::filesystem::path& path) {
     const auto bytes = read_all(path);
     if (bytes.size() != JbaImage::file_bytes) {
-        throw std::runtime_error("not a full-screen 64,768-byte JBA: " + path.string());
+        throw std::runtime_error("not a 64,768-byte 320x200 JBA image/sheet: " + path.string());
     }
 
     JbaImage out;

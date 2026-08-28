@@ -1,0 +1,13 @@
+filename,encoding,physical_records,loader_records,x_min,x_max,y_min,y_max,aux_min,aux_max,bytes,sha256,note
+Current.fly,counted-current,443,443,0,321,0,208,0,31,5650,606b02c19571a4e0c89ff0dc8fde52e16a81233b9e8ed6279ee5aba060cbf35c,
+Frisbee1.fly,raw-trajectory,937,937,-10,303,29,151,0,31,11726,77659b475da4b24539f47cf3a0271c79a420000fe47313076a9873ab9c243091,
+Frisbee2.fly,raw-trajectory,426,426,28,321,22,208,0,31,5454,4f233775a27037644126542c35e61fc5fde17c5e0113a6f6e85b28988ab9f651,
+Leftdive.fly,raw-trajectory,119,119,6,146,-48,199,1,2,1436,1b48c712f316526d7a142272f32e8777a3941aa12e984426fdeef80568742a57,
+Leftdrop.fly,raw-trajectory,200,200,-31632,145,-31728,27413,-109,110,2583,46715ff0c32e9e1fe645d48260f31f5c29069c1b5c89ae5adef5b44a83028a32,
+Loop.fly,raw-trajectory,380,380,0,205,-10064,549,0,1,4514,ece122e35ba1e2f047a40192a1c1de09245e94cf809f5ad28d880c949c05f95d,
+New.fly,raw-trajectory,499,,58,293,0,199,0,0,6085,f09fd6915c07a440a2edef8860411492ee0b93e0eae6b57a24178d1fc4dc8401,
+Newcurly.fly,raw-trajectory,232,232,29,167,-49,203,2,33,2913,0230196d643d79a8331071156051e101ab41e24f4f1dc06dc1f0388a07bc056f,
+Rightdiv.fly,raw-trajectory,118,119,146,285,-45,199,-1,2,1537,5d16aff5aa01b5e64f45b7038b7d9270a196cbc7cddf36498e4b170ec145dbcc,loader requests 119; file has 118; canonical replay slots use path_end_index 117 so missing index 118 is unreachable
+Ritedrop.fly,raw-trajectory,200,200,-1,32767,-30624,224,0,40,2511,6473f2edbeb5535049886910a42ffe67c6b44d714e01a0ff39266e223dcff1cf,
+Swarm.fly,raw-trajectory,949,950,0,398,-49,40,2,17,11701,c19a2b62add64cef4953a01174b97e13a0d10917d701b8120eb5d1b8e9e14827,loader requests 950; file has 949; canonical Swarm groups use path_end_index 945 so indices 946+ are outside normal cycle
+Swoop.fly,raw-trajectory,190,190,50,234,-49,98,2,2,2248,dce0bffe0b9119603fc27a94fbb00afd102a248b3980451d072ddda00cff5982,

@@ -22,7 +22,7 @@ Tests use project-created fixtures only. Current examples:
 - encode a known 320×200 pixel pattern into recovered JBA lane order, decode it, and require exact pixel equality;
 - verify RGB6 palette expansion behavior;
 - decode a synthetic CLV stream and verify exact frame count/downmix bytes;
-- parse FLY count/triples including negative values;
+- parse both counted `CURRENT.FLY` data and raw trajectory triples, including negative values and canonical short-read quirks;
 - parse multiple 14-field demo records.
 
 Synthetic tests are publishable and must remain the baseline regression suite.
@@ -36,7 +36,7 @@ Optional tests/tools operate on `.reference/` after package hash verification. T
 - known file sizes;
 - JBA dimensions/decoded output hashes;
 - CLV↔WAV sample relationships;
-- FLY/DAT record counts and ranges.
+- FLY physical counts, recovered loader counts, ranges, and DAT record counts/ranges.
 
 These tests must fail clearly when the evidence binary is not the expected hash rather than silently comparing a different release.
 
@@ -88,9 +88,11 @@ Compatibility tests should first compare which sound is triggered and when. Wher
 
 ### V7 — Demo-driven regression
 
-The original demo files are particularly valuable because they may provide deterministic input/state sequences. Once the 14 fields are understood, demo playback should become an automated parity harness for long stretches of gameplay.
+The original demo files are now established as 2,101-frame hybrid deterministic replays. Channels 1–6 replay selected controls, 7–9 inject trajectory-group script data, 10–12 recreate enemy-bomb spawn/X/Y checkpoints, and 13–14 force Drone X/Y. Four canonical DOS demos are byte-for-byte identical to their Windows copies, so they are unusually strong cross-build behavioral fixtures.
 
-Until semantics are proven, the project must not design the clean demo format around guessed field names.
+The clean parser preserves raw 32-bit textual values while the semantic decoder reproduces the original loader's low-byte/low-word narrowing. Replay validation should be layered: first assert channel interpretation and cross-build identity, then consume the proven checkpoints in reconstructed gameplay slices, and finally compare whole-frame state/framebuffer traces as more of the simulation becomes complete.
+
+A critical original quirk is itself a test vector: live bomb spawn assigns `rand()%3` horizontal steering, whereas demo playback restores bomb X/Y and explicitly forces steering to zero. Tests must preserve such replay-specific substitutions rather than demanding that replay initialization look identical to live initialization.
 
 ## Parity gates
 
@@ -107,11 +109,13 @@ A subsystem should not be marked reconstructed solely because it looks correct. 
 
 Timing is a first-order behavior. Before fixing a simulation rate:
 
-- recover the DOS timer source;
+- use the recovered DOS vertical-retrace primitive at `0x0006940C` to identify which gameplay call sites are frame gates and which are presentation-only waits;
 - understand whether update and render cadence are coupled;
-- characterize the Win32 QPC threshold on representative period assumptions/runtime traces;
-- identify any accumulator/frame-skip behavior;
+- characterize the Win32 QPC threshold on representative hardware/runtime traces rather than assuming a counter frequency;
+- identify any accumulator/frame-skip or limiter-disable behavior, including the documented Tab toggle;
 - verify movement/projectile rates over multiple seconds, not one frame.
+
+The presence of a VGA vertical-retrace wait is confirmed; the final simulation Hz/FPS is intentionally still unresolved.
 
 ## Numerical fidelity
 

@@ -24,7 +24,7 @@ struct JbaImage {
     std::vector<std::uint8_t> pixels;
 };
 
-JbaImage load_fullscreen_jba(const std::filesystem::path& path);
+JbaImage load_jba_320x200(const std::filesystem::path& path);
 void write_ppm(const JbaImage& image, const std::filesystem::path& path);
 
 } // namespace drone::formats

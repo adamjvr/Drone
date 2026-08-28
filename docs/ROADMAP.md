@@ -1,132 +1,73 @@
-# Drone Roadmap
+# Drone Master Roadmap
 
-The roadmap is compatibility-first: recover behavior, prove it, then layer remaster features on a stable core. Every milestone updates code **and** durable research documentation.
+The project order is **decompile → understand → reproduce → validate → preserve → enhance**. A phase may contain many parallel workstreams, but the roadmap intentionally has **no numbered subphases**.
 
-## M0 — Evidence intake and format reconnaissance — DONE
+Every phase updates code, evidence ledgers, tests, and durable documentation together.
 
-### Exit criteria met
+## Phase 0 — Evidence & Preservation — COMPLETE
 
-- canonical DOS and Windows shareware packages hashed;
-- DOS Watcom/DOS4GW and native Win32 executable identities established;
-- known Windows Wise installer payload safely reconstructed without execution;
-- initial core proprietary formats structurally identified;
-- evidence kept outside Git.
+Preserve/hash DOS and Windows releases, extract the Wise installer without execution, inventory the corpus, establish provenance, and keep original payloads outside Git.
 
-## M1 — Executable reconstruction + native asset core — DONE
+## Phase 1 — Reverse-Engineering Foundation — COMPLETE
 
-### Delivered
+Build reproducible analysis tooling, recover initial formats, map executable/runtime anchors, establish Ghidra/ledger/documentation workflows, and create the clean C++20 foundation. Phase 1 is the canonical baseline merged into `main`.
 
-- clean C++20 implementations/tests for confirmed JBA/CLV/FLY/demo structures;
-- native `drone_inspect` tool;
-- Win32 startup/render/message loop map;
-- top-level state dispatcher map;
-- Win32 QPC limiter behavior mapped mechanically;
-- initial DOS/Windows function anchors;
-- Ghidra label script;
-- comprehensive provenance/research methodology/ledger documentation.
+## Phase 2 — Gameplay Reconstruction — IN PROGRESS
 
-### Exit criteria met
+Recover the real gameplay architecture: state orchestration, entity/object layouts, DOS/Windows timing, input representation, FLY trajectories, movement/update paths, collision/projectile boundaries, scrolling/level behavior, and the first native fidelity host. At least one meaningful gameplay subsystem must execute in clean code with reference validation before this phase closes.
 
-- repo builds/tests without original data;
-- canonical local evidence set reconstructs reproducibly;
-- original JBA/CLV/FLY/demo data can be inspected by our code;
-- major Phase 1 findings have durable evidence records.
+## Phase 3 — Rendering & World Reconstruction
 
-## M2 — Timing, subsystem recovery, and fidelity host — NEXT
+Recover sprite/frame loading, animation, clipping, layering, scrolling, palettes, HUD, text, effects, scenery composition, and reference framebuffer comparison.
 
-### Objectives
+## Phase 4 — Complete Game Simulation
 
-- recover DOS timer source and establish intended simulation cadence/update-render relationship;
-- classify state protocol and split active gameplay region into behavioral subsystems;
-- map input aggregation/canonical actions;
-- recover framebuffer/blitters/HUD enough to define sprite/coordinate contracts;
-- begin entity pool/structure field recovery;
-- recover FLY/demo consumer semantics as evidence permits;
-- add first interactive modern host;
-- present original 320×200 indexed framebuffer through the new host;
-- output original reference audio through a modern host path;
-- introduce deterministic fixed-tick harness only after cadence is proven.
+Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, lives, pickups, special weapons, scripted events, bosses, death/restart, level progression, and game-over behavior.
 
-### Exit criteria
+## Phase 5 — Audio Reconstruction
 
-- modern host opens and runs a deterministic core loop on desktop targets;
-- fidelity framebuffer/palette can be presented live from project code;
-- canonical input abstraction exists;
-- simulation cadence is documented with evidence or explicitly remains isolated behind a temporary research setting;
-- at least one gameplay subsystem has clean state/trace validation against reference behavior.
+Recover sound-event mapping, playback priority, voice/channel behavior, panning, volume, loops, music if applicable, and DOS HMI versus Windows DirectSound behavioral differences behind a portable audio interface.
 
-## M3 — Menus/HUD/player reconstruction
+## Phase 6 — Deterministic Replay & Validation
 
-### Objectives
+Decode demo semantics, create deterministic playback/state snapshots, compare simulation/framebuffer/audio traces against the originals, and turn those comparisons into regression tests.
 
-- title/menu/options/high-score flows;
-- player movement and rapid fire;
-- shield, lives, score/extra-life behavior;
-- target selection and special-weapon controls;
-- HUD composition;
-- trace/framebuffer regression points.
+## Phase 7 — Shareware Parity
 
-### Exit criteria
+Run the supplied shareware content end-to-end on the clean engine without relying on the original executable. Known behavioral discrepancies should approach zero and be explicitly documented.
 
-A user can navigate the shareware front-end and control the player in a reconstructed gameplay scene with documented parity for implemented rules.
+## Phase 8 — Full-Game Reconstruction
 
-## M4 — Entity/enemy/combat simulation
+After a lawfully obtained full release is selected and hashed as a canonical evidence set, recover registered-only levels, enemies, bosses, assets, ending behavior, and executable/content differences.
 
-### Objectives
+## Phase 9 — Decompilation Completion
 
-- entity pools and update order;
-- collisions/projectile rules;
-- stinger/probe homing and attachment/disarm behavior;
-- enemy trajectories and FLY semantics;
-- explosions;
-- Drone and shareware boss behavior.
+Drive the archaeology toward near-complete semantic coverage. Every meaningful routine/global/structure should be classified, documented, correlated across builds where possible, and linked to clean behavior/tests.
 
-### Exit criteria
+## Phase 10 — Fidelity Release
 
-Core shareware combat interactions run entirely in `drone_core` and are covered by deterministic behavioral tests/traces.
+Produce a historically faithful compatibility implementation preserving validated timing, logical resolution, palette behavior, mechanics, and original-data import workflow.
 
-## M5 — Level 1/2 behavioral parity
+## Phase 11 — Remaster Engine
 
-### Objectives
+Add a separate modern rendering/presentation layer while keeping the validated simulation core and fidelity renderer intact.
 
-- scrolling scenery and encounter sequencing;
-- mission transitions;
-- sound/event timing;
-- demo system as deterministic regression fixture;
-- complete available shareware playthrough.
+## Phase 12 — Platform Completion
 
-### Exit criteria
+Harden production hosts for **Linux, macOS, Windows, and iPadOS** around the shared `drone_core` simulation/data contracts.
 
-Levels available in the canonical shareware evidence set can be completed under the reconstructed engine with documented known discrepancies approaching zero.
+## Phase 13 — Modern UX
 
-## M6 — Full-game reconstruction
+Add controller/touch support, remapping, display/audio settings, scalable UI, accessibility, modern pause/settings behavior, and quality-of-life features without altering fidelity rules.
 
-**Dependency:** a lawfully obtained complete registered/retail evidence set must be identified and hashed as a separate canonical build.
+## Phase 14 — Remastered Content
 
-### Objectives
+Add optional high-resolution graphics, enhanced effects/animation/audio, and other remastered presentation/content while preserving fidelity mode.
 
-- map levels 3–7 and missing mission/boss/Drone/mothership behavior;
-- extend correspondence/asset manifests without checking proprietary payload into Git;
-- achieve full-game fidelity parity.
+## Phase 15 — Packaging & Release
 
-## M7 — Remaster layer
+Finalize installers/packages, asset verification/import, CI/release automation, signing/notarization where applicable, rights/license decisions, public developer documentation, and distribution.
 
-### Objectives
+## Architectural invariant
 
-- high-resolution renderer/art pipeline;
-- modern controller and touch UX;
-- accessibility/display/audio options;
-- save/settings modernization;
-- optional replacement asset packs;
-- fidelity mode remains available and validated.
-
-## M8 — Platform hardening and release
-
-### Objectives
-
-- Linux/macOS/iPadOS/Windows validation;
-- CI and local reference parity suite;
-- packaging/signing/notarization as applicable;
-- crash/lifecycle/controller/audio hardening;
-- source license and asset-distribution rights resolved;
-- public developer/user documentation and release engineering.
+The remaster is not the reverse-engineering target. `drone_core` must remain capable of validated original behavior independently of modern presentation features. Platform and remaster layers consume the reconstructed core; they do not redefine it.

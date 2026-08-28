@@ -100,7 +100,7 @@ Addresses in this repository are valid only for the exact hashed binary listed w
 
 Prefer names that expose certainty:
 
-- `load_fullscreen_jba` — acceptable when the algorithm and callers establish the function;
+- `load_jba_320x200` — acceptable when the algorithm and callers establish the function;
 - `state_ui_update_candidate` — acceptable provisional semantic name;
 - `game_state_raw` — preferred over `GameMode` while the protocol contains unexplained values;
 - `unknown_0x34` / `field2` — preferred for unresolved structure fields.

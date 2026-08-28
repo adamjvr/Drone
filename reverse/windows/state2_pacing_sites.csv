@@ -1,0 +1,10 @@
+address,mechanism,classification,ordinary_update,corresponding_dos,notes
+0x0040BB44,DirectDraw WaitForVerticalBlank,startup/palette-scene transition,no,0x000777C0,Occurs before replay-index increment in bounded startup/presentation path
+0x0040BCB5,DirectDraw WaitForVerticalBlank,startup/presentation transition,no,0x00077919,Bounded presentation path before ordinary gameplay update clock
+0x0040BCEC,DirectDraw WaitForVerticalBlank,startup/presentation transition,no,0x00077945,Bounded presentation path before ordinary gameplay update clock
+0x0040BD77,DirectDraw WaitForVerticalBlank,startup/fade loop,no,0x000779DA,Frame-copy/fade loop before replay-index increment
+0x0040BF55,DirectDraw WaitForVerticalBlank,Drone-outcome transition,no,0x00077BC6,One-shot transition when progression counter reaches 99; immediately commits detonated Drone outcome
+0x0040C4B9,DirectDraw WaitForVerticalBlank,Tab sync-feedback loop,no,0x00078461,Used while rendering VERTICAL RETRACE / SYNC ON|OFF feedback and waiting for key release
+0x0040C7FF,DirectDraw WaitForVerticalBlank,state/cheat transition feedback,no,0x0007880E,Used by states 5/6/99 transition-message loop
+0x00410739,DirectDraw WaitForVerticalBlank,player-death/effect presentation loop,no,0x0007CB9A,Repeated inside bounded player-death visual/effect sequence
+0x0041144D,QPC low32 delta >= 15000,ordinary gameplay tail pacing,yes,0x0007DC89 / 0x0007DC92,Tab-gated normal state-2 pacing boundary; replaces DOS ordinary retrace wait with host-dependent QPC counts

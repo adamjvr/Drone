@@ -12,6 +12,35 @@ add_library(drone_core
     src/formats/clv.cpp
     src/formats/fly.cpp
     src/formats/demo.cpp
+    src/formats/scores.cpp
+    src/fidelity/indexed_framebuffer.cpp
+    src/fidelity/sprite_sheet.cpp
+    src/fidelity/sprite_blit.cpp
+    src/fidelity/font2.cpp
+    src/fidelity/world_viewport.cpp
+    src/gameplay/collision.cpp
+    src/gameplay/debris_effects.cpp
+    src/gameplay/player.cpp
+    src/gameplay/rapid_missile.cpp
+    src/gameplay/special_weapon.cpp
+    src/gameplay/demo_replay.cpp
+    src/gameplay/input.cpp
+    src/gameplay/enemy_bomb.cpp
+    src/gameplay/shield.cpp
+    src/gameplay/player_lifecycle.cpp
+    src/gameplay/game_over.cpp
+    src/gameplay/mission_outcome.cpp
+    src/gameplay/mission_progression.cpp
+    src/gameplay/scoring.cpp
+    src/gameplay/high_scores.cpp
+    src/gameplay/post_game.cpp
+    src/gameplay/boss_progression.cpp
+    src/gameplay/trajectory.cpp
+    src/gameplay/trajectory_templates.cpp
+    src/gameplay/gameplay_phase.cpp
+    src/gameplay/world_scroll.cpp
+    src/gameplay/gameplay_update_order.cpp
+    src/gameplay/game_state.cpp
 )
 
 target_include_directories(drone_core PUBLIC include)
@@ -26,11 +55,40 @@ endif()
 add_executable(drone_inspect tools/drone_inspect.cpp)
 target_link_libraries(drone_inspect PRIVATE drone_core)
 
+add_executable(drone_gameplay_probe tools/drone_gameplay_probe.cpp)
+target_link_libraries(drone_gameplay_probe PRIVATE drone_core)
+
+option(DRONE_BUILD_FIDELITY_HOST "Build the native indexed-framebuffer fidelity host" ON)
+
+if(DRONE_BUILD_FIDELITY_HOST)
+    if(WIN32)
+        add_executable(drone_fidelity_host tools/drone_fidelity_host_win32.cpp)
+        target_link_libraries(drone_fidelity_host PRIVATE drone_core)
+    elseif(APPLE)
+        enable_language(OBJCXX)
+        add_executable(drone_fidelity_host tools/drone_fidelity_host_macos.mm)
+        target_link_libraries(drone_fidelity_host PRIVATE drone_core "-framework Cocoa" "-framework CoreGraphics")
+    elseif(UNIX)
+        find_package(X11 QUIET)
+        if(X11_FOUND)
+            add_executable(drone_fidelity_host tools/drone_fidelity_host_x11.cpp)
+            target_include_directories(drone_fidelity_host PRIVATE ${X11_INCLUDE_DIR})
+            target_link_libraries(drone_fidelity_host PRIVATE drone_core ${X11_LIBRARIES})
+        else()
+            message(STATUS "X11 development files not found; drone_fidelity_host will not be built")
+        endif()
+    endif()
+endif()
+
 if(DRONE_BUILD_TESTS)
     enable_testing()
     add_executable(drone_tests tests/test_formats.cpp)
     target_link_libraries(drone_tests PRIVATE drone_core)
     add_test(NAME drone_formats COMMAND drone_tests)
+
+    add_executable(drone_gameplay_tests tests/test_gameplay.cpp)
+    target_link_libraries(drone_gameplay_tests PRIVATE drone_core)
+    add_test(NAME drone_gameplay COMMAND drone_gameplay_tests)
 
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)

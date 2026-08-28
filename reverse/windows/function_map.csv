@@ -1,20 +1,106 @@
 address,provisional_name,confidence,notes
-0x004012B0,load_fullscreen_jba,high,"256 RGB triples then 10-lane deinterleave into 64000-byte framebuffer"
-0x004011E0,set_palette_range,medium,"called by JBA loader after palette load"
+0x00401000,ddraw_palette_get_entry,high,DirectDrawPalette GetEntries for one palette entry; surface unlock/relock guard
+0x004010A0,capture_palette_range,high,captures caller-selected palette range through 0x00401000
+0x004011E0,set_palette_range,medium,called by JBA loader after palette load
+0x004012B0,load_jba_320x200,high,256 RGB triples then 10-lane deinterleave into 64000-byte framebuffer
+0x00401470,draw_bitmap_text,high,lazy-loads font2.jba; ASCII-0x20 glyph table; menu/status strings
+0x00401660,blit_sprite_transparent_clipped,high,8-bit clipped sprite blit; source index 0 transparent; uses 0x154 object fields
+0x00401780,sprite_entity_init,high,initializes common 0x154-byte object and clears 32 frame pointers
+0x00401820,sprite_entity_release_frames,high,frees frame pointers using byte +0x141 count
+0x004018F0,wait_vertical_blank_thunk,high,single jump to 0x004061E0 DirectDraw WaitForVerticalBlank wrapper; 11 static call sites in Win32 state-2 region
+0x00401E60,spawn_mini_explosion_sprite,high,allocates miniexp pool sprite; centers on source and inherits velocity
+0x00401F60,point_in_entity_hitbox,high,inclusive point test using entity collision extents +0x28/+0x2A
+0x00401FA0,point_hits_opaque_sprite_pixel,high,current-frame pixel mask; palette index zero transparent
+0x00402000,point_plus_y9_in_entity_hitbox,high,same hitbox test after +9 Y shift; gameplay role open
+0x00402050,emit_composite_explosion_effect,high,randomized explosion/debris orchestration; every 19th delegates large effect
+0x00402430,activate_sprite_with_random_velocity,high,activate in-bounds sprite and assign randomized +0x10/+0x14 velocity
+0x004024B0,emit_large_explosion_effect,high,large randomized explosion/mini/debris effect + expscale audio
+0x00402770,center_sprite_on_entity_copy_velocity,high,center destination and inherit source velocity
+0x004027B0,emit_debris_particle_group,medium,0x61C group pool with 0x18-byte randomized particles; exact identity partial
+0x00402900,play_explosion_sfx_variant,high,cycles explode2/explode3/explode4 20-voice pools
+0x00402B40,update_debris_particle_groups,high,"0x61C groups / 0x18 records; motion, gravity/lifetime, retirement and group teardown"
+0x00402CA0,render_debris_particle_groups,high,plots primary and secondary debris records directly to indexed framebuffer
+0x00402EF0,update_secondary_debris_particle_group,high,secondary 0x18-record bank; motion/gravity/lifetime and zero-count teardown
+0x00402FC0,entity_hitbox_overlaps_sprite_rect,high,centered collision extents of first entity vs full sprite rectangle of second; inclusive
+0x004032C0,update_junk_wheel_debris_sprites,high,walks 15-entry junk1/junk2/wheel common-entity pools
+0x00403330,update_debris_sprite_entity,high,"velocity, fully-on-screen retirement, rare gravity, signed-byte frame-step update"
+0x004033D0,compose_scrolling_world_viewport,high,320x600 scenery -> 320x200 framebuffer; wraps at world row 600
+0x00403460,blit_entity_scaled_transparent,high,entity wrapper using +0x24/+0x26 destination render dimensions
+0x00403560,compose_ordering_information_world_background,high,state-7-only cyclic 320x600 scenery copy into framebuffer rows 35..179; uses shared world_scroll_row
+0x00403650,update_bomber_boss,high,registered Bomber composite combat; state2 counter60 +100; exact start corrected
+0x00404350,initialize_bomber_boss,high,boss dispatch slot5
+0x004044B0,load_bomber_boss_assets,high,Bombmid/left/right/top + Bomber1/Squish1/Absorb/Level3; absent from shareware install
+0x00404690,release_bomber_boss_assets,high,guarded Bomber cleanup
 0x00404B60,directx_platform_init,high,"DirectDraw 320x200x8 + primary surface/palette, then DirectInput and DirectSound initialization"
-0x00404D60,ddraw_shutdown,high,"called on WM_QUIT exit path"
-0x00404DC0,window_proc,high,"registered as WNDCLASSEX callback"
+0x00404D60,ddraw_shutdown,high,called on WM_QUIT exit path
+0x00404DC0,window_proc,high,registered as WNDCLASSEX callback
 0x00404E30,winmain_like,high,"window creation, message pump, surface lock/present, calls game_dispatch_update"
-0x00406190,audio_shutdown_or_reset,medium,"called during game teardown"
-0x00406200,load_wav,high,"WinMM RIFF/WAVE loader family"
-0x00406650,directsound_init,high,"calls imported DirectSoundCreate then sets cooperative level and initializes sound slots"
-0x004068E0,directinput_create,high,"calls imported DirectInputCreateA"
-0x00406AC0,poll_input,medium,"called by input aggregation routine"
+0x00405000,update_gemini_boss,high,paired Gemini body/head combat and symmetric destruction branches
+0x00405EF0,initialize_gemini_boss,high,boss dispatch slot1; activates Gemini encounter
+0x00405FB0,load_gemini_boss_assets,high,Gemini1/2 30-frame body bank + Gemhead + Gemini.wav + Level2.wav
+0x00406190,release_gemini_boss_assets,high,guarded Gemini frame/audio cleanup; corrects old Phase-1 generic audio-shutdown candidate
+0x004061E0,ddraw_wait_vertical_blank,high,calls IDirectDraw vtable slot 0x58 with flags 4 and event 0; direct vertical-blank wait
+0x00406200,load_wav,high,WinMM RIFF/WAVE loader family
+0x00406650,directsound_init,high,calls imported DirectSoundCreate then sets cooperative level and initializes sound slots
+0x00406730,directsound_play_slot,high,resets selected secondary buffer position to 0 then invokes IDirectSoundBuffer::Play
+0x00406780,directsound_set_volume,high,maps caller volume scale then invokes IDirectSoundBuffer::SetVolume
+0x004067B0,directsound_set_frequency,high,invokes IDirectSoundBuffer::SetFrequency
+0x004067D0,directsound_stop_reset,high,invokes Stop then SetCurrentPosition(0) on selected DirectSound buffer
+0x00406860,directsound_get_status,high,invokes IDirectSoundBuffer::GetStatus and returns status flags
+0x004068E0,directinput_create,high,calls imported DirectInputCreateA
+0x00406AC0,poll_directinput_joystick_state,high,Poll/Acquire/GetDeviceState into 0x0053C428 0x50-byte state buffer
+0x00406B80,copy_software_framebuffer_to_surface,high,64k software framebuffer -> locked DirectDraw surface; handles pitch
+0x00406BE0,copy_surface_to_software_framebuffer,high,reverse pitched 320x200 copy
+0x00406C40,fill_locked_surface,high,fills 320x200 locked surface respecting pitch
+0x00406CC0,update_registered_boss_slot2,high,dormant registered boss combat; destructible sprite pixels; state2 counter45 +100
+0x00407980,initialize_registered_boss_slot2,high,boss dispatch slot2; proper asset identity unresolved
+0x00407AB0,release_registered_boss_slot2_assets,high,guarded release survives; loader absent/unidentified in shareware PE
 0x0040B380,game_shutdown,medium,"frees timer and many global buffers, shuts subsystems"
-0x0040BA50,game_dispatch_update,high,"top-level state dispatcher and giant gameplay branch"
-0x00411456,frame_limiter_busywait,high,"QPC low32 delta >= 0x3A98 when guard enabled"
-0x00418AC0,state_ui_update_candidate,low,"called by dispatcher states 1/4 and many transition sites"
-0x00421CD0,crt_fopen_like,high,"CRT file open used by JBA loader"
-0x00421D20,crt_free_like,high,"free-like"
-0x00421D70,crt_malloc_like,high,"malloc-like"
-0x00421F00,crt_fscanf_like,high,"fscanf-like"
+0x0040BA50,game_dispatch_update,high,top-level state dispatcher and giant gameplay branch
+0x00411456,frame_limiter_busywait,high,QPC low32 delta >= 0x3A98 when guard enabled
+0x00413290,load_mothership_assets,high,loads hull/panel/damage/hub/motor/hole Mothership asset cluster
+0x00413870,release_mothership_assets,high,guarded cleanup of Mothership entities and encounter audio
+0x00413940,blit_sprite_scaled_transparent_clipped,high,16.16 nearest-neighbor scaled indexed sprite; zero transparent; 320x200 clipping
+0x00414D80,update_spidey_boss,high,registered Spidey composite combat; state2 counter45 +100
+0x00415AC0,initialize_spidey_boss,high,boss dispatch slot3
+0x00415C80,load_spidey_boss_assets,high,Spidey JBA family + Spidey.wav + Level4.wav; assets absent from shareware install
+0x00415F40,release_spidey_boss_assets,high,guarded Spidey cleanup
+0x00415FA0,update_trajectory_groups,high,"17-group lifecycle/path updater: modes 0/1/2/10, stagger activation, path wrap retirement, X/Y/AUX following, random accelerated breakaway"
+0x00416700,update_lid_top_boss,high,combat/movement/bombs/special collisions; lid state2 counter25 awards +100 and top state2
+0x00417220,initialize_lid_top_boss,high,top active at X0/Y-100; live/demo difficulty-sensitive motion; lid starts state6
+0x00417350,load_lid_top_boss_assets,high,lid.jba 9x36x40; top.jba 68x56; retro1.wav; level1.wav
+0x00417450,release_lid_top_boss_assets,high,paired guarded resource cleanup
+0x004174D0,load_high_scores_file,high,opens scores rt; reads ten padded/obfuscated high-score records
+0x00417570,decode_obfuscated_high_score_name,high,decodes name through stored 3-digit padding length and filler runs
+0x00417700,decode_obfuscated_high_score_number,high,decodes decimal integer through padding/filler runs
+0x00417F50,initialize_gameplay_session,high,large session/world initializer; writes 3 lives and game-over banner motion defaults; subordinate semantics partial
+0x00418AC0,run_main_menu,high,renders seven main-menu choices and assigns exact state transitions; invokes joystick/instructions/ordering/high-score modal handlers
+0x0041A460,save_demo_replay_text,high,writes demo.dat wt; 2101x14 values via %d\n
+0x0041A5F0,load_demo_replay_text,high,loads data\<name> rt; 2101x14 %d scans into replay channel arrays
+0x0041AFB0,run_high_score_table,high,"exact modes: menu (0,0,0), insertion (1,index,disarmed); index0 placeholder/no-save quirk established"
+0x0041B730,run_ordering_information,high,ORDERING INFORMATION menu modal selected by raw state 7
+0x0041C4B0,run_instructions_viewer,high,nine-page instr01..instr09 modal; loops while state 3 and exits via state 4
+0x0041CDF0,trigger_player_destruction_sequence,high,starts player destruction effects/state; life decrement occurs later at settlement gate
+0x0041D220,trigger_drone_detonation_sequence,high,sets Drone activity 2; captures entity center; resets detonation timing/settlement state; applies established -1000 score consequence
+0x0041D690,run_mission_outcome_transition,high,objective outcome interstitial; encounter-only reset; six-way scenery/resource transition; shareware count2 stop; zero-detonation Mothership branch
+0x0041E420,animate_game_over_banner_slide,high,117x20 gameover.jba fixed-point slide; 108 vblank-paced presents; X 325 -> 100
+0x0041E4D0,update_drone_detonation_effect,high,post-trajectory state-2 call; phase0 + tick>25 + Drone state2 gate; explosion emission and direct framebuffer detonation effects
+0x0041E6D0,render_player_shield_effect,high,shield-active player visual effect; exact pixel algorithm partial
+0x0041EB70,render_shield_meter,high,HUD uses shield_energy>>16 and draws per-unit meter with threshold palette changes
+0x0041EBE0,render_drone_detonation_radial_noise,high,direct-framebuffer randomized radial/mirrored detonation points using captured Drone center
+0x0041F120,save_high_scores_file,high,opens scores wt; writes ten records
+0x0041F220,encode_obfuscated_high_score_name,high,300..699 random filler bytes before each meaningful name byte
+0x0041F390,encode_obfuscated_high_score_number,high,padding/filler decimal integer writer
+0x00420020,play_sfx_from_20_voice_pool,high,scans 20 sound-slot indices for a non-playing buffer using GetStatus then starts the selected slot
+0x00421CD0,crt_fopen_like,high,CRT file open used by JBA loader
+0x00421D20,crt_free_like,high,free-like
+0x00421D70,crt_malloc_like,high,malloc-like
+0x00421EC0,crt_srand,high,stores seed in Microsoft-runtime PRNG state
+0x00421ED0,crt_rand,high,15-bit Microsoft-runtime PRNG used heavily by gameplay
+0x00421F00,crt_fscanf_like,high,fscanf-like
+0x00404720,run_completion_credits,high,credits.wav + credit1.jba/credit2.jba sequence; perfect six-disarm Mothership completion
+0x004174A0,confirm_input_pressed,high,Enter or accepted joystick confirmation; result screen calls after exact 58-present lock
+0x00420090,normalize_joystick_gameplay_actions,high,state2 call; +/-360 axis dead zone and configured rapid/load/launch/shield button mappings
+0x00401570,draw_bitmap_glyph_mask,high,FONT2 glyph mask: zero transparent; nonzero writes caller color
+0x004015D0,extract_font2_glyph_mask,high,copies descriptor width x height from 320-stride FONT2.JBA source into cached mask
+0x00401630,allocate_bitmap_record_pixels,high,allocates width*height+1 and stores pointer at descriptor +0x10
