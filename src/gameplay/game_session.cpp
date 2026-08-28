@@ -36,20 +36,89 @@ GameSessionTickResult step_game_session(
 
     auto& encounter = session.encounter;
     auto& campaign = session.campaign;
+    bool end_run_transition = false;
 
-    // Win32 state 2 advances the shared four-phase scalar near the beginning
-    // of each gameplay update. Existing helpers consume phase 2 as their proven
-    // slower animation/scroll cadence.
+    // 0x00491CAC is processed before the shared four-phase scheduler. If this
+    // update reaches 99, the original immediately restores 100, triggers the
+    // logical detonation setup, commits outcome 2 and applies its score penalty.
+    const auto destruction_countdown_result = step_drone_destruction_countdown(
+        encounter.drone,
+        campaign.mission,
+        campaign.score);
+    result.drone_destruction_countdown_advanced =
+        destruction_countdown_result.advanced;
+    result.drone_detonation_started = destruction_countdown_result.detonation_started;
+    result.drone_detonation_outcome_committed =
+        destruction_countdown_result.outcome_committed;
+    result.drone_detonation_score_delta = destruction_countdown_result.score_delta;
+
+    // Win32 state 2 advances the shared four-phase scalar only after the
+    // pre-detonation countdown. A newly triggered detonation therefore resets
+    // its logical tick to zero above and becomes tick 1 later in this same update.
     encounter.gameplay_substep_phase =
         advance_win32_gameplay_substep_phase(encounter.gameplay_substep_phase);
-    const bool animation_tick = is_win32_phase2(encounter.gameplay_substep_phase);
+    bool animation_tick = is_win32_phase2(encounter.gameplay_substep_phase);
+
+    advance_drone_detonation_tick(encounter.drone);
 
     // The shared Drone settlement scalar advances in the early phase-2 block,
-    // before trajectory and Drone-objective work later in state 2. A Drone
-    // reaching Y=230 can therefore reset this increment back to zero below.
+    // before the destruction-settlement gate and before trajectory/normal-Drone
+    // work later in state 2. A normal Drone reaching Y=230 can reset it below.
     encounter.drone_settlement_tick = advance_drone_settlement_tick(
         encounter.drone_settlement_tick,
         encounter.gameplay_substep_phase);
+
+    // The destruction settlement gate is early in state 2 and observes the
+    // phase-0 effect-side counter from prior updates. It consumes one life only
+    // after that field exceeds 70. With more than one life, the mission
+    // interstitial/encounter transition executes first, exactly as in Win32.
+    if (drone_destruction_settlement_ready(encounter.drone)) {
+        result.drone_destruction_settled = true;
+        const auto processed_count = campaign.mission.processed_count;
+        const bool run_interstitial = campaign.player_lifecycle.lives > 1;
+
+        if (run_interstitial) {
+            result.mission_interstitial = mission_interstitial_plan(campaign.mission);
+            if (result.mission_interstitial.has_value()) {
+                result.encounter_transition = win32_post_drone_transition_plan(
+                    result.mission_interstitial->processed_count,
+                    result.mission_interstitial->detonated_count);
+            }
+
+            if (result.encounter_transition.has_value()) {
+                end_run_transition =
+                    result.encounter_transition->disposition ==
+                    EncounterTransitionDisposition::EndRun;
+                if (end_run_transition) {
+                    // The canonical shareware count-2 branch clears lives inside
+                    // run_mission_outcome_transition before the caller performs
+                    // its unconditional destruction-settlement decrement.
+                    campaign.player_lifecycle.lives = 0;
+                }
+
+                reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
+                result.drone_destruction_transition_started = true;
+                // Reset may replace the scheduler with phase 0; later helpers in
+                // this same logical update must observe the rebuilt encounter.
+                animation_tick =
+                    is_win32_phase2(encounter.gameplay_substep_phase);
+            }
+        }
+
+        --campaign.player_lifecycle.lives;
+        result.drone_life_lost = true;
+        encounter.drone.y = drone_reentry_y_for_processed_count(
+            static_cast<std::int32_t>(processed_count));
+
+        if (campaign.player_lifecycle.lives > 0) {
+            campaign.player_lifecycle.player_active = true;
+            encounter.drone_settlement_tick = canonical_drone_settlement_tick_cap;
+            encounter.drone.activity = canonical_drone_active_activity;
+        } else {
+            campaign.player_lifecycle.player_active = false;
+            result.drone_game_over_pending = true;
+        }
+    }
 
     // The recovered state-2 formation producer runs before trajectory updates.
     // This milestone keeps random/template selection external but owns the
@@ -75,6 +144,20 @@ GameSessionTickResult step_game_session(
         result.trajectory_score_delta += trajectory_result.escape_score_delta;
     }
 
+    // update_drone_detonation_effect is called after trajectory processing and
+    // before the normal Drone/boss region. The portable core publishes only its
+    // proven logical events; random explosion placement and framebuffer
+    // distortion remain fidelity/presentation responsibilities.
+    const auto detonation_effect_result = step_drone_detonation_effect_logic(
+        encounter.drone,
+        encounter.gameplay_substep_phase);
+    result.drone_detonation_effect_tick = detonation_effect_result.logical_effect_tick;
+    result.drone_detonation_explosion_spawns_requested =
+        detonation_effect_result.explosion_spawns_requested;
+    result.drone_detonation_settlement_reset = detonation_effect_result.settlement_reset;
+    result.drone_detonation_settlement_advanced =
+        detonation_effect_result.settlement_advanced;
+
     // Probe decode timing is still owned by the special-weapon reconstruction,
     // but once completion is proven the Drone objective itself is session state.
     if (targets.drone_disarm_completed) {
@@ -83,8 +166,7 @@ GameSessionTickResult step_game_session(
     }
 
     // Canonical ordering places normal Drone objective motion/settlement after
-    // trajectory updates and before boss dispatch. The exact destructive Drone
-    // countdown/effect slice is intentionally still external in this milestone.
+    // trajectory and detonation-effect updates and before boss dispatch.
     const auto drone_result = step_drone_objective_normal(
         encounter.drone,
         encounter.gameplay_substep_phase,
@@ -94,8 +176,9 @@ GameSessionTickResult step_game_session(
     result.drone_disarm_committed = drone_result.disarm_committed;
     result.drone_settlement_tick_reset = drone_result.settlement_tick_reset;
     result.drone_hover_timeout_reached = drone_result.hover_timeout_reached;
+    result.drone_destruction_countdown_started =
+        drone_result.destruction_countdown_started;
 
-    bool end_run_transition = false;
     if (drone_result.resolution_transition_ready) {
         result.mission_interstitial = mission_interstitial_plan(campaign.mission);
         if (result.mission_interstitial.has_value()) {
@@ -119,6 +202,7 @@ GameSessionTickResult step_game_session(
             reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
             encounter.drone.y = drone_reentry_y_for_processed_count(processed_count);
             result.drone_resolution_transition_started = true;
+            animation_tick = is_win32_phase2(encounter.gameplay_substep_phase);
         }
     }
 
@@ -228,7 +312,10 @@ GameSessionTickResult step_game_session(
 
     // Collision detection itself still owns the original extracted-frame mask.
     // Once a hit is proven, destruction/score/group teardown belongs to the
-    // continuously owned trajectory encounter and is dispatched here.
+    // continuously owned trajectory encounter and is dispatched here. Exact
+    // rapid/special collision producers that can start the Drone destruction
+    // countdown remain a later collision milestone; timeout now owns the same
+    // internal countdown transition without approximating those masks.
     for (const auto& hit : targets.trajectory_hits) {
         const auto hit_result = apply_trajectory_hit(encounter.trajectories, hit, campaign.score);
         if (!hit_result.destroyed) continue;

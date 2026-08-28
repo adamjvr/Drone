@@ -133,6 +133,19 @@ struct GameSessionTickResult {
     bool drone_disarm_committed = false;
     bool drone_settlement_tick_reset = false;
     bool drone_hover_timeout_reached = false;
+    bool drone_destruction_countdown_started = false;
+    bool drone_destruction_countdown_advanced = false;
+    bool drone_detonation_started = false;
+    bool drone_detonation_outcome_committed = false;
+    std::int32_t drone_detonation_score_delta = 0;
+    bool drone_detonation_effect_tick = false;
+    std::uint8_t drone_detonation_explosion_spawns_requested = 0;
+    bool drone_detonation_settlement_reset = false;
+    bool drone_detonation_settlement_advanced = false;
+    bool drone_destruction_settled = false;
+    bool drone_life_lost = false;
+    bool drone_game_over_pending = false;
+    bool drone_destruction_transition_started = false;
     bool drone_resolution_transition_started = false;
     std::optional<MissionInterstitialPlan> mission_interstitial{};
     std::optional<EncounterTransitionPlan> encounter_transition{};
@@ -154,10 +167,11 @@ void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 
 // Execute one continuous active-gameplay update using only behavior that has
 // already been recovered and independently tested. Trajectory groups, normal
-// Drone objective travel/settlement, and the shareware Lid/Top/Gemini lifecycle
-// tails are now continuously owned. Transient formation selection, exact Probe
-// decode production, Drone detonation, boss movement/attacks and sprite-mask
-// collision producers remain explicit boundaries for later Phase-4 milestones.
+// Drone objective travel/settlement, the timeout/countdown/detonation/life-loss
+// path, and the shareware Lid/Top/Gemini lifecycle tails are now continuously
+// owned. Transient formation selection, exact Probe decode production, direct
+// detonation visuals, boss movement/attacks and sprite-mask collision producers
+// remain explicit boundaries for later Phase-4 milestones.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,

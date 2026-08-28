@@ -91,7 +91,7 @@
 | fidelity framebuffer | CONFIRMED | indexed 320×200 core-owned contract |
 | world/effect subpass catalog | CONFIRMED Win32 order | 28 evidence-backed subpasses resolve boss composites, direct point particles, Gemini procedural effect, explosion/debris routing and actor/projectile tail before scaled overlays |
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
-| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state, all 17 trajectory groups, normal Drone objective X/Y travel/hover/disarm/settlement, automatic Y=-200 shareware boss dispatch, count-1/count-2 normal mission transitions, and the Lid/Top/Gemini lifecycle/score tails alongside player, missiles, shield, Probe/Stinger, bombs, cadence and world scroll; exact Probe decode production, Drone detonation, boss movement/attacks/collisions and remaining non-trajectory actors remain Phase-4 work |
+| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state, all 17 trajectory groups, normal Drone objective X/Y travel/hover/disarm/settlement, the exact timeout-driven pre-detonation countdown, outcome-2/-1000 detonation commit, logical effect settlement, Drone life-loss/restart/EndRun ordering, automatic Y=-200 shareware boss dispatch, and Lid/Top/Gemini lifecycle/score tails alongside player, missiles, shield, Probe/Stinger, bombs, cadence and world scroll; exact Probe decode production, weapon-to-Drone collision producers, direct detonation visuals, boss movement/attacks/collisions and remaining non-trajectory actors remain Phase-4 work |
 
 ## Phase 3 closure / Phase 4 priorities
 
@@ -100,7 +100,7 @@ Phase 3 is complete. The renderer/world architecture now includes the corrected 
 Phase 4 priorities are now:
 
 1. Extend established continuous `GameSession` ownership from trajectories, normal Drone progression and shareware boss lifecycle into the remaining non-trajectory encounter actors and boss movement/attack producers.
-2. Close the destructive Drone branch: exact 4200-tick timeout handoff, countdown, detonation penalty/effect settlement and life-loss/encounter transition, then integrate the already-recovered Probe decoder as its normal-path producer counterpart.
+2. Integrate the already-recovered Probe decoder and exact rapid-missile/Stinger collision producers so both normal disarm and destructive-hit entry events are generated inside the session rather than supplied semantically; the timeout-driven detonation/life-loss continuation is now owned.
 3. Continue whole-frame integration into exact collision producers and death/restart/game-over continuity without pulling retail-only unknowns forward from Phase 8.
 4. Feed the Phase-3 fidelity presentation contracts from clean session state while preserving the simulation/presentation boundary.
 

@@ -28,6 +28,83 @@ bool mark_drone_disarm_completed(DroneObjectiveState& state) noexcept {
     return true;
 }
 
+bool start_drone_destruction_countdown(DroneObjectiveState& state) noexcept {
+    if (state.activity != canonical_drone_active_activity ||
+        state.destruction_countdown <= canonical_drone_destruction_countdown_trigger) {
+        return false;
+    }
+    state.destruction_countdown = 0;
+    return true;
+}
+
+DroneDestructionCountdownTickResult step_drone_destruction_countdown(
+    DroneObjectiveState& state,
+    MissionOutcomeState& mission,
+    ScoreState& score) noexcept {
+    DroneDestructionCountdownTickResult result{};
+
+    if (state.destruction_countdown >= canonical_drone_destruction_countdown_idle) {
+        return result;
+    }
+
+    ++state.destruction_countdown;
+    result.advanced = true;
+    if (state.destruction_countdown != canonical_drone_destruction_countdown_trigger) {
+        return result;
+    }
+
+    // The original increments 99 to 100 immediately before 0x0041D220.
+    state.destruction_countdown = canonical_drone_destruction_countdown_idle;
+    state.activity = canonical_drone_destruction_activity;
+    state.disarm_completed = false;
+    state.detonation_tick = 0;
+    state.destruction_settlement_phase0_ticks = 0;
+    state.detonation_center_x = state.x + (canonical_drone_sprite_width >> 1);
+    state.detonation_center_y = state.y + (canonical_drone_sprite_height >> 1);
+
+    const auto previous_score = score.total;
+    apply_drone_detonation_penalty(score);
+    result.score_delta = score.total - previous_score;
+    result.outcome_committed = commit_detonated_drone(mission);
+    result.detonation_started = true;
+    return result;
+}
+
+void advance_drone_detonation_tick(DroneObjectiveState& state) noexcept {
+    if (state.detonation_tick < canonical_drone_detonation_tick_cap) {
+        ++state.detonation_tick;
+    }
+}
+
+DroneDetonationEffectTickResult step_drone_detonation_effect_logic(
+    DroneObjectiveState& state,
+    const std::int32_t gameplay_substep_phase) noexcept {
+    DroneDetonationEffectTickResult result{};
+
+    if (gameplay_substep_phase != 0 ||
+        state.detonation_tick <= canonical_drone_detonation_tick_effect_start ||
+        state.activity != canonical_drone_destruction_activity) {
+        return result;
+    }
+
+    result.logical_effect_tick = true;
+    result.explosion_spawns_requested =
+        canonical_drone_detonation_explosions_per_effect_tick;
+    ++state.detonation_center_y;
+
+    if (state.detonation_tick == canonical_drone_detonation_tick_settlement_reset) {
+        state.destruction_settlement_phase0_ticks = 0;
+        result.settlement_reset = true;
+    }
+
+    if (state.detonation_tick > canonical_drone_detonation_tick_settlement_reset) {
+        ++state.destruction_settlement_phase0_ticks;
+        result.settlement_advanced = true;
+    }
+
+    return result;
+}
+
 DroneObjectiveTickResult step_drone_objective_normal(
     DroneObjectiveState& state,
     const std::int32_t gameplay_substep_phase,
@@ -57,8 +134,12 @@ DroneObjectiveTickResult step_drone_objective_normal(
         if (state.hover_phase2_ticks < std::numeric_limits<std::uint16_t>::max()) {
             ++state.hover_phase2_ticks;
         }
-        result.hover_timeout_reached =
-            state.hover_phase2_ticks == canonical_drone_hover_timeout_phase2_ticks;
+        if (state.destruction_countdown > canonical_drone_destruction_countdown_trigger &&
+            state.hover_phase2_ticks == canonical_drone_hover_timeout_phase2_ticks) {
+            result.hover_timeout_reached = true;
+            result.destruction_countdown_started =
+                start_drone_destruction_countdown(state);
+        }
     }
 
     // A completed Probe decode bypasses the unresolved approach increment and

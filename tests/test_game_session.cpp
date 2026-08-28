@@ -383,6 +383,155 @@ int main() {
         assert(session.encounter.drone.y == -1350);
     }
 
+    // The unresolved Y=45 timeout now enters the internally owned destructive
+    // countdown. Because that countdown lives before the four-phase scheduler,
+    // a late timeout starts it at zero and the first increment occurs only on
+    // the following logical GameSession update.
+    {
+        GameSession session{};
+        session.encounter.drone.y = canonical_drone_hover_y;
+        session.encounter.drone.hover_phase2_ticks =
+            canonical_drone_hover_timeout_phase2_ticks - 1;
+        session.encounter.gameplay_substep_phase = 1;
+
+        auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_hover_timeout_reached);
+        assert(result.drone_destruction_countdown_started);
+        assert(!result.drone_detonation_started);
+        assert(session.encounter.drone.destruction_countdown == 0);
+        assert(session.campaign.mission.processed_count == 0);
+
+        session.campaign.score = {1750, 620};
+        session.encounter.drone.destruction_countdown =
+            canonical_drone_destruction_countdown_trigger - 1;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_destruction_countdown_advanced);
+        assert(result.drone_detonation_started);
+        assert(result.drone_detonation_outcome_committed);
+        assert(result.drone_detonation_score_delta == -1000);
+        assert(session.encounter.drone.activity == canonical_drone_destruction_activity);
+        // 0x0041D220 resets this to zero before the scheduler; 0x0040C05A
+        // advances it to one later in the same state-2 update.
+        assert(session.encounter.drone.detonation_tick == 1);
+        assert(session.campaign.score.total == 750);
+        assert(session.campaign.score.extra_life_progress == 0);
+        assert(session.campaign.mission.processed_count == 1);
+        assert(session.campaign.mission.outcomes[0] == DroneOutcome::Detonated);
+    }
+
+    // The post-trajectory detonation updater owns only logical timing/events.
+    // Phase 0 at tick 329 resets the destruction-settlement field; phase 0 at
+    // capped tick 330 begins incrementing it.
+    {
+        GameSession session{};
+        session.encounter.drone.activity = canonical_drone_destruction_activity;
+        session.encounter.drone.detonation_tick =
+            canonical_drone_detonation_tick_settlement_reset - 1;
+        session.encounter.drone.detonation_center_y = 80;
+        session.encounter.drone.destruction_settlement_phase0_ticks = 17;
+        session.encounter.gameplay_substep_phase = 3;
+
+        auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_detonation_effect_tick);
+        assert(result.drone_detonation_explosion_spawns_requested == 4);
+        assert(result.drone_detonation_settlement_reset);
+        assert(!result.drone_detonation_settlement_advanced);
+        assert(session.encounter.drone.detonation_tick == 329);
+        assert(session.encounter.drone.destruction_settlement_phase0_ticks == 0);
+        assert(session.encounter.drone.detonation_center_y == 81);
+
+        session.encounter.gameplay_substep_phase = 3;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_detonation_effect_tick);
+        assert(!result.drone_detonation_settlement_reset);
+        assert(result.drone_detonation_settlement_advanced);
+        assert(session.encounter.drone.detonation_tick == 330);
+        assert(session.encounter.drone.destruction_settlement_phase0_ticks == 1);
+    }
+
+    // Once the phase-0 destruction-settlement field is >70, the first Drone
+    // failure consumes one life. With more than one life the canonical mission
+    // interstitial and encounter-only reset run first, then the caller decrements
+    // lives and positions the next Drone from processed_count.
+    {
+        GameSession session{};
+        session.campaign.player_lifecycle.lives = 3;
+        session.campaign.mission.processed_count = 1;
+        session.campaign.mission.outcomes[0] = DroneOutcome::Detonated;
+        session.encounter.drone.activity = canonical_drone_destruction_activity;
+        session.encounter.drone.destruction_settlement_phase0_ticks = 71;
+
+        const auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_destruction_settled);
+        assert(result.drone_life_lost);
+        assert(!result.drone_game_over_pending);
+        assert(result.drone_destruction_transition_started);
+        assert(result.mission_interstitial);
+        assert(result.mission_interstitial->tone == MissionInterstitialTone::Bad);
+        assert(result.mission_interstitial->sound == MissionInterstitialSound::Detonate);
+        assert(result.encounter_transition);
+        assert(result.encounter_transition->target == EncounterTransitionTarget::Gemini);
+        assert(session.campaign.player_lifecycle.lives == 2);
+        assert(session.campaign.player_lifecycle.player_active);
+        assert(session.campaign.mission.processed_count == 1);
+        assert(session.campaign.mission.outcomes[0] == DroneOutcome::Detonated);
+        assert(session.encounter.drone.y == drone_reentry_y_for_processed_count(1));
+        assert(session.encounter.drone.y == -1200);
+        assert(session.encounter.drone.activity == canonical_drone_active_activity);
+        assert(session.encounter.drone_settlement_tick == canonical_drone_settlement_tick_cap);
+    }
+
+    // A last-life Drone destruction does not run the mission interstitial. The
+    // settlement caller still decrements the life and positions the reentry Y,
+    // but leaves the destruction actor inactive-for-play so the next dispatch
+    // can enter the already-recovered post-game path.
+    {
+        GameSession session{};
+        session.campaign.player_lifecycle.lives = 1;
+        session.campaign.mission.processed_count = 1;
+        session.campaign.mission.outcomes[0] = DroneOutcome::Detonated;
+        session.encounter.drone.activity = canonical_drone_destruction_activity;
+        session.encounter.drone.destruction_settlement_phase0_ticks = 71;
+
+        const auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_destruction_settled);
+        assert(result.drone_life_lost);
+        assert(result.drone_game_over_pending);
+        assert(!result.drone_destruction_transition_started);
+        assert(!result.mission_interstitial.has_value());
+        assert(session.campaign.player_lifecycle.lives == 0);
+        assert(!session.campaign.player_lifecycle.player_active);
+        assert(session.encounter.drone.y == drone_reentry_y_for_processed_count(1));
+        assert(session.encounter.drone.activity == canonical_drone_destruction_activity);
+    }
+
+    // The shareware count-2 mission branch zeroes lives inside the interstitial
+    // transition, after which the destruction-settlement caller still performs
+    // its unconditional decrement. Preserve that signed -1 quirk exactly.
+    {
+        GameSession session{};
+        session.campaign.player_lifecycle.lives = 2;
+        session.campaign.mission.processed_count = 2;
+        session.campaign.mission.outcomes[0] = DroneOutcome::Disarmed;
+        session.campaign.mission.outcomes[1] = DroneOutcome::Detonated;
+        session.encounter.drone.activity = canonical_drone_destruction_activity;
+        session.encounter.drone.destruction_settlement_phase0_ticks = 71;
+
+        const auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_destruction_settled);
+        assert(result.drone_life_lost);
+        assert(result.drone_game_over_pending);
+        assert(result.drone_destruction_transition_started);
+        assert(result.encounter_transition);
+        assert(result.encounter_transition->target == EncounterTransitionTarget::Results);
+        assert(result.encounter_transition->disposition ==
+               EncounterTransitionDisposition::EndRun);
+        assert(session.campaign.player_lifecycle.lives == -1);
+        assert(!session.campaign.player_lifecycle.player_active);
+        assert(session.encounter.drone.y == drone_reentry_y_for_processed_count(2));
+        assert(session.encounter.drone.y == -1350);
+    }
+
     std::cout << "Drone continuous game-session tests passed\n";
     return 0;
 }

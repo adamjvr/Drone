@@ -26,7 +26,7 @@ The scalar **`0x00433B54`** is the number/index of Drone objectives whose progre
 
 The normal state-2 Drone route is now partitioned tightly enough to execute in clean code. A full campaign reset initializes the `drone.jba` entity at **X=155, Y=-850** and initializes shared settlement scalar `0x004D9600` to **61**. Normal travel is gated to gameplay phase 2.
 
-Before Probe completion, Drone Y advances by one while it is below 45. Two approach sound/effect landmarks do not persist as end-of-update positions: reaching **-117** is immediately replaced by **-116**, and reaching **-40** is immediately replaced by **-39**. At Y=44 the 16-bit hold counter at `0x004460B6` is reset; when the unresolved Drone reaches **Y=45**, that counter advances once per phase-2 update and the Drone holds in place. The exact timeout comparison is **4200** phase-2 hold ticks. That timeout starts the separate destructive countdown path; clean Phase 4 exposes the timeout event but does not yet fold the detonation lifecycle into the normal objective owner.
+Before Probe completion, Drone Y advances by one while it is below 45. Two approach sound/effect landmarks do not persist as end-of-update positions: reaching **-117** is immediately replaced by **-116**, and reaching **-40** is immediately replaced by **-39**. At Y=44 the 16-bit hold counter at `0x004460B6` is reset; when the unresolved Drone reaches **Y=45**, that counter advances once per phase-2 update and the Drone holds in place. The exact timeout comparison is **4200** phase-2 hold ticks, but only while destruction countdown `0x00491CAC` is idle (`>99`). The timeout sets that countdown to zero late in the normal Drone region, so its first increment occurs on the following logical state-2 update.
 
 Completed Probe decode is represented by status value 1 at `0x0045BEEA`. On that path the Drone receives its single phase-2 Y increment in the later branch, allowing it to leave Y=45. After the normal Y=201 commit described below, it continues to Y=230, which resets settlement to zero. The next completed-disarm phase-2 movement reaches **Y=231**; because the original clears the completed-decode status once Y is greater than 230, Y then remains fixed at 231 while settlement continues toward 60.
 
@@ -44,6 +44,14 @@ After a normal disarm commit, reaching Drone Y=`230` resets shared settlement sc
 
 The result values, commit boundary, and post-disarm settlement gate therefore no longer need provisional names.
 
+## Pre-detonation countdown and destructive commit
+
+The 16-bit scalar at **`0x00491CAC`** is now established as the Drone destruction countdown. Its canonical idle value is **100**. The unresolved Y=45 timeout described above, and independently recovered rapid-missile/Stinger collision branches, start the same countdown by writing zero only when the scalar is idle (`>99`).
+
+Crucially, this countdown is processed **before** the shared four-phase gameplay scheduler. While below 100 it increments once per logical state-2 update. When an increment reaches **99**, the original immediately increments it again to **100**, then calls `trigger_drone_detonation_sequence` at `0x0041D220`. The same update writes outcome value 2 at the current processed slot and increments `processed_count`. Because the trigger resets `drone_detonation_tick` to zero before the later early-state-2 tick update, the first active destruction update ends with logical detonation tick **1**.
+
+The clean gameplay owner reproduces the logical side of `0x0041D220`: Drone activity becomes 2, completed Probe status clears, the detonation center captures `x + 7, y + 19` from the established 15x38 sprite geometry, the destruction settlement field resets, total score loses 1000 with a floor at zero, extra-life progress resets to zero, and the current mission outcome commits as Detonated. Original audio, randomized debris placement and direct-framebuffer setup remain presentation/fidelity concerns.
+
 ## Drone detonation effect timing and the post-trajectory call
 
 The destructive setup routine at **`0x0041D220`** is now established as `trigger_drone_detonation_sequence`. It captures the current Drone sprite center into `0x004603A0/0x004603A4`, sets the Drone common-entity activity byte (`0x004461C2`) to `2`, resets the destruction tick `0x0042B1B0` and the Drone-context `+0x32` settlement field, and performs the already-established -1000 score / extra-life-progress reset.
@@ -59,6 +67,20 @@ drone.activity == 2
 On those eligible calls it drifts the captured Y center down by one, emits four randomized explosion sprites around the center using `spawn_explosion_sprite`, and performs the large direct-framebuffer radial/distortion/fade effect used by the Drone destruction presentation. The logical destruction tick itself is incremented once per state-2 update and capped at **330** by the earlier orchestrator bookkeeping. At tick 329 the updater resets the Drone-context `+0x32` settlement field; once the capped tick is greater than 329, eligible phase-0 calls increment that field. The earlier state-2 gate advances the outcome/destruction path only after this field exceeds 70.
 
 This separates two timing domains that should remain distinct in clean code: the detonation tick advances every logical gameplay update, while the expensive visual/settlement updater runs only on one of the four gameplay substeps. The direct framebuffer distortion itself remains a fidelity-rendering reconstruction target rather than being approximated inside the portable gameplay core.
+
+## Destruction settlement and life-loss ordering
+
+The logical detonation tick at `0x0042B1B0` increments once per active state-2 update and saturates at **330**. `update_drone_detonation_effect` remains phase-0-only: at tick **329** it resets the contextual Drone `+0x32` WORD (`0x004460B2`) to zero, and when the tick is greater than 329 it increments that WORD on each eligible phase-0 call.
+
+An earlier state-2 gate checks Drone activity 2 and accepts destruction only when this settlement WORD is **greater than 70**. At that point the original ordering is exact and slightly non-obvious:
+
+1. if `player_lives > 1`, run the normal mission interstitial/encounter transition first;
+2. read the processed Drone count and current life count;
+3. decrement lives unconditionally;
+4. set Drone reentry Y to `(-7 - processed_count) * 150`;
+5. only when the decremented life count is still positive, reactivate/rebuild gameplay state and reset the shared settlement scalar to 61.
+
+Thus a first Drone failure with three lives runs the bad/detonate Mission 1 interstitial, rebuilds the Gemini encounter, then leaves two lives. With one life, no interstitial is run; the decrement reaches zero and the next state-2 dispatch can enter the post-game path. The compiled shareware count-2 branch contains an additional fidelity quirk: `run_mission_outcome_transition` zeroes lives for Results/EndRun *before* the caller's unconditional decrement, so the destructive count-2 path can leave the signed life scalar at **-1**. Clean `GameSession` preserves that behavior.
 
 ## Per-objective mission interstitial and encounter handoff
 
@@ -134,7 +156,7 @@ The independently written representation lives in:
 
 - `include/drone/gameplay/mission_outcome.hpp` / `src/gameplay/mission_outcome.cpp` for final-results reduction;
 - `include/drone/gameplay/mission_progression.hpp` / `src/gameplay/mission_progression.cpp` for objective commit, settlement, interstitial, reset-scope, and encounter-transition contracts;
-- `include/drone/gameplay/drone_objective.hpp` / `src/gameplay/drone_objective.cpp` for the normal phase-2 Drone travel, Y=45 hold/timeout landmark, completed-disarm departure and settlement gate;
+- `include/drone/gameplay/drone_objective.hpp` / `src/gameplay/drone_objective.cpp` for normal phase-2 travel, Y=45 timeout->countdown handoff, pre-phase detonation commit, logical effect timing and destruction settlement gates;
 - synthetic cases in `tests/test_gameplay.cpp`, `tests/test_drone_objective.cpp`, and `tests/test_game_session.cpp`.
 
 The clean model exposes:
@@ -154,5 +176,6 @@ The surrounding Win32 region beginning at `0x004115BE` is now partitioned at the
 ## Open questions
 
 - Complete semantics of Mothership core-target states other than the established state-2 destruction outcome; see [`MOTHERSHIP.md`](MOTHERSHIP.md).
-- Complete integration of the already-recovered destructive timeout/countdown/detonation/life-loss branch into `GameSession`.
+- Exact rapid-missile/Stinger collision producers that start the same owned destruction countdown; their opaque-pixel masks remain in the collision-integration workstream.
+- Direct-framebuffer/randomized detonation presentation parity driven from the new logical effect events.
 - DOS-side storage/selection correspondence for the same six objective outcomes.
