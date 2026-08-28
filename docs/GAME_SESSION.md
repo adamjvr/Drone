@@ -29,6 +29,7 @@ from state rebuilt for each encounter.
 - Probe/Stinger state plus exact attached-Probe decode/disarm counters/status and the persistent red-Stinger target-selection state;
 - enemy-bomb pool and shared spawn/respawn gate;
 - all 17 fixed trajectory groups and their inline actor state;
+- encounter-local alien total accounting (`0x00466B04` semantic owner), initialized to the seven primary Loop actors and incremented on proven trajectory actor insertion paths;
 - shareware-reachable boss lifecycle state for Lid/Top and Gemini;
 - Drone objective X/Y, activity, completed-disarm status and Y=45 hold counter;
 - pre-detonation countdown, logical detonation tick, captured detonation center and phase-0 destruction-settlement counter;
@@ -63,23 +64,24 @@ The integrated tick composes already-established atomic behavior:
 2. advance the shared four-phase state-2 substep, then the logical Drone detonation tick (capped at 330) and phase-2 settlement scalar;
 3. settle a completed Drone destruction when its phase-0 effect-side field is >70, running the mission interstitial first when more than one life remains, then consuming the life and rebuilding/repositioning the encounter when applicable;
 4. advance an already-attached Probe decoder before normal Drone movement: status 0 phase-1 timing, same-update fallthrough into status 3 phase 2, status 1 completion, +500 score/progress and the required completion PRNG draw; a completion marks the owned Drone disarmed immediately;
-5. when immutable trajectory paths are supplied, run the native live phase-2 transient formation scheduler: advance/force the recovered interval, consume the exact CRT spawn roll, select a free fixed group with progression-dependent pool rules, apply runtime path/group/formation randomization, and activate mode 2 when all gates pass;
-6. advance owned trajectory groups, stagger activation and mode-2 escape retirement;
-7. run the post-trajectory logical detonation updater on phase 0, including captured-center drift, four presentation-spawn requests, tick-329 settlement reset and tick>329 settlement increments;
-8. advance owned normal Drone travel/hover/settlement state; completed decode releases the Y=45 hold in the same update, and the exact 4200-tick unresolved hover starts the internal destructive countdown; after Y>230 the session clears completed decode state as the original does;
-9. execute the recovered normal Drone interstitial/encounter-only transition when Y>230 and settlement reaches exactly 60;
-10. derive the exact Drone Y=-200 boss boundary from owned position and select/advance Lid/Top or Gemini;
-11. advance enemy-bomb spawn/respawn gate and rapid-missile cooldown, then settle a previously destroyed player only when the gate is above -356, the death-effect presentation is inactive, the player remains inactive, lives remain, and Drone activity is not 2;
-12. apply semantic player movement and allocate rapid fire when allowed;
-13. advance/load/cycle/launch/move Probe/Stinger state; successful load resets the red-Stinger target to the original X=160 dummy, while frame-1 movement runs the recovered Mothership > Gemini > Lid/Top > Spidey > registered-slot2 > Bomber > unresolved-dynamic-hostile priority chain and retains the prior target when no branch qualifies;
-14. recharge/drain shield;
-15. move/animate rapid missiles and existing enemy bombs, then retire offscreen projectiles;
-16. run the exact per-slot late bomb collision loop: test Probe/Stinger first with bomb `(x,y+9)` against its inclusive 2x6 hitbox, then test that same bomb coordinate against the active player's inclusive 18x18 hitbox even when a special hit already cleared bomb activity; shielded player hits are absorbed, while unshielded hits auto-launch a merely loaded special, deactivate the player, request the death presentation and drive the shared bomb gate to -540;
-17. test rapid missiles first and the launched Probe/Stinger second against the active Drone with the recovered inclusive point-vs-12×32-hitbox primitive; a missile/Stinger starts the destruction countdown while a blue Probe attaches, awards +10 and initializes exact live/demo decode thresholds;
-18. dispatch already-proven trajectory hit events through damage, destruction, score and group teardown;
-19. advance world scroll on phase 2;
-20. convert at most one 500-point extra-life threshold, except after the explicit shareware EndRun transition;
-21. publish a compact tick-result event summary.
+5. when immutable trajectory paths are supplied, run the native persistent group-0 replenisher on non-phase-2 substeps, preserving its initial RNG draw, forced-roll cases, first-inactive-slot selection, three-way entry position and activity-3 path reacquisition; successful insertion increments the encounter-local alien total;
+6. run the native live phase-2 transient formation scheduler: advance/force the recovered interval, consume the exact CRT spawn roll, select a free fixed group with progression-dependent pool rules, apply runtime path/group/formation randomization, and activate mode 2 when all gates pass; successful first-actor insertion increments the same encounter-local total;
+7. advance owned trajectory groups, stagger activation and mode-2 escape retirement; newly staggered actors also increment the encounter-local total;
+8. run the post-trajectory logical detonation updater on phase 0, including captured-center drift, four presentation-spawn requests, tick-329 settlement reset and tick>329 settlement increments;
+9. advance owned normal Drone travel/hover/settlement state; completed decode releases the Y=45 hold in the same update, and the exact 4200-tick unresolved hover starts the internal destructive countdown; after Y>230 the session clears completed decode state as the original does;
+10. execute the recovered normal Drone interstitial/encounter-only transition when Y>230 and settlement reaches exactly 60;
+11. derive the exact Drone Y=-200 boss boundary from owned position and select/advance Lid/Top or Gemini;
+12. advance enemy-bomb spawn/respawn gate and rapid-missile cooldown, then settle a previously destroyed player only when the gate is above -356, the death-effect presentation is inactive, the player remains inactive, lives remain, and Drone activity is not 2;
+13. apply semantic player movement and allocate rapid fire when allowed;
+14. advance/load/cycle/launch/move Probe/Stinger state; successful load resets the red-Stinger target to the original X=160 dummy, while frame-1 movement runs the recovered Mothership > Gemini > Lid/Top > Spidey > registered-slot2 > Bomber > unresolved-dynamic-hostile priority chain and retains the prior target when no branch qualifies;
+15. recharge/drain shield;
+16. move/animate rapid missiles and existing enemy bombs, then retire offscreen projectiles;
+17. run the exact per-slot late bomb collision loop: test Probe/Stinger first with bomb `(x,y+9)` against its inclusive 2x6 hitbox, then test that same bomb coordinate against the active player's inclusive 18x18 hitbox even when a special hit already cleared bomb activity; shielded player hits are absorbed, while unshielded hits auto-launch a merely loaded special, deactivate the player, request the death presentation and drive the shared bomb gate to -540;
+18. test rapid missiles first and the launched Probe/Stinger second against the active Drone with the recovered inclusive point-vs-12×32-hitbox primitive; a missile/Stinger starts the destruction countdown while a blue Probe attaches, awards +10 and initializes exact live/demo decode thresholds;
+19. dispatch already-proven trajectory hit events through damage, destruction, score and group teardown;
+20. advance world scroll on phase 2;
+21. convert at most one 500-point extra-life threshold, except after the explicit shareware EndRun transition;
+22. publish a compact tick-result event summary.
 
 This is the first continuous clean integration boundary. It does **not** yet
 claim that every relative position of these narrow helper calls is a

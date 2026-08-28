@@ -10,6 +10,38 @@
 
 namespace drone::gameplay {
 
+// Win32 0x00466B04 resets to the seven persistent primary actors at each
+// encounter rebuild. This is distinct from the mission-wide Results total.
+inline constexpr std::int32_t canonical_initial_encounter_alien_ships_total = 7;
+
+struct PrimaryTrajectoryReplenishmentContext {
+    DifficultyLevel difficulty = DifficultyLevel::Beginner;
+    std::int32_t processed_drone_count = 0;
+    std::int32_t gameplay_phase = 0;
+    bool demo_playback_mode = false;
+    std::uint8_t drone_activity = canonical_drone_active_activity;
+};
+
+struct PrimaryTrajectoryReplenishmentResult {
+    bool eligible_substep = false;
+    bool roll_forced_to_one = false;
+    bool spawn_roll_passed = false;
+    bool activated = false;
+    bool group_reactivated = false;
+    std::optional<std::uint8_t> actor_index{};
+    std::int32_t entry_x = 0;
+    std::int32_t entry_y = 0;
+};
+
+// Reconstruct Win32 0x0040CEE8..0x0040D070.
+// This is the persistent primary (group 0) replenisher, distinct from the
+// phase-2 transient formation producer below. It preserves retained actor path
+// index/frame state and re-enters an inactive actor through activity 3.
+[[nodiscard]] PrimaryTrajectoryReplenishmentResult step_primary_trajectory_replenishment(
+    TrajectoryEncounterState& encounter,
+    OriginalRandomState& random,
+    const PrimaryTrajectoryReplenishmentContext& context) noexcept;
+
 // Win32 globals 0x00464B38 / 0x0045BEFC. The threshold is rebuilt at each
 // encounter reset from processed-Drone count and difficulty; the counter then
 // advances only on shared gameplay phase 2.

@@ -103,6 +103,8 @@ globals_ = {
     0x00464B38: "trajectory_spawn_interval_threshold",
     0x0045BEFC: "trajectory_spawn_interval_counter",
     0x004D8508: "stinger_target_entity_pointer",
+    0x00466B04: "encounter_alien_ships_total",
+    0x0047EC3C: "encounter_alien_ships_hit",
     0x004D850C: "joystick_move_down",
     0x004D95A8: "joystick_rapid_fire",
     0x004D95AC: "joystick_special_load_cycle",

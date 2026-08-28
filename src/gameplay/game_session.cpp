@@ -42,6 +42,7 @@ GameSessionTickResult step_game_session(
 
     auto& encounter = session.encounter;
     auto& campaign = session.campaign;
+    result.encounter_alien_ships_total = encounter.encounter_alien_ships_total;
     bool end_run_transition = false;
 
     // 0x00491CAC is processed before the shared four-phase scheduler. If this
@@ -143,12 +144,38 @@ GameSessionTickResult step_game_session(
         (void)mark_drone_disarm_completed(encounter.drone);
     }
 
-    // Win32 0x0040D390..0x0040D947 owns live transient formation timing,
-    // template selection, path-side randomization and the accompanying CRT RNG
-    // draws before normal trajectory advancement. Demo playback remains driven
-    // by replay channels; registered-only Mothership destruction is still an
-    // explicit suppression fact until that encounter is native.
+    // The persistent primary Loop replenisher at 0x0040CEE8 runs before the
+    // phase-2 transient formation producer. It owns one actor insertion at a
+    // time and increments the encounter-local alien total 0x00466B04.
     if (targets.trajectory_paths != nullptr) {
+        const auto primary_replenishment = step_primary_trajectory_replenishment(
+            encounter.trajectories,
+            session.original_random,
+            PrimaryTrajectoryReplenishmentContext{
+                .difficulty = session.runtime.difficulty,
+                .processed_drone_count = static_cast<std::int32_t>(campaign.mission.processed_count),
+                .gameplay_phase = encounter.gameplay_substep_phase,
+                .demo_playback_mode = session.runtime.demo_playback_mode,
+                .drone_activity = encounter.drone.activity,
+            });
+        result.primary_trajectory_replenishment_checked =
+            primary_replenishment.eligible_substep;
+        result.primary_trajectory_roll_forced_to_one =
+            primary_replenishment.roll_forced_to_one;
+        result.primary_trajectory_spawn_roll_passed =
+            primary_replenishment.spawn_roll_passed;
+        result.primary_trajectory_actor_replenished = primary_replenishment.activated;
+        result.primary_trajectory_group_reactivated = primary_replenishment.group_reactivated;
+        result.primary_trajectory_actor_index = primary_replenishment.actor_index;
+        result.primary_trajectory_entry_x = primary_replenishment.entry_x;
+        result.primary_trajectory_entry_y = primary_replenishment.entry_y;
+        if (primary_replenishment.activated) {
+            ++encounter.encounter_alien_ships_total;
+        }
+
+        // Win32 0x0040D390..0x0040D947 owns live transient formation timing,
+        // template selection, path-side randomization and the accompanying CRT
+        // draws before normal trajectory advancement.
         const auto spawn_result = step_live_trajectory_spawn(
             encounter.trajectory_spawn,
             encounter.trajectories,
@@ -174,12 +201,17 @@ GameSessionTickResult step_game_session(
         result.trajectory_spawn_y_offset = spawn_result.group_y_offset;
         result.trajectory_spawn_actor_offsets_randomized =
             spawn_result.actor_offsets_randomized;
+        if (spawn_result.activated) {
+            ++encounter.encounter_alien_ships_total;
+        }
         const auto trajectory_result = advance_trajectory_encounter(
             encounter.trajectories,
             *targets.trajectory_paths,
             encounter.gameplay_substep_phase,
             campaign.score);
         result.trajectory_actors_activated = trajectory_result.actors_activated;
+        encounter.encounter_alien_ships_total +=
+            static_cast<std::int32_t>(trajectory_result.actors_activated);
         result.trajectory_actors_escaped = trajectory_result.actors_escaped;
         result.trajectory_groups_retired += trajectory_result.groups_retired;
         result.trajectory_score_delta += trajectory_result.escape_score_delta;
@@ -501,6 +533,8 @@ GameSessionTickResult step_game_session(
         ++campaign.player_lifecycle.lives;
         result.extra_life_awarded = true;
     }
+
+    result.encounter_alien_ships_total = encounter.encounter_alien_ships_total;
 
     ++encounter.gameplay_updates;
     ++session.total_gameplay_updates;

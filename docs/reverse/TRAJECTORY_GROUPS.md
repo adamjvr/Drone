@@ -1,6 +1,6 @@
 # Trajectory Group Lifecycle
 
-**Status:** Win32 trajectory-group lifecycle, all 17 fixed startup templates, the common live transient-wave producer, and clean whole-session ownership/destruction dispatch are established; special-family producers and exact runtime trace parity remain later work.
+**Status:** Win32 trajectory-group lifecycle, all 17 fixed startup templates, persistent primary-group replenishment, the common live transient-wave producer, and clean whole-session ownership/destruction dispatch are established; special-family producers and exact runtime trace parity remain later work.
 
 This document describes the publishable semantic contract recovered from `update_trajectory_groups` at `0x00415FA0`. It records addresses, fields, constants, and behavior without distributing original executable bytes or original FLY payloads.
 
@@ -142,6 +142,22 @@ x < -59 or x > 320 or y < -59 or y > 200
 
 The same active-count/group teardown rule then applies.
 
+## Persistent primary-group replenishment
+
+Before the phase-2 transient-wave producer, Win32 `0x0040CEE8..0x0040D070` maintains the persistent seven-member group 0 on every shared gameplay substep **except phase 2**. The branch consumes `rand() & 0x7ff` first. Demo playback or a currently empty primary group replaces the effective roll with `1`; otherwise replenishment requires:
+
+```text
+(rand() & 0x7ff) < 4 * (processed_drone_count + difficulty)
+```
+
+The capacity gate then requires active primary actors below the fixed group count and Drone activity other than destruction state 2. The first inactive inline actor is selected in ascending slot order. A second draw chooses its acquisition entry:
+
+- `rand()%100 < 34` -> `(-30,100)`;
+- `34..65` -> `(160,-30)`;
+- `>65` -> `(350,100)`.
+
+Only X/Y and activity are rewritten; activity becomes `3` (`AcquiringPath`). The actor's retained path index and frame are intentionally **not reset**, so the normal trajectory updater seeks its retained current-path sample. If group 0 had become inactive, the producer restores mode `1` and increments the active-group count. It always increments group-0 active actor count and encounter-local alien total `0x00466B04`. Normal live control then jumps to `0x0040D390`; the nearby `0x0040D25B` optional flight-SFX RNG tail belongs to the separate demo-scripted formation activation path and is **not** consumed by primary replenishment.
+
 ## Live transient formation producer
 
 The normal-live producer at `0x0040D390..0x0040D947` is now recovered and clean-integrated rather than supplied as an already-selected group from the host. It runs only on shared gameplay phase 2 while demo playback is off.
@@ -176,7 +192,7 @@ Once a free group is chosen, it becomes mode 2 and consumes the original optiona
 
 For non-Swarm live non-recording waves, one `rand()%22` decides whether every fixed actor receives independent X/Y formation offsets in `[-30,29]`; the randomization branch is taken when the roll is below `P+2`. Otherwise all actor formation offsets are zeroed. The common activation tail then resets every slot, activates slot 0 at sample zero and seeds the mode-2 stagger lifecycle already documented above.
 
-The producer also increments original scalar `0x00466B04`. That scalar participates in broader encounter/campaign alien accounting and is intentionally **not** aliased to the already-established mission result total `0x00446078`; its complete accounting semantics are being kept separate until all of its transition/update sites are reconciled.
+A successful transient activation increments original scalar `0x00466B04`. Cross-site recovery now establishes that scalar as the **encounter-local alien total**: encounter reset seeds it to 7, primary-group replenishment and transient actor insertion increase it, the encounter interstitial renders hits/misses/total/percentage from it and paired hit counter `0x0047EC3C`, and the post-encounter transition later folds it into the separate mission-wide total `0x00446078`. The clean engine therefore keeps encounter-local accounting distinct rather than aliasing these globals.
 
 ## FLY relationship
 

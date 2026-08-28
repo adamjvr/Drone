@@ -147,6 +147,10 @@ if(DRONE_BUILD_TESTS)
     target_link_libraries(drone_trajectory_spawn_tests PRIVATE drone_core)
     add_test(NAME drone_trajectory_spawn COMMAND drone_trajectory_spawn_tests)
 
+    add_executable(drone_primary_trajectory_replenishment_tests tests/test_primary_trajectory_replenishment.cpp)
+    target_link_libraries(drone_primary_trajectory_replenishment_tests PRIVATE drone_core)
+    add_test(NAME drone_primary_trajectory_replenishment COMMAND drone_primary_trajectory_replenishment_tests)
+
     add_executable(drone_fidelity_tests tests/test_fidelity.cpp)
     target_link_libraries(drone_fidelity_tests PRIVATE drone_core)
     add_test(NAME drone_fidelity COMMAND drone_fidelity_tests)

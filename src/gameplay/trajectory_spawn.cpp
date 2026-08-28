@@ -129,6 +129,87 @@ bool update_actor_formation_offsets(
 
 } // namespace
 
+PrimaryTrajectoryReplenishmentResult step_primary_trajectory_replenishment(
+    TrajectoryEncounterState& encounter,
+    OriginalRandomState& random,
+    const PrimaryTrajectoryReplenishmentContext& context) noexcept {
+    PrimaryTrajectoryReplenishmentResult result{};
+
+    // 0x0040CEE8 jumps around this whole producer on shared phase 2. No RNG is
+    // consumed in that phase.
+    if (context.gameplay_phase == 2) {
+        return result;
+    }
+    result.eligible_substep = true;
+
+    auto& primary = encounter.groups[0];
+
+    // The original consumes this draw before testing demo playback, primary
+    // emptiness, capacity, or Drone-destruction suppression.
+    auto effective_roll = static_cast<std::int32_t>(next_original_random(random) & 0x07ffu);
+    if (context.demo_playback_mode || primary.lifecycle.active_entity_count == 0) {
+        effective_roll = 1;
+        result.roll_forced_to_one = true;
+    }
+
+    const auto threshold = 4 * (
+        context.processed_drone_count +
+        static_cast<std::int32_t>(difficulty_multiplier(context.difficulty)));
+    if (effective_roll >= threshold) {
+        return result;
+    }
+    result.spawn_roll_passed = true;
+
+    if (primary.lifecycle.active_entity_count >=
+            static_cast<std::uint8_t>(std::max<std::int8_t>(0, primary.lifecycle.entity_count)) ||
+        context.drone_activity == canonical_drone_destruction_activity) {
+        return result;
+    }
+
+    const auto count = static_cast<std::size_t>(
+        std::max<std::int8_t>(0, primary.lifecycle.entity_count));
+    std::size_t actor_index = count;
+    for (std::size_t i = 0; i < count && i < primary.actors.size(); ++i) {
+        if (primary.actors[i].activity == TrajectoryEntityActivity::Inactive) {
+            actor_index = i;
+            break;
+        }
+    }
+    if (actor_index >= count || actor_index >= primary.actors.size()) {
+        return result;
+    }
+
+    auto& actor = primary.actors[actor_index];
+    const auto entry_roll = static_cast<std::int32_t>(original_random_mod(random, 100));
+    actor.x = 160;
+    actor.y = -30;
+    if (entry_roll < 34) {
+        actor.x = -30;
+        actor.y = 100;
+    } else if (entry_roll > 65) {
+        actor.x = 350;
+        actor.y = 100;
+    }
+    actor.activity = TrajectoryEntityActivity::AcquiringPath;
+
+    if (primary.lifecycle.mode == TrajectoryGroupMode::Inactive) {
+        primary.lifecycle.mode = TrajectoryGroupMode::PersistentLoop;
+        ++encounter.active_group_count;
+        result.group_reactivated = true;
+    }
+    ++primary.lifecycle.active_entity_count;
+
+    result.activated = true;
+    result.actor_index = static_cast<std::uint8_t>(actor_index);
+    result.entry_x = actor.x;
+    result.entry_y = actor.y;
+
+    // Normal live play jumps from 0x0040D077 directly to the transient producer
+    // at 0x0040D390. The 0x0040D25B flight-SFX RNG tail belongs to the separate
+    // demo-scripted activation path, not to this primary replenishment.
+    return result;
+}
+
 void reset_trajectory_spawn_scheduler(
     TrajectorySpawnSchedulerState& state,
     const DifficultyLevel difficulty,

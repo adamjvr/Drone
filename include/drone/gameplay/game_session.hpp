@@ -63,6 +63,10 @@ struct GameEncounterState {
     EnemyBombSpawnGate enemy_bomb_spawn_gate{};
     TrajectoryEncounterState trajectories{};
     TrajectorySpawnSchedulerState trajectory_spawn{};
+    // Original 0x00466B04: encounter-local alien total used by the interstitial
+    // hit/miss summary. It starts at the seven primary Loop actors and grows as
+    // actors are inserted; campaign-wide folding remains a separate milestone.
+    std::int32_t encounter_alien_ships_total = canonical_initial_encounter_alien_ships_total;
     BossEncounterState boss{};
     DroneObjectiveState drone{};
 
@@ -152,6 +156,16 @@ struct GameSessionTickResult {
     bool player_respawn_shield_reset = false;
     bool player_game_over_banner_requested = false;
 
+    bool primary_trajectory_replenishment_checked = false;
+    bool primary_trajectory_roll_forced_to_one = false;
+    bool primary_trajectory_spawn_roll_passed = false;
+    bool primary_trajectory_actor_replenished = false;
+    bool primary_trajectory_group_reactivated = false;
+    std::optional<std::uint8_t> primary_trajectory_actor_index{};
+    std::int32_t primary_trajectory_entry_x = 0;
+    std::int32_t primary_trajectory_entry_y = 0;
+    std::int32_t encounter_alien_ships_total = 0;
+
     bool trajectory_group_spawned = false;
     bool trajectory_spawn_forced = false;
     bool trajectory_spawn_roll_passed = false;
@@ -234,8 +248,9 @@ void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 // life-loss path, and the shareware Lid/Top/Gemini lifecycle tails are now
 // continuously owned. Stinger target priority/retention is also native while
 // candidate boss geometry/activity remains an explicit actor-owner input.
-// Transient formation selection, direct detonation visuals, boss movement/
-// attacks and remaining enemy collision producers remain later Phase-4 edges.
+// Primary group-0 replenishment and transient formation selection are native;
+// direct detonation visuals, boss movement/attacks and remaining enemy actor
+// producers remain later Phase-4 edges.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,
