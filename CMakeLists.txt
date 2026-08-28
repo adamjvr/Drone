@@ -26,6 +26,7 @@ add_library(drone_core
     src/fidelity/scaled_overlay_presentation.cpp
     src/fidelity/world_presentation_subpasses.cpp
     src/gameplay/collision.cpp
+    src/gameplay/alien_accounting.cpp
     src/gameplay/debris_effects.cpp
     src/gameplay/player.cpp
     src/gameplay/rapid_missile.cpp
@@ -150,6 +151,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_primary_trajectory_replenishment_tests tests/test_primary_trajectory_replenishment.cpp)
     target_link_libraries(drone_primary_trajectory_replenishment_tests PRIVATE drone_core)
     add_test(NAME drone_primary_trajectory_replenishment COMMAND drone_primary_trajectory_replenishment_tests)
+
+    add_executable(drone_alien_accounting_tests tests/test_alien_accounting.cpp)
+    target_link_libraries(drone_alien_accounting_tests PRIVATE drone_core)
+    add_test(NAME drone_alien_accounting COMMAND drone_alien_accounting_tests)
 
     add_executable(drone_fidelity_tests tests/test_fidelity.cpp)
     target_link_libraries(drone_fidelity_tests PRIVATE drone_core)

@@ -66,10 +66,17 @@ struct TrajectoryEncounterStepResult {
     std::int32_t escape_score_delta{};
 };
 
+enum class TrajectoryHitSource : std::uint8_t {
+    Unspecified = 0,
+    RapidMissile = 1,
+    SpecialWeapon = 2,
+};
+
 struct TrajectoryHitEvent {
     std::uint8_t group_index{};
     std::uint8_t actor_index{};
     std::uint8_t damage{3};
+    TrajectoryHitSource source = TrajectoryHitSource::Unspecified;
 };
 
 struct TrajectoryHitResult {

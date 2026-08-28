@@ -43,7 +43,22 @@ GameSessionTickResult step_game_session(
     auto& encounter = session.encounter;
     auto& campaign = session.campaign;
     result.encounter_alien_ships_total = encounter.encounter_alien_ships_total;
+    result.encounter_alien_ships_hit = encounter.encounter_alien_ships_hit;
+    result.mission_alien_ships_total = campaign.alien_ships_total;
+    result.mission_alien_ships_hit = campaign.alien_ships_hit;
     bool end_run_transition = false;
+
+    const auto fold_alien_statistics_for_interstitial = [&]() {
+        result.encounter_alien_statistics = make_encounter_alien_statistics(
+            encounter.encounter_alien_ships_hit,
+            encounter.encounter_alien_ships_total);
+        fold_encounter_alien_statistics(
+            encounter.encounter_alien_ships_hit,
+            encounter.encounter_alien_ships_total,
+            campaign.alien_ships_hit,
+            campaign.alien_ships_total);
+        result.encounter_alien_statistics_folded = true;
+    };
 
     // 0x00491CAC is processed before the shared four-phase scheduler. If this
     // update reaches 99, the original immediately restores 100, triggers the
@@ -90,6 +105,10 @@ GameSessionTickResult step_game_session(
                 result.encounter_transition = win32_post_drone_transition_plan(
                     result.mission_interstitial->processed_count,
                     result.mission_interstitial->detonated_count);
+                // Win32 renders the encounter-local summary and then folds the
+                // complete local pair into mission-wide Results counters before
+                // its encounter-only reinitialization call.
+                fold_alien_statistics_for_interstitial();
             }
 
             if (result.encounter_transition.has_value()) {
@@ -212,6 +231,12 @@ GameSessionTickResult step_game_session(
         result.trajectory_actors_activated = trajectory_result.actors_activated;
         encounter.encounter_alien_ships_total +=
             static_cast<std::int32_t>(trajectory_result.actors_activated);
+        // Each later stagger activation in a transient group increments both
+        // encounter-local 0x00466B04 and mission-wide 0x00446078 at
+        // 0x0041610E..0x00416121. The later interstitial still folds the full
+        // encounter total again; preserve that original double-accounting quirk.
+        campaign.alien_ships_total +=
+            static_cast<std::int32_t>(trajectory_result.actors_activated);
         result.trajectory_actors_escaped = trajectory_result.actors_escaped;
         result.trajectory_groups_retired += trajectory_result.groups_retired;
         result.trajectory_score_delta += trajectory_result.escape_score_delta;
@@ -255,6 +280,7 @@ GameSessionTickResult step_game_session(
             result.encounter_transition = win32_post_drone_transition_plan(
                 result.mission_interstitial->processed_count,
                 result.mission_interstitial->detonated_count);
+            fold_alien_statistics_for_interstitial();
         }
 
         if (result.encounter_transition.has_value()) {
@@ -518,6 +544,14 @@ GameSessionTickResult step_game_session(
     for (const auto& hit : targets.trajectory_hits) {
         const auto hit_result = apply_trajectory_hit(encounter.trajectories, hit, campaign.score);
         if (!hit_result.destroyed) continue;
+        // Both established trajectory-kill paths increment encounter-local
+        // 0x0047EC3C. The rapid-missile path at 0x004165E4 also increments
+        // mission-wide 0x0044084C immediately, while the special-weapon path at
+        // 0x0040EFD1 does not. The later fold then adds the local hit again.
+        ++encounter.encounter_alien_ships_hit;
+        if (hit.source == TrajectoryHitSource::RapidMissile) {
+            ++campaign.alien_ships_hit;
+        }
         ++result.trajectory_actors_destroyed;
         result.trajectory_destruction_bursts += hit_result.destruction_burst_count;
         result.trajectory_score_delta += hit_result.score_delta;
@@ -535,6 +569,9 @@ GameSessionTickResult step_game_session(
     }
 
     result.encounter_alien_ships_total = encounter.encounter_alien_ships_total;
+    result.encounter_alien_ships_hit = encounter.encounter_alien_ships_hit;
+    result.mission_alien_ships_total = campaign.alien_ships_total;
+    result.mission_alien_ships_hit = campaign.alien_ships_hit;
 
     ++encounter.gameplay_updates;
     ++session.total_gameplay_updates;

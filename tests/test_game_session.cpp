@@ -48,6 +48,10 @@ int main() {
         assert(session.encounter.rapid_missiles.fire_cooldown == RapidMissilePool::cooldown_ready);
         assert(session.encounter.trajectory_spawn.interval_threshold == 280);
         assert(session.encounter.trajectory_spawn.interval_counter == 250);
+        assert(session.campaign.alien_ships_total == canonical_initial_encounter_alien_ships_total);
+        assert(session.campaign.alien_ships_hit == 0);
+        assert(session.encounter.encounter_alien_ships_total == canonical_initial_encounter_alien_ships_total);
+        assert(session.encounter.encounter_alien_ships_hit == 0);
         assert(!session.encounter.boss.family.has_value());
     }
 
@@ -92,6 +96,7 @@ int main() {
         assert(session.campaign.mission.processed_count == 0);
         assert(!session.campaign.high_score_disqualified);
         assert(session.campaign.alien_ships_hit == 0);
+        assert(session.campaign.alien_ships_total == canonical_initial_encounter_alien_ships_total);
         assert(session.total_gameplay_updates == 0);
     }
 

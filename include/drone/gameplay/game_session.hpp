@@ -1,5 +1,6 @@
 #pragma once
 
+#include <drone/gameplay/alien_accounting.hpp>
 #include <drone/gameplay/boss_encounter.hpp>
 #include <drone/gameplay/difficulty.hpp>
 #include <drone/gameplay/drone_weapon_interaction.hpp>
@@ -42,7 +43,10 @@ struct GameCampaignState {
     bool high_score_disqualified = false;
     bool mothership_destroyed = false;
     std::int32_t alien_ships_hit = 0;
-    std::int32_t alien_ships_total = 0;
+    // Full-session initialization seeds the mission-wide counter to the same
+    // seven primary actors as Win32 0x0041801E. Encounter folds accumulate on
+    // top of this value and preserve the original mixed live-count quirks.
+    std::int32_t alien_ships_total = canonical_initial_encounter_alien_ships_total;
 };
 
 
@@ -67,6 +71,7 @@ struct GameEncounterState {
     // hit/miss summary. It starts at the seven primary Loop actors and grows as
     // actors are inserted; campaign-wide folding remains a separate milestone.
     std::int32_t encounter_alien_ships_total = canonical_initial_encounter_alien_ships_total;
+    std::int32_t encounter_alien_ships_hit = 0;
     BossEncounterState boss{};
     DroneObjectiveState drone{};
 
@@ -165,6 +170,11 @@ struct GameSessionTickResult {
     std::int32_t primary_trajectory_entry_x = 0;
     std::int32_t primary_trajectory_entry_y = 0;
     std::int32_t encounter_alien_ships_total = 0;
+    std::int32_t encounter_alien_ships_hit = 0;
+    std::int32_t mission_alien_ships_total = 0;
+    std::int32_t mission_alien_ships_hit = 0;
+    bool encounter_alien_statistics_folded = false;
+    std::optional<EncounterAlienStatistics> encounter_alien_statistics{};
 
     bool trajectory_group_spawned = false;
     bool trajectory_spawn_forced = false;
