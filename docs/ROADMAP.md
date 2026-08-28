@@ -26,7 +26,7 @@ Recover sprite/frame loading, animation, clipping, layering, scrolling, palettes
 
 ## Phase 4 — Complete Game Simulation — IN PROGRESS
 
-Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, lives, pickups, special weapons, scripted events, bosses, death/restart, level progression, and game-over behavior. Current integration owns trajectory lifecycle, exact Probe-to-Drone attach/decode/disarm, attached-Probe bomb vulnerability, the ordered bomb→special/player collision loop with shield/lethal player consequences and deferred respawn settlement, rapid-missile/Stinger Drone-hit entry, normal/destructive Drone progression and shareware boss lifecycle tails; remaining work concentrates on non-trajectory actors, hostile Stinger target selection, trajectory/boss collision producers, boss movement/attacks, death-effect presentation ownership and full results continuity.
+Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, lives, pickups, special weapons, scripted events, bosses, death/restart, level progression, and game-over behavior. Current integration owns trajectory lifecycle, exact Probe-to-Drone attach/decode/disarm, attached-Probe bomb vulnerability, the ordered bomb→special/player collision loop with shield/lethal player consequences and deferred respawn settlement, rapid-missile/Stinger Drone-hit entry, normal/destructive Drone progression and shareware boss lifecycle tails; red-Stinger target priority/retention is now internally selected from explicit candidate facts; remaining work concentrates on non-trajectory actor geometry/AI, trajectory/boss collision producers, boss movement/attacks, death-effect presentation ownership and full results continuity.
 
 ## Phase 5 — Audio Reconstruction
 

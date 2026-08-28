@@ -139,7 +139,7 @@ The DOS README notes materially different performance under pure DOS versus runn
 | `BHV-WPN-002` | Down loads/cycles special type; Up launches | Win32 lifecycle mapped and clean reconstruction tested |
 | `BHV-PROBE-001` | probe targets Drone and can attach/disarm | Win32 point-hitbox attachment, +10 award, exact live/demo two-stage thresholds, 0→3→1 decoder, +500 completion, same-update Drone release and downstream normal mission transition are clean-integrated; enemy shoot-off vulnerability remains |
 | `BHV-STING-001` | stinger targets hostile and homes | frame-1 homing and generic impact-consumed lifecycle mapped; per-enemy damage consequences partial |
-| `BHV-TARGET-001` | only one probe/stinger targeting communication active | documented; implementation pending |
+| `BHV-TARGET-001` | stateful red-Stinger target priority/retention and load-time dummy target | documented and clean-integrated; candidate actor geometry still partial |
 | `BHV-HUD-001` | six Drone indicators with current/disarmed/detonated states | executable outcome ledger now maps raw 0/1/2 as unresolved/disarmed/detonated; renderer details still pending |
 | `BHV-SCORE-001` | scoring table deltas | documented values retained; Win32 total/progress accumulators, normal signed deltas, Drone special penalty, negative floors and 9999 HUD quirk recovered and clean-tested |
 | `BHV-LIFE-001` | extra life every 500 points earned | Win32 rolling progress bucket recovered; exactly one 500-point threshold consumed per state-2 update with remainder preserved; clean-tested |

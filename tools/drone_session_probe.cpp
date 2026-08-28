@@ -41,7 +41,8 @@ int main(int argc, char** argv) try {
 
     drone::gameplay::GameSession session{};
     drone::gameplay::GameSessionTargetContext targets{};
-    targets.stinger_target = drone::gameplay::SpecialTargetGeometry{.x = 220, .width = 20};
+    targets.stinger_targets.bomber_active = true;
+    targets.stinger_targets.bomber = {.x = 220, .width = 20};
 
     std::size_t fired = 0;
     std::size_t shield_sound_requests = 0;

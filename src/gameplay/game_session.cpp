@@ -220,6 +220,12 @@ GameSessionTickResult step_game_session(
         }
     }
 
+    // Stinger target selection occurs before the boss update/dispatch region in
+    // the original. Capture the already-existing boss lifecycle here so a boss
+    // activated or retired later in this same update cannot become/disappear as
+    // a Stinger target one update too early.
+    const auto stinger_boss_snapshot = encounter.boss;
+
     // Boss selection no longer consumes an external boundary event: the owned
     // Drone path emits exact Y == -200 after its phase-2 movement. Registered-
     // only dispatch slots are still rejected by the shareware boss owner.
@@ -289,6 +295,11 @@ GameSessionTickResult step_game_session(
         if (encounter.special_weapon.activity == SpecialWeaponActivity::Inactive) {
             result.special_loaded = load_special_weapon(
                 encounter.special_weapon, encounter.player, true, player_active);
+            if (result.special_loaded) {
+                // Win32 0x0040CD83 resets the shared target pointer to the
+                // center-screen dummy object on every successful load.
+                reset_stinger_target(encounter.stinger_target);
+            }
         } else if (encounter.special_weapon.activity == SpecialWeaponActivity::LoadedTracking) {
             result.special_cycled = toggle_loaded_special_weapon(
                 encounter.special_weapon, true, player_active);
@@ -300,19 +311,38 @@ GameSessionTickResult step_game_session(
         input.special_launch,
         player_active);
 
-    // Common special movement consumes already-selected target geometry. The
-    // target-selection/encounter producer remains outside this first session
-    // milestone rather than inventing enemy-selection semantics.
+    // Common special movement now owns the original Stinger target-priority
+    // chain. Geometry for boss families whose movement is not reconstructed is
+    // still supplied as actor facts, but the host no longer preselects a target.
     if (encounter.special_weapon.activity == SpecialWeaponActivity::ProbeAttachedDecoding) {
         (void)pin_attached_probe_to_drone(encounter.special_weapon, encounter.drone.x);
     } else if (encounter.special_weapon.activity == SpecialWeaponActivity::LoadedTracking ||
                encounter.special_weapon.activity == SpecialWeaponActivity::LaunchedHoming) {
         std::int32_t target_x = probe_drone_target_x(encounter.drone.x);
-        if (encounter.special_weapon.kind == SpecialWeaponKind::Stinger &&
-            targets.stinger_target.has_value()) {
-            target_x = stinger_target_x(
-                targets.stinger_target->x,
-                targets.stinger_target->width);
+        if (encounter.special_weapon.kind == SpecialWeaponKind::Stinger) {
+            auto stinger_context = targets.stinger_targets;
+
+            // For the two shareware boss families already owned by GameSession,
+            // activity comes from the pre-boss-update snapshot rather than the
+            // host. Geometry/frame facts remain external until movement is native.
+            if (stinger_boss_snapshot.family == BossFamily::Gemini) {
+                stinger_context.gemini_body_a_active =
+                    stinger_boss_snapshot.gemini.side_a.body_activity == boss_activity_active;
+                stinger_context.gemini_body_b_active =
+                    stinger_boss_snapshot.gemini.side_b.body_activity == boss_activity_active;
+            } else if (stinger_boss_snapshot.family == BossFamily::LidTop) {
+                stinger_context.lid_top_top_active =
+                    stinger_boss_snapshot.lid_top.top_activity == boss_activity_active;
+            }
+
+            const auto selection = select_stinger_target(
+                encounter.stinger_target,
+                stinger_context,
+                encounter.player.x);
+            target_x = selection.desired_x;
+            result.stinger_target_identity = selection.identity;
+            result.stinger_target_desired_x = selection.desired_x;
+            result.stinger_target_changed = selection.target_changed;
         }
         (void)step_special_weapon_homing(
             encounter.special_weapon, encounter.player, target_x);

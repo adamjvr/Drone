@@ -26,7 +26,7 @@ from state rebuilt for each encounter.
 - player motion;
 - shield accumulator/activity;
 - rapid-missile pool and cooldown;
-- Probe/Stinger state plus exact attached-Probe decode/disarm counters/status;
+- Probe/Stinger state plus exact attached-Probe decode/disarm counters/status and the persistent red-Stinger target-selection state;
 - enemy-bomb pool and shared spawn/respawn gate;
 - all 17 fixed trajectory groups and their inline actor state;
 - shareware-reachable boss lifecycle state for Lid/Top and Gemini;
@@ -71,7 +71,7 @@ The integrated tick composes already-established atomic behavior:
 10. derive the exact Drone Y=-200 boss boundary from owned position and select/advance Lid/Top or Gemini;
 11. advance enemy-bomb spawn/respawn gate and rapid-missile cooldown, then settle a previously destroyed player only when the gate is above -356, the death-effect presentation is inactive, the player remains inactive, lives remain, and Drone activity is not 2;
 12. apply semantic player movement and allocate rapid fire when allowed;
-13. advance/load/cycle/launch/move Probe/Stinger state;
+13. advance/load/cycle/launch/move Probe/Stinger state; successful load resets the red-Stinger target to the original X=160 dummy, while frame-1 movement runs the recovered Mothership > Gemini > Lid/Top > Spidey > registered-slot2 > Bomber > unresolved-dynamic-hostile priority chain and retains the prior target when no branch qualifies;
 14. recharge/drain shield;
 15. move/animate rapid missiles and existing enemy bombs, then retire offscreen projectiles;
 16. run the exact per-slot late bomb collision loop: test Probe/Stinger first with bomb `(x,y+9)` against its inclusive 2x6 hitbox, then test that same bomb coordinate against the active player's inclusive 18x18 hitbox even when a special hit already cleared bomb activity; shielded player hits are absorbed, while unshielded hits auto-launch a merely loaded special, deactivate the player, request the death presentation and drive the shared bomb gate to -540;
@@ -91,7 +91,7 @@ encounter/collision producers are integrated in subsequent Phase-4 milestones.
 
 The session accepts `GameSessionTargetContext` for facts produced by encounter systems that are deliberately kept outside mutable session ownership:
 
-- optional Stinger target geometry;
+- Stinger target-candidate activity/geometry facts for hostile actors whose movement/geometry is not yet session-owned; selection priority and retained target state themselves are owned by the session;
 - the independently recovered but still unnamed condition that redirects enemy
   bombs toward an attached Probe;
 - immutable trajectory path samples;
@@ -100,7 +100,7 @@ The session accepts `GameSessionTargetContext` for facts produced by encounter s
 - already-validated Lid/Top or Gemini destruction transitions from their boss-local collision/damage producers;
 - whether the player-death presentation actor is inactive, the one remaining presentation-side fact required by the exact deferred life-settlement gate.
 
-This is intentional. Mutable trajectory lifecycle, the exact Probe attachment/decode/disarm chain, ordered enemy-bomb collision ownership for Probe/Stinger and player, lethal player entry plus the shared -540 quiet period, deferred life consumption/respawn/game-over settlement, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Random trajectory/template selection, immutable asset data, trajectory opaque-pixel collision detection, hostile Stinger target selection, direct framebuffer detonation rendering, and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
+This is intentional. Mutable trajectory lifecycle, the exact Probe attachment/decode/disarm chain, ordered enemy-bomb collision ownership for Probe/Stinger and player, lethal player entry plus the shared -540 quiet period, deferred life consumption/respawn/game-over settlement, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Random trajectory/template selection, immutable asset data, trajectory opaque-pixel collision detection, non-owned hostile actor geometry/AI, direct framebuffer detonation rendering, and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. Red-Stinger target **selection** is now native; only candidate facts for actors not yet owned by the session remain external. Boss destruction triggers are therefore *validated transitions*, not invented broad-phase hits.
 
 ## Headless state oracle
 
@@ -129,7 +129,7 @@ Not yet session-integrated:
 - exact opaque-pixel collision detection feeding trajectory hit events;
 - remaining non-trajectory enemy state and full boss geometry/movement/attack ownership;
 - exact Lid/Top/Gemini boss-local collision/damage producers (the session consumes only their validated destruction transitions);
-- hostile Stinger target-selection priority and the remaining non-Drone special-weapon collision consequences;
+- remaining non-Drone special-weapon collision consequences and non-owned hostile actor geometry/AI feeding the now-native Stinger selector;
 - randomized/direct-framebuffer Drone detonation presentation emitted from the owned logical effect events;
 - reconstruction of the player-death presentation/effect actor itself (the session consumes only its established inactive/settled fact);
 - remaining post-game/results execution;

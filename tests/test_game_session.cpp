@@ -171,8 +171,9 @@ int main() {
         assert(session.total_gameplay_updates == 0);
     }
 
-    // Stinger target geometry and attached-Probe bomb redirection remain
-    // explicit encounter inputs until actor collections are integrated.
+    // Stinger target *selection* is now session-owned. Actor geometry remains
+    // an encounter fact until boss movement is integrated; Bomber is selected
+    // here without the host supplying a preselected target.
     {
         GameSession session{};
         session.encounter.special_weapon.activity = SpecialWeaponActivity::LoadedTracking;
@@ -180,9 +181,13 @@ int main() {
         session.encounter.special_weapon.switch_progress = 12;
 
         GameSessionTargetContext targets{};
-        targets.stinger_target = SpecialTargetGeometry{.x = 200, .width = 20};
+        targets.stinger_targets.bomber_active = true;
+        targets.stinger_targets.bomber = {.x = 200, .width = 20};
         const auto result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(result.advanced);
+        assert(result.stinger_target_identity == StingerTargetIdentity::Bomber);
+        assert(result.stinger_target_desired_x == 210);
+        assert(result.stinger_target_changed);
         // Loaded state anchors at player.x+14=161 then steps toward target 210.
         assert(session.encounter.special_weapon.x == 162);
 
@@ -197,6 +202,44 @@ int main() {
         assert(session.encounter.enemy_bombs.bombs[0].x == 98); // target = probe.x+1=86
     }
 
+
+    // Shareware Gemini activity is read from the pre-boss-update session state;
+    // only head geometry is supplied. Both sides active use nearest-head X and
+    // exact ties select B.
+    {
+        GameSession session{};
+        session.encounter.boss.family = BossFamily::Gemini;
+        session.encounter.boss.gemini.side_a.body_activity = boss_activity_active;
+        session.encounter.boss.gemini.side_b.body_activity = boss_activity_active;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LoadedTracking;
+
+        GameSessionTargetContext targets{};
+        targets.stinger_targets.gemini_head_a = {.x = 100, .width = 43};
+        targets.stinger_targets.gemini_head_b = {.x = 180, .width = 43};
+
+        const auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.stinger_target_identity == StingerTargetIdentity::GeminiHeadB);
+        assert(result.stinger_target_desired_x == 201);
+        assert(session.encounter.special_weapon.x == 162);
+    }
+
+    // Successful special loading resets the shared Stinger target to the
+    // original x=160 dummy before same-update target selection. With no hostile
+    // candidate, the loaded Stinger therefore steps from player.x+14 to 160.
+    {
+        GameSession session{};
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
+        session.encounter.stinger_target.identity = StingerTargetIdentity::Bomber;
+        session.encounter.stinger_target.geometry = {.x = 250, .width = 40};
+        GameplayInputFrame input{};
+        input.special_load_cycle = true;
+        const auto result = step_game_session(session, input);
+        assert(result.special_loaded);
+        assert(result.stinger_target_identity == StingerTargetIdentity::DummyCenter);
+        assert(result.stinger_target_desired_x == 160);
+        assert(session.encounter.special_weapon.x == 160);
+    }
 
     // Phase-4 whole-session integration owns the trajectory collection and can
     // execute the established formation -> path update -> proven-hit ->

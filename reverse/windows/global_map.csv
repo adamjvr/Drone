@@ -157,3 +157,4 @@ address,provisional_name,confidence,notes
 0x00491CAC,drone_destruction_countdown,high,WORD idle100; timeout/validated destructive hits write0; pre-phase increments and 99 triggers detonation then restores100
 0x004460B2,drone_destruction_settlement_phase0_ticks,high,Drone +0x32 WORD; detonation updater resets tick329/increments >329 phase0; early state2 gate accepts >70
 0x0042C0F4,crt_random_state,high,exact MSVC LCG uint32 state used by 0x00421ED0; seed supplied via 0x00421EC0
+0x004D8508,stinger_target_entity_pointer,high,"stateful red-Stinger hostile target pointer; load resets to dummy 0x0045A708 at X160 width0; no qualifying priority branch retains prior pointer"

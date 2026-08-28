@@ -121,7 +121,17 @@ Horizontal homing is intentionally slow and discrete: X changes by **exactly one
 
 ### Red Stinger (frame 1)
 
-When `current_frame == 1`, the update chooses among currently available hostile object roots and stores the selected object in the shared target pointer `0x004D8508`. The current decision chain includes several enemy/boss families and special cases; naming every target priority is still in progress.
+When `current_frame == 1`, Win32 `0x0040DF47..0x0040E04E` updates the shared target pointer `0x004D8508` with a stateful priority chain. The exact order is:
+
+1. active Mothership panel gate `0x00446DD2` -> hole entity `0x00433700`;
+2. Gemini, using active body states to choose a head; when both bodies are active the head whose **X origin** is nearest to player X wins, and an equal-distance tie selects head B;
+3. Lid/Top top/root, only while top state is 1 and the lid current frame is greater than 3;
+4. Spidey;
+5. registered boss slot 2;
+6. Bomber;
+7. one still-unidentified active common-entity owner at `0x00459F90`, whose current dynamic target geometry is reached through `0x00495CE8`.
+
+If no branch qualifies, the executable does **not** install a fallback target in this movement block: `0x004D8508` retains its previous pointer. A successful special load separately resets that pointer to dummy entity `0x0045A708`, explicitly writes dummy X=160, and its zero/BSS width makes the initial desired X exactly 160. This means a newly loaded Stinger with no eligible hostile homes toward screen center rather than toward the Drone.
 
 Once a target object is chosen, desired X is its horizontal center:
 
@@ -256,7 +266,7 @@ The clean module currently implements only behavior with direct evidence:
 - state-3 -> state-4 hole-interaction transition;
 - state-10 -> state-0 terminal settlement.
 
-The clean implementation also carries the exact MSVC CRT 15-bit PRNG used by this path (`original_random.*`) so live threshold draws are deterministic when seeded. It intentionally does **not** yet encode the complete Mothership subassembly/core state machine reached through the state-4 path or hostile Stinger target priority. Those remain active reverse-engineering targets.
+The clean implementation also carries the exact MSVC CRT 15-bit PRNG used by this path (`original_random.*`) so live threshold draws are deterministic when seeded. Red-Stinger target selection/retention is now clean-integrated through `stinger_targeting.*`; candidate geometry for actor families whose movement is not yet session-owned remains an explicit encounter fact. The implementation intentionally does **not** yet encode the complete Mothership subassembly/core state machine reached through the state-4 path. That remains an active reverse-engineering target.
 
 
 ## Presentation cross-reference

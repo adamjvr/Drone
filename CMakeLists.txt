@@ -30,6 +30,7 @@ add_library(drone_core
     src/gameplay/player.cpp
     src/gameplay/rapid_missile.cpp
     src/gameplay/special_weapon.cpp
+    src/gameplay/stinger_targeting.cpp
     src/gameplay/demo_replay.cpp
     src/gameplay/input.cpp
     src/gameplay/enemy_bomb.cpp
@@ -120,6 +121,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_drone_weapon_interaction_tests tests/test_drone_weapon_interaction.cpp)
     target_link_libraries(drone_drone_weapon_interaction_tests PRIVATE drone_core)
     add_test(NAME drone_drone_weapon_interaction COMMAND drone_drone_weapon_interaction_tests)
+
+    add_executable(drone_stinger_targeting_tests tests/test_stinger_targeting.cpp)
+    target_link_libraries(drone_stinger_targeting_tests PRIVATE drone_core)
+    add_test(NAME drone_stinger_targeting COMMAND drone_stinger_targeting_tests)
 
     add_executable(drone_enemy_bomb_special_collision_tests tests/test_enemy_bomb_special_collision.cpp)
     target_link_libraries(drone_enemy_bomb_special_collision_tests PRIVATE drone_core)

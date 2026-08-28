@@ -16,6 +16,7 @@
 #include <drone/gameplay/scoring.hpp>
 #include <drone/gameplay/shield.hpp>
 #include <drone/gameplay/special_weapon.hpp>
+#include <drone/gameplay/stinger_targeting.hpp>
 #include <drone/gameplay/trajectory_encounter.hpp>
 #include <drone/gameplay/world_scroll.hpp>
 
@@ -55,6 +56,7 @@ struct GameEncounterState {
     PlayerShieldState shield{};
     RapidMissilePool rapid_missiles{};
     SpecialWeaponState special_weapon{};
+    StingerTargetState stinger_target{};
     EnemyBombPool enemy_bombs{};
     EnemyBombSpawnGate enemy_bomb_spawn_gate{};
     TrajectoryEncounterState trajectories{};
@@ -84,16 +86,11 @@ struct GameSession {
     std::uint64_t total_gameplay_updates = 0;
 };
 
-struct SpecialTargetGeometry {
-    std::int32_t x = 0;
-    std::int16_t width = 0;
-};
-
 // Encounter-owned producer facts not yet reconstructed inside GameSession.
-// Drone weapon collisions and Probe decode/disarm are now owned; hostile-target
-// selection for Stingers remains external until enemy selection is integrated.
+// Stinger target *selection* is now owned; individual boss/hostile geometry and
+// activity facts remain inputs until their movement/state machines are native.
 struct GameSessionTargetContext {
-    std::optional<SpecialTargetGeometry> stinger_target{};
+    StingerTargetSelectionContext stinger_targets{};
 
     // Bomb redirection has an independently recovered external gate in the
     // original. Keep that gate explicit instead of assigning it a false name.
@@ -206,6 +203,9 @@ struct GameSessionTickResult {
     bool special_loaded = false;
     bool special_cycled = false;
     bool special_launched = false;
+    StingerTargetIdentity stinger_target_identity = StingerTargetIdentity::DummyCenter;
+    std::int32_t stinger_target_desired_x = canonical_stinger_dummy_target_x;
+    bool stinger_target_changed = false;
 
     bool shield_active = false;
     bool shield_sound_requested = false;
@@ -223,9 +223,10 @@ void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 // attachment/decode/disarm timing, rapid-missile/Stinger Drone-hit producers,
 // normal Drone objective travel/settlement, the timeout/countdown/detonation/
 // life-loss path, and the shareware Lid/Top/Gemini lifecycle tails are now
-// continuously owned. Transient formation selection, hostile Stinger target
-// selection, direct detonation visuals, boss movement/attacks and remaining
-// enemy collision producers remain explicit boundaries for later Phase 4.
+// continuously owned. Stinger target priority/retention is also native while
+// candidate boss geometry/activity remains an explicit actor-owner input.
+// Transient formation selection, direct detonation visuals, boss movement/
+// attacks and remaining enemy collision producers remain later Phase-4 edges.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,
