@@ -1,5 +1,6 @@
 #pragma once
 
+#include <drone/gameplay/boss_encounter.hpp>
 #include <drone/gameplay/enemy_bomb.hpp>
 #include <drone/gameplay/game_state.hpp>
 #include <drone/gameplay/input.hpp>
@@ -47,6 +48,7 @@ struct GameEncounterState {
     EnemyBombPool enemy_bombs{};
     EnemyBombSpawnGate enemy_bomb_spawn_gate{};
     TrajectoryEncounterState trajectories{};
+    BossEncounterState boss{};
 
     std::int32_t gameplay_substep_phase = 0;
     std::int32_t world_scroll_row = canonical_world_scroll_initial_row;
@@ -92,6 +94,16 @@ struct GameSessionTargetContext {
     std::int16_t trajectory_spawn_x_offset = 0;
     std::int16_t trajectory_spawn_y_offset = 0;
     std::span<const TrajectoryHitEvent> trajectory_hits{};
+
+    // Drone-position ownership is a later milestone. For now the exact Drone
+    // objective producer emits this boundary event when Y == -200. Session
+    // ownership then selects and initializes the canonical shareware boss for
+    // the number of already-processed Drone outcomes.
+    bool boss_approach_boundary_reached = false;
+
+    // Exact boss-local collision/damage remains outside this owner. These are
+    // already-validated destruction transitions, not broad-phase/raw hits.
+    std::span<const SharewareBossDestructionTrigger> boss_destruction_triggers{};
 };
 
 struct GameSessionTickResult {
@@ -113,6 +125,13 @@ struct GameSessionTickResult {
     std::uint32_t trajectory_destruction_bursts = 0;
     std::int32_t trajectory_score_delta = 0;
 
+    bool boss_activated = false;
+    std::optional<BossFamily> boss_activated_family{};
+    std::size_t boss_destruction_transitions = 0;
+    std::size_t boss_components_retired = 0;
+    std::int32_t boss_score_delta = 0;
+    bool lid_top_motion_stop_requested = false;
+
     bool special_loaded = false;
     bool special_cycled = false;
     bool special_launched = false;
@@ -132,8 +151,10 @@ void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 // already been recovered and independently tested. Trajectory groups are now
 // continuously owned and advanced when immutable path samples are supplied;
 // transient formation selection and opaque-pixel hit detection remain explicit
-// producers. Drone resolution and boss transitions are integrated by following
-// Phase-4 milestones.
+// producers. The session now also owns the lifecycle/score tail of the two
+// canonical shareware boss families after an external Drone-Y=-200 boundary
+// event; boss movement/attacks and exact boss-local collisions remain explicit
+// producers. Drone resolution follows in later Phase-4 milestones.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,

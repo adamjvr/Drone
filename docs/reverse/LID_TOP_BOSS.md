@@ -122,6 +122,12 @@ This +100 value exactly matches the original README's documented **Destroy Boss 
 
 The 25 count is a progression/update threshold, not a claim of “25 hits.”
 
+### Top/root destruction retirement
+
+The same updater contains the subsequent top/root activity-2 tail at `0x004169E6..0x00416A12`. Unlike the lid's 25-count progression, this counter advances only when the shared gameplay substep argument is phase 2. The word at `top + 0x32` (`0x00446E32`) increments to exactly **30**, then `top.activity` is cleared to 0. Because this block occurs earlier in the function than the lid's 25-count transition, a top destruction state created by the lid milestone does not consume its first 30-count tick until a later gameplay update.
+
+The Phase-4 clean boss-lifecycle owner preserves that ordering while leaving randomized explosion/debris emission and boss geometry/motion in their own producers.
+
 ## Where this boss appears
 
 The state-2 gameplay orchestrator checks a Drone objective Y coordinate at `0x00446084` for `-200`. At that boundary it indexes a six-entry boss-initializer dispatch table using `drone_outcome_processed_count` (`0x00433B54`).

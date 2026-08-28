@@ -29,6 +29,7 @@ from state rebuilt for each encounter.
 - Probe/Stinger state;
 - enemy-bomb pool and shared spawn/respawn gate;
 - all 17 fixed trajectory groups and their inline actor state;
+- shareware-reachable boss lifecycle state for Lid/Top and Gemini;
 - four-phase gameplay substep;
 - 320x600 world-scroll row;
 - Drone settlement tick;
@@ -60,19 +61,20 @@ The integrated tick composes already-established atomic behavior:
 1. advance the shared four-phase state-2 substep;
 2. apply an explicitly selected live transient trajectory-group activation, when requested;
 3. advance owned trajectory groups, stagger activation and mode-2 escape retirement;
-4. advance enemy-bomb spawn/respawn gate;
-5. advance rapid-missile cooldown;
-6. apply semantic player movement;
-7. allocate rapid fire when allowed;
-8. advance/load/cycle/launch/move Probe/Stinger state;
-9. recharge/drain shield;
-10. move/animate rapid missiles;
-11. move/animate existing enemy bombs;
-12. retire offscreen missiles/bombs;
-13. dispatch already-proven trajectory hit events through damage, destruction, score and group teardown;
-14. advance world scroll on phase 2;
-15. convert at most one 500-point extra-life threshold;
-16. publish a compact tick-result event summary.
+4. consume an explicit Drone-Y=-200 boss-approach event, select Lid/Top or Gemini from processed Drone count, and advance their recovered lifecycle/score tails;
+5. advance enemy-bomb spawn/respawn gate;
+6. advance rapid-missile cooldown;
+7. apply semantic player movement;
+8. allocate rapid fire when allowed;
+9. advance/load/cycle/launch/move Probe/Stinger state;
+10. recharge/drain shield;
+11. move/animate rapid missiles;
+12. move/animate existing enemy bombs;
+13. retire offscreen missiles/bombs;
+14. dispatch already-proven trajectory hit events through damage, destruction, score and group teardown;
+15. advance world scroll on phase 2;
+16. convert at most one 500-point extra-life threshold;
+17. publish a compact tick-result event summary.
 
 This is the first continuous clean integration boundary. It does **not** yet
 claim that every relative position of these narrow helper calls is a
@@ -90,9 +92,11 @@ The session accepts `GameSessionTargetContext` for facts produced by encounter s
   bombs toward an attached Probe;
 - immutable trajectory path samples;
 - an already-selected transient trajectory template to activate during the formation stage;
-- exact sprite-mask collision hits already proven by the collision producer.
+- exact sprite-mask collision hits already proven by the collision producer;
+- the exact Drone Y=-200 boss-approach boundary event;
+- already-validated Lid/Top or Gemini destruction transitions from their boss-local collision/damage producers.
 
-This is intentional. Mutable trajectory lifecycle is now owned by the session, while random/template selection, immutable asset data and opaque-pixel collision detection remain separate producers until their own recovered encounter contracts are integrated. This avoids substituting rectangle collisions or guessed spawn policy for the original behavior.
+This is intentional. Mutable trajectory lifecycle and the persistent shareware boss lifecycle/score tails are now owned by the session, while random/template selection, immutable asset data, opaque-pixel collision detection, Drone movement and boss movement/attack/hit-validation remain separate producers until their recovered contracts are integrated. The boss trigger values are therefore *validated transitions*, not invented broad-phase hits. This avoids substituting rectangle collisions, guessed spawn policy or guessed vulnerability state for the original behavior.
 
 ## Headless state oracle
 
@@ -119,8 +123,9 @@ Not yet session-integrated:
 
 - the live random/template-selection producer that chooses which inactive trajectory group to activate;
 - exact opaque-pixel collision detection feeding trajectory hit events;
-- encounter-specific non-trajectory enemy/boss state ownership;
-- Drone resolution/encounter transition execution;
+- remaining non-trajectory enemy state and full boss geometry/movement/attack ownership;
+- exact Lid/Top/Gemini boss-local collision/damage producers (the session consumes only their validated destruction transitions);
+- Drone movement plus resolution/encounter transition execution;
 - death-effect/respawn continuity;
 - post-game/results execution;
 - construction of complete Phase-3 presentation inputs from the session.

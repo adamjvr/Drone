@@ -11,7 +11,7 @@
 |---|---|---|
 | continuous `GameSession` ownership | ESTABLISHED first contract | clean campaign-vs-encounter state split; full/encounter reset; active-state-only deterministic tick; player, rapid missile, special weapon, shield, existing enemy bombs, four-phase cadence, world scroll and one-extra-life conversion integrated |
 | whole-session regression oracle | CONFIRMED clean oracle | asset-free `drone_session_probe` executes a fixed 120-update semantic input script and is checked exactly by CTest |
-| encounter actor integration | CURRENT | trajectory actors/spawn producers, encounter-specific enemies/bosses, collision/destruction dispatch and Drone transition execution remain to be connected to session ownership |
+| encounter actor integration | CURRENT | all 17 trajectory groups plus shareware-reachable Lid/Top/Gemini lifecycle/score tails are session-owned; random/template selection, exact collision producers, boss movement/attacks, remaining non-trajectory enemies and Drone transition execution remain to be connected |
 | death/restart/post-game continuity | OPEN Phase-4 integration | recovered narrow helpers exist independently; continuous session transitions still need integration |
 | session → fidelity presentation handoff | OPEN Phase-4 integration | Phase-3 renderer contracts are complete; complete semantic presentation inputs are not yet generated from `GameSession` each frame |
 
@@ -91,7 +91,7 @@
 | fidelity framebuffer | CONFIRMED | indexed 320×200 core-owned contract |
 | world/effect subpass catalog | CONFIRMED Win32 order | 28 evidence-backed subpasses resolve boss composites, direct point particles, Gemini procedural effect, explosion/debris routing and actor/projectile tail before scaled overlays |
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
-| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state plus all 17 trajectory groups and integrates common live wave activation, stagger/path/escape lifecycle and proven-hit destruction/score teardown alongside player, missiles, shield, Probe/Stinger, bombs, cadence and world scroll; non-trajectory encounter/boss ownership remains Phase-4 work |
+| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state, all 17 trajectory groups, and the shareware Lid/Top/Gemini lifecycle/score tails; it integrates common live wave activation, stagger/path/escape lifecycle, proven trajectory destruction, boss dispatch at an explicit Drone-Y=-200 boundary and recovered boss destruction timing/awards alongside player, missiles, shield, Probe/Stinger, bombs, cadence and world scroll; boss movement/attacks/collisions, remaining non-trajectory actors and transitions remain Phase-4 work |
 
 ## Phase 3 closure / Phase 4 priorities
 
@@ -99,8 +99,8 @@ Phase 3 is complete. The renderer/world architecture now includes the corrected 
 
 Phase 4 priorities are now:
 
-1. Extend established continuous `GameSession` ownership across the remaining encounter/boss families.
-2. Continue whole-frame integration from the now-owned trajectory wave/destruction path into exact collision producers, non-trajectory actors, mission transitions and lifecycle continuity.
+1. Extend established continuous `GameSession` ownership from trajectories and shareware boss lifecycle into the remaining non-trajectory encounter actors and boss movement/attack producers.
+2. Continue whole-frame integration from the now-owned trajectory/boss destruction paths into exact collision producers, Drone/mission transitions and lifecycle continuity.
 3. Complete shareware-reachable encounter interactions and death/restart/game-over continuity without pulling retail-only unknowns forward from Phase 8.
 4. Feed the Phase-3 fidelity presentation contracts from clean session state while preserving the simulation/presentation boundary.
 

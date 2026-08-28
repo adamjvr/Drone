@@ -41,8 +41,11 @@ The initializer also uses the common boss-introduction sound path used by the bo
 
 `0x00405000` is organized as two strongly symmetric body-side combat paths. Both participate in movement, collision, effects and state progression. Each side contains a destruction milestone that adds exactly `+100` to `total_score` and `extra_life_progress` before moving the corresponding body into its destruction state.
 
-Because these are distinct symmetric branches, the clean reconstruction must not prematurely replace them with one generic “boss killed = +100” callback. The exact rule governing whether both awards occur in a normal Gemini defeat remains a targeted parity question even though the individual branch arithmetic is established.
+The threshold branches are independently visible at `0x00405731..0x00405775` (side A) and `0x00405C13..0x00405C57` (side B). Each changes only its corresponding body activity to state 2 and immediately adds **+100** to both score accumulators. The head activity bytes initialized to 1 are not cleared by those threshold-crossing instructions.
 
+Each body then has a symmetric activity-2 retirement block (`0x004054F5..0x00405526` and `0x004059FF..0x00405A30`). The 16-bit body `+0x32` counter advances **only on gameplay phase 2** and clears that body's activity at exactly **20** ticks. The retirement block occurs before that same side's active collision/damage branch, so a body newly moved into activity 2 starts at counter zero and does not consume its first retirement tick until a later phase-2 update.
+
+Because these are distinct symmetric branches, the clean reconstruction must not replace them with one generic “boss killed = +100” callback. Phase 4 therefore owns the two body destruction tails independently and consumes already-validated threshold-crossing events from the still-external exact boss-local collision/damage producer.
 
 ## Procedural inter-head presentation effect
 

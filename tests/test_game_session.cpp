@@ -43,6 +43,7 @@ int main() {
         assert(session.encounter.world_scroll_row == canonical_world_scroll_initial_row);
         assert(session.encounter.enemy_bomb_spawn_gate.counter == -450);
         assert(session.encounter.rapid_missiles.fire_cooldown == RapidMissilePool::cooldown_ready);
+        assert(!session.encounter.boss.family.has_value());
     }
 
     // Encounter-only reset preserves campaign progress while rebuilding all
@@ -59,6 +60,7 @@ int main() {
         session.encounter.player.x = 42;
         session.encounter.world_scroll_row = 17;
         session.encounter.gameplay_updates = 99;
+        assert(activate_shareware_boss_for_processed_drones(session.encounter.boss, 1));
         session.total_gameplay_updates = 400;
 
         reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
@@ -74,6 +76,7 @@ int main() {
         assert(session.encounter.player.x == canonical_respawn_x);
         assert(session.encounter.world_scroll_row == canonical_world_scroll_initial_row);
         assert(session.encounter.gameplay_updates == 0);
+        assert(!session.encounter.boss.family.has_value());
         assert(session.total_gameplay_updates == 400);
 
         reset_game_session(session, GameplaySessionResetScope::FullCampaign);
@@ -225,6 +228,82 @@ int main() {
         assert(session.encounter.trajectories.groups[1].actors[0].activity ==
                TrajectoryEntityActivity::Inactive);
         assert(session.encounter.trajectories.active_group_count == 1);
+    }
+
+    // Shareware boss dispatch now crosses the GameSession ownership boundary.
+    // The Drone actor still emits the exact Y == -200 event externally; once
+    // received, session state selects the boss from processed Drone count and
+    // owns the proven lifecycle/score tail without pulling registered slots in.
+    {
+        GameSession session{};
+        GameSessionTargetContext targets{};
+        targets.boss_approach_boundary_reached = true;
+
+        auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.advanced && result.boss_activated);
+        assert(result.boss_activated_family == BossFamily::LidTop);
+        assert(session.encounter.boss.family == BossFamily::LidTop);
+        assert(session.encounter.boss.lid_top.top_activity == boss_activity_active);
+        assert(session.encounter.boss.lid_top.lid_activity == lid_top_initial_lid_activity);
+
+        // Repeating the boundary signal cannot reinitialize an owned encounter.
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(!result.boss_activated);
+
+        const std::array lid_hit{SharewareBossDestructionTrigger::LidTopLid};
+        targets.boss_approach_boundary_reached = false;
+        targets.boss_destruction_triggers = lid_hit;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.boss_destruction_transitions == 1);
+        assert(session.encounter.boss.lid_top.lid_destruction_progress == 1);
+
+        targets.boss_destruction_triggers = {};
+        for (int i = 0; i < 24; ++i) {
+            result = step_game_session(session, GameplayInputFrame{}, targets);
+        }
+        assert(result.boss_score_delta == 100);
+        assert(result.lid_top_motion_stop_requested);
+        assert(session.campaign.score.total == 100);
+        assert(session.campaign.score.extra_life_progress == 100);
+        assert(session.encounter.boss.lid_top.lid_activity == boss_activity_inactive);
+        assert(session.encounter.boss.lid_top.top_activity == boss_activity_destruction);
+    }
+
+    // Processed Drone count 1 selects Gemini. Its halves remain independent at
+    // the session boundary and each exact destruction transition contributes
+    // the original +100 award.
+    {
+        GameSession session{};
+        session.campaign.mission.processed_count = 1;
+
+        GameSessionTargetContext targets{};
+        targets.boss_approach_boundary_reached = true;
+        auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.boss_activated);
+        assert(result.boss_activated_family == BossFamily::Gemini);
+
+        const std::array both{
+            SharewareBossDestructionTrigger::GeminiSideA,
+            SharewareBossDestructionTrigger::GeminiSideB,
+        };
+        targets.boss_approach_boundary_reached = false;
+        targets.boss_destruction_triggers = both;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.boss_destruction_transitions == 2);
+        assert(result.boss_score_delta == 200);
+        assert(session.campaign.score.total == 200);
+        assert(session.campaign.score.extra_life_progress == 200);
+        assert(session.encounter.boss.gemini.side_a.body_activity == boss_activity_destruction);
+        assert(session.encounter.boss.gemini.side_b.body_activity == boss_activity_destruction);
+
+        // The canonical shareware stop never initializes dispatch slot 2.
+        reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
+        session.campaign.mission.processed_count = 2;
+        targets.boss_destruction_triggers = {};
+        targets.boss_approach_boundary_reached = true;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(!result.boss_activated);
+        assert(!session.encounter.boss.family.has_value());
     }
 
     std::cout << "Drone continuous game-session tests passed\n";

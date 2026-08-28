@@ -31,13 +31,13 @@ See [`WORLD_SCENERY.md`](WORLD_SCENERY.md).
 
 | family | update | initialize | load resources | release resources | destruction checkpoint |
 |---|---:|---:|---:|---:|---|
-| Lid/Top | `0x00416700` | `0x00417220` | `0x00417350` | `0x00417450` | lid state 2 counter reaches 25; +100 |
-| Gemini | `0x00405000` | `0x00405EF0` | `0x00405FB0` | `0x00406190` | two symmetric body-side destruction branches each contain +100 award logic |
+| Lid/Top | `0x00416700` | `0x00417220` | `0x00417350` | `0x00417450` | lid state 2 reaches 25 -> +100/top state 2; top then retires after 30 phase-2 ticks |
+| Gemini | `0x00405000` | `0x00405EF0` | `0x00405FB0` | `0x00406190` | two independent body-side +100 destruction entries; each body retires after 20 phase-2 ticks |
 | Registered slot 2 unknown | `0x00406CC0` | `0x00407980` | **not present/identified in canonical shareware PE** | `0x00407AB0` | state 2 counter reaches 45; +100 |
 | Spidey | `0x00414D80` | `0x00415AC0` | `0x00415C80` | `0x00415F40` | state 2 counter reaches 45; +100 |
 | Bomber | `0x00403650` | `0x00404350` | `0x004044B0` | `0x00404690` | state 2 counter reaches 60; +100 |
 
-The Gemini total encounter score should not yet be simplified to a single generic +100 because the executable contains symmetric +100 branches for its two major bodies. Exact encounter-completion scoring remains documented in [`GEMINI_BOSS.md`](GEMINI_BOSS.md).
+The Gemini total encounter score must not be simplified to a single generic +100 because the executable contains independent +100 threshold-crossing branches for its two major bodies. Phase 4 preserves those awards and 20-phase-2-tick body retirements independently; exact hit/damage-threshold production remains documented in [`GEMINI_BOSS.md`](GEMINI_BOSS.md).
 
 ## Resource-presence rule
 

@@ -68,6 +68,29 @@ GameSessionTickResult step_game_session(
         result.trajectory_score_delta += trajectory_result.escape_score_delta;
     }
 
+    // Canonical state-2 ordering places boss dispatch/update after trajectory
+    // groups (and the still-external Drone-detonation slice) but before the
+    // later general collision/destruction stage. Drone motion itself is not
+    // session-owned yet, so consume the proven Y == -200 boundary as an event.
+    if (targets.boss_approach_boundary_reached) {
+        result.boss_activated = activate_shareware_boss_for_processed_drones(
+            encounter.boss,
+            campaign.mission.processed_count);
+        if (result.boss_activated) {
+            result.boss_activated_family = encounter.boss.family;
+        }
+    }
+
+    const auto boss_result = step_shareware_boss_encounter(
+        encounter.boss,
+        encounter.gameplay_substep_phase,
+        targets.boss_destruction_triggers,
+        campaign.score);
+    result.boss_destruction_transitions = boss_result.destruction_transitions;
+    result.boss_components_retired = boss_result.components_retired;
+    result.boss_score_delta = boss_result.score_delta;
+    result.lid_top_motion_stop_requested = boss_result.lid_top_motion_stop_requested;
+
     // Both recovered cooldown/gate scalars advance once per active state-2
     // update before their producer paths can consume the ready values.
     advance_enemy_bomb_spawn_gate(encounter.enemy_bomb_spawn_gate);
