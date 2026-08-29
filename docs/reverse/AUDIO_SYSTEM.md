@@ -228,6 +228,41 @@ Because `0x00440278` is process-global rather than encounter-owned, `GameSession
 
 This slice deliberately does not name the Y=-40 one-shot or the decode-completion one-shot until their slot-to-asset identities are proven. It also leaves `air.wav` separate: air has multiple start/restart sites plus bidirectional state-dependent fades, so its ownership requires its own control-state integration rather than piggybacking on Drone semantics.
 
+## Native `air.wav` state-2 envelope
+
+The canonical gameplay ambience slot `0x0043F5F4` is not a constant-volume background track. Its process-global game-scale scalar is `0x004729A0`, and the state-2 monolith treats that scalar as a bidirectional envelope tied to Drone settlement state.
+
+The gameplay load/start path at `0x0041F83C..0x0041F84C` establishes `air.wav` at volume 50. The active state-2 start at `0x0040C8E5..0x0040C90E` starts flags-1 playback and writes/applies scalar 50. Once the shared post-encounter tail has restarted the slot at zero, the next active encounter uses this exact update order:
+
+```text
+pre-scheduler:
+    if drone_settlement_tick >= 60 and air_volume < 50:
+        air_volume += 1
+        SetVolume(air_volume)
+
+advance four-phase scheduler / phase-2 settlement
+
+post-settlement:
+    if gameplay_phase == 2 and drone_settlement_tick < 60 and air_volume > 0:
+        air_volume -= 1
+        SetVolume(air_volume)
+```
+
+The pre-scheduler fade-up is `0x0040BFB5..0x0040BFDC`; the phase-2-only fade-down is `0x0040C0BD..0x0040C162`. This ordering matters: a detonation trigger reaches `trigger_drone_detonation_sequence` first and stops/rewinds the air slot at `0x0041D220..0x0041D22D`, while the normal settlement envelope remains tied to the same scalar already owned by `GameSession`.
+
+The shared post-encounter tail at `0x0041E373..0x0041E3A5` is also explicit rather than an implicit mixer reset:
+
+```text
+air_volume = 0
+StopAndRewind(air.wav)
+Play(air.wav, looping)
+SetVolume(air.wav, 0)
+```
+
+The clean session now emits that exact semantic sequence after both normal and destructive encounter rebuilds. `OriginalAudioRuntimeState::air_loop_volume_0_to_100` owns `0x004729A0` above campaign/encounter resets.
+
+Two related paths remain deliberately outside this gameplay slice. The main-menu/new-run restart at `0x0041A3EE..0x0041A417` starts at zero and then forces **11025 Hz**; raw states 5/6/99 use a separate overlay fade-to-zero/stop path at `0x0040C521..0x0040C665`. Those are menu/overlay-host responsibilities and will not be approximated inside `GameSession`.
+
 ## Native post-game audio ownership
 
 Phase 5 now connects the already-native `GameSession` post-game modal sequence to the semantic audio queue:
@@ -247,21 +282,21 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 - `include/drone/audio/original_directsound.hpp`
   - exact 20-voice capacity and selector;
   - exact volume conversion;
-  - established frequency and `drone.wav` control constants;
+  - established frequency plus `drone.wav` and `air.wav` control constants;
   - metadata-only 13-site flags-1 call catalog with literal/register proof classification;
   - native semantic ownership for the shareware Lid/Top and Gemini loop starts/stops.
 - `include/drone/audio/audio_event.hpp`
   - semantic cue/action types, including parameterized `SetVolume`;
-  - metadata-only cue definitions, including `drone.wav`, the two native boss loops, four one-shot Results tracks and looping Ordering/Credits cues;
-  - process-lifetime original-audio control state for the explosion selector and `0x00440278` Drone volume scalar;
+  - metadata-only cue definitions, including `drone.wav`, `air.wav`, the two native boss loops, four one-shot Results tracks and looping Ordering/Credits cues;
+  - process-lifetime original-audio control state for the explosion selector, `0x00440278` Drone volume scalar and `0x004729A0` air volume scalar;
   - fixed-capacity allocation-free `AudioEventQueue`.
 - `GameSessionTickResult::audio_events` and `PostGameRuntimeStepResult::audio_events`
-  - exact gameplay event ordering plus native Drone approach/decode volume control, boss-loop ownership, and Results/Ordering/Credits ownership transitions.
+  - exact gameplay event ordering plus native Drone approach/decode volume control, state-2 air envelope/restart control, boss-loop ownership, and Results/Ordering/Credits ownership transitions.
 
 ## Next audio work
 
-1. integrate `air.wav` start/restart/stop and its state-dependent volume ramps without collapsing its several ownership paths;
-2. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot, then recover the repeating `level1.wav` / `level2.wav` boss cadence and remaining Squad/pool initialization settings;
-3. execute the credits and main-menu `lowbees.wav` fade envelopes and recover any remaining pan behavior;
+1. integrate the menu/overlay-owned `air.wav` 11025-Hz restart/fade path together with the `lowbees.wav` menu lifecycle at the proper host boundary;
+2. execute the recovered completion-credits fade envelope and finish any remaining long-form volume/pan semantics;
+3. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot, then recover the repeating `level1.wav` / `level2.wav` boss cadence and remaining Squad/pool initialization settings;
 4. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
 5. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.

@@ -60,6 +60,17 @@ int main() {
     assert(results.voice_policy == AudioVoicePolicy::SingleBuffer);
     assert(results.directsound_play_flags == 0);
 
+    const auto& air_loop = audio_cue_definition(AudioCue::AirLoop);
+    assert(air_loop.original_asset == "air.wav");
+    assert(air_loop.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(air_loop.original_volume_0_to_100 == original_air_loop_loaded_volume);
+    assert(air_loop.directsound_play_flags == directsound_play_looping_flag);
+    static_assert(original_air_loop_loaded_volume == 50);
+    static_assert(original_air_loop_volume_cap == 50);
+    static_assert(original_air_loop_restart_volume == 0);
+    static_assert(original_air_loop_fade_boundary == 60);
+    static_assert(original_air_loop_menu_frequency_hz == 11025);
+
     const auto& drone_loop = audio_cue_definition(AudioCue::DroneApproachLoop);
     assert(drone_loop.original_asset == "drone.wav");
     assert(drone_loop.voice_policy == AudioVoicePolicy::SingleBuffer);
@@ -141,12 +152,14 @@ int main() {
     (void)next_original_explosion_sfx_cue(session.original_audio);
     assert(session.original_audio.explosion_sfx_variant_cycle == 2);
     session.original_audio.drone_loop_volume_0_to_100 = 60;
+    session.original_audio.air_loop_volume_0_to_100 = 17;
     drone::gameplay::reset_game_session(
         session, drone::gameplay::GameplaySessionResetScope::FullCampaign);
     assert(session.original_audio.explosion_sfx_variant_cycle == 2);
     // Win32 0x00440278 is process-global just like the explosion selector;
     // campaign/encounter rebuilds do not reconstruct that audio scalar.
     assert(session.original_audio.drone_loop_volume_0_to_100 == 60);
+    assert(session.original_audio.air_loop_volume_0_to_100 == 17);
 
     assert(trajectory_flight_cue(0) == AudioCue::TrajectoryFlight01);
     assert(trajectory_flight_cue(13) == AudioCue::TrajectoryFlight14);

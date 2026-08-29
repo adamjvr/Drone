@@ -24,6 +24,7 @@
 - Audio event storage remains allocation-free and is sized to 256 events per update to preserve multi-impact multiplicity.
 - Native shareware boss loop ownership is integrated: Lid/Top `retro1.wav` starts at boss activation and stops on the exposed-core Stinger transition; Gemini `gemini.wav` starts at activation and stops only when the last active body begins destruction.
 - Parameterized audio control is now part of the event boundary. `drone.wav` starts looping at Y=-117 with volume 0, ramps one unit per eligible phase-2 update toward 80, switches to 60 at Probe decode phase 2, restores 80 on a phase-2 bomb interruption before impact SFX, and stops on decode completion, exact hover timeout, rapid-missile hit or Stinger hit.
+- Native state-2 `air.wav` ownership is integrated: process-global scalar `0x004729A0` fades +1/update toward 50 while settlement is >=60, fades -1 only on phase-2 updates while settlement is <60, stops at detonation entry, and post-encounter rebuilds preserve the exact stop -> looping restart -> volume-0 sequence.
 
 ## Phase 5 audio reconstruction
 
@@ -33,8 +34,8 @@
 | Win32 DirectSound primitives | CONFIRMED | WAV slot loader, buffer duplication, play/rewind, exact volume conversion, frequency, stop/reset, release and raw status helpers mapped |
 | reusable SFX voices | CONFIRMED | exact 20-voice scan from slot 0; first raw status != 1 wins; if all 20 are exactly 1, slot 0 is stolen/restarted |
 | portable audio-event boundary | ESTABLISHED parameterized contract | allocation-free semantic event queue emitted natively for rapid missile, shield cadence, special load/cycle/ordinary launch, transient Squad flight selection and mission interstitial cues; `SetVolume` now carries original game-scale control values |
-| long-form/loop ownership | CONFIRMED expanding integration | 13 effective Win32 flags-1 Play sites cataloged (8 literal + 5 register-proven); Results is flags-0 one-shot; Ordering/Credits plus native Lid/Top/Gemini lifetimes emit start/stop events; `drone.wav` now has exact start/ramp/decode/interruption/stop control integrated |
-| remaining audio semantics | PARTIAL | `air.wav` ownership/fades, menu `lowbees` and credits fade execution, two still-unidentified Drone one-shots, repeating boss `level1`/`level2` cadence, complete Squad/pool init settings, DOS HMI behavior and portable mixer/backend remain Phase-5 work |
+| long-form/loop ownership | CONFIRMED expanding integration | 13 effective Win32 flags-1 Play sites cataloged (8 literal + 5 register-proven); Results is flags-0 one-shot; Ordering/Credits plus native Lid/Top/Gemini lifetimes emit start/stop events; `drone.wav` has exact gameplay control and native state-2 `air.wav` now owns its bidirectional envelope, detonation stop and post-encounter zero-volume restart |
+| remaining audio semantics | PARTIAL | menu/overlay `air.wav` 11025-Hz restart/fade ownership, menu `lowbees` and credits fade execution, two still-unidentified Drone one-shots, repeating boss `level1`/`level2` cadence, complete Squad/pool init settings, DOS HMI behavior and portable mixer/backend remain Phase-5 work |
 
 ## Status legend
 

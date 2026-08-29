@@ -38,6 +38,7 @@ enum class AudioCue : std::uint8_t {
     TrajectoryFlight14,
     MissionDeepness,
     MissionDetonate,
+    AirLoop,
     DroneApproachLoop,
     LidTopBossLoop,
     GeminiBossLoop,
@@ -79,6 +80,13 @@ struct OriginalAudioRuntimeState {
     // The exact Y=-117 start path writes zero before this scalar can drive the
     // live loop, so the clean process initial value is neutral at zero.
     std::int32_t drone_loop_volume_0_to_100 = 0;
+
+    // Win32 0x004729A0 is the process-global game-scale volume control for
+    // air.wav. The gameplay load/start path establishes 50; encounter rebuilds
+    // later drive it through 0 and fade it back toward 50 without reallocating
+    // the slot. Keep it above encounter/campaign resets for the same reason as
+    // the other original audio helper globals.
+    std::int32_t air_loop_volume_0_to_100 = original_air_loop_loaded_volume;
 };
 
 struct AudioEvent {

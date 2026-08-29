@@ -74,6 +74,8 @@ int main() {
         assert(session.encounter.encounter_alien_ships_total == canonical_initial_encounter_alien_ships_total);
         assert(session.encounter.encounter_alien_ships_hit == 0);
         assert(!session.encounter.boss.family.has_value());
+        assert(session.original_audio.air_loop_volume_0_to_100 ==
+               drone::audio::original_air_loop_loaded_volume);
     }
 
     // Encounter-only reset preserves campaign progress while rebuilding all
@@ -477,6 +479,55 @@ int main() {
         assert(!session.encounter.boss.family.has_value());
     }
 
+    // air.wav uses the shared settlement scalar as a bidirectional ambience
+    // envelope. Above/equal 60 it rises by one every logical update toward 50;
+    // below 60 it falls by one only on phase-2 updates.
+    {
+        GameSession session{};
+        session.original_audio.air_loop_volume_0_to_100 = 0;
+        session.encounter.drone_settlement_tick = 60;
+        session.encounter.gameplay_substep_phase = 0;
+
+        auto result = step_game_session(session, GameplayInputFrame{});
+        assert(session.original_audio.air_loop_volume_0_to_100 == 1);
+        assert(has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::AirLoop,
+            drone::audio::AudioAction::SetVolume,
+            1));
+
+        session.original_audio.air_loop_volume_0_to_100 = 49;
+        session.encounter.drone_settlement_tick = 61;
+        session.encounter.gameplay_substep_phase = 0;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(session.original_audio.air_loop_volume_0_to_100 == 50);
+        assert(has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::AirLoop,
+            drone::audio::AudioAction::SetVolume,
+            50));
+
+        // Old settlement 0 plus phase 1 advances to phase 2/tick 1, which is
+        // exactly the branch that fades the air scalar 50 -> 49.
+        session.original_audio.air_loop_volume_0_to_100 = 50;
+        session.encounter.drone_settlement_tick = 0;
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(session.encounter.drone_settlement_tick == 1);
+        assert(session.original_audio.air_loop_volume_0_to_100 == 49);
+        assert(has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::AirLoop,
+            drone::audio::AudioAction::SetVolume,
+            49));
+
+        // Non-phase-2 updates below the threshold do not touch the envelope.
+        session.encounter.drone_settlement_tick = 1;
+        session.encounter.gameplay_substep_phase = 2;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(session.original_audio.air_loop_volume_0_to_100 == 49);
+    }
+
     // drone.wav is a parameterized loop, not a generic music cue. The exact
     // Y=-117 landmark starts it at volume zero; later phase-2 approach updates
     // raise the persistent scalar by one until the canonical cap of 80.
@@ -629,6 +680,15 @@ int main() {
         assert(session.encounter.drone.y == -1200);
         assert(session.encounter.drone_settlement_tick == canonical_drone_settlement_tick_cap);
         assert(!session.encounter.boss.family.has_value());
+        assert(session.original_audio.air_loop_volume_0_to_100 == 0);
+        assert(result.audio_events.size >= 3);
+        const auto air_tail = result.audio_events.view().subspan(result.audio_events.size - 3);
+        assert((air_tail[0] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::AirLoop, drone::audio::AudioAction::StopAndRewind}));
+        assert((air_tail[1] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::AirLoop, drone::audio::AudioAction::Play}));
+        assert((air_tail[2] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::AirLoop, drone::audio::AudioAction::SetVolume, 0}));
     }
 
     // Probe attachment, decode and release are now continuous session behavior.
@@ -745,6 +805,10 @@ int main() {
         assert(result.drone_destruction_countdown_advanced);
         assert(result.drone_detonation_started);
         assert(result.drone_detonation_outcome_committed);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::AirLoop,
+            drone::audio::AudioAction::StopAndRewind));
         assert(result.drone_detonation_score_delta == -1000);
         assert(session.encounter.drone.activity == canonical_drone_destruction_activity);
         // 0x0041D220 resets this to zero before the scheduler; 0x0040C05A
@@ -829,6 +893,15 @@ int main() {
         assert(session.encounter.drone.y == -1200);
         assert(session.encounter.drone.activity == canonical_drone_active_activity);
         assert(session.encounter.drone_settlement_tick == canonical_drone_settlement_tick_cap);
+        assert(session.original_audio.air_loop_volume_0_to_100 == 0);
+        assert(result.audio_events.size >= 3);
+        const auto air_tail = result.audio_events.view().subspan(result.audio_events.size - 3);
+        assert((air_tail[0] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::AirLoop, drone::audio::AudioAction::StopAndRewind}));
+        assert((air_tail[1] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::AirLoop, drone::audio::AudioAction::Play}));
+        assert((air_tail[2] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::AirLoop, drone::audio::AudioAction::SetVolume, 0}));
     }
 
     // A last-life Drone destruction does not run the mission interstitial. The

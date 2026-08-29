@@ -67,7 +67,20 @@ The fifth Phase-5 slice adds that richer control boundary and fully integrates t
 - successful phase-2 decode completion stops/rewinds `drone.wav` at `0x0040CEB5..0x0040CEBE`; the currently unmapped completion one-shot that precedes that stop remains deliberately unresolved;
 - the exact Y=45/4200-tick timeout, rapid-missile Drone hit, and Stinger Drone hit each stop/rewind the loop at their proven producer sites; ordinary Probe attachment does not stop it.
 
-`0x00440278` is kept in `OriginalAudioRuntimeState` above encounter/campaign rebuilds, matching its process-global lifetime. Tests cover start/ramp/cap, both decode volume changes, interruption-before-impact ordering, completion/timeout stops, and both destructive weapon stops. `air.wav`, menu/credits fades, and the second Y=-40 Drone one-shot remain separate evidence-backed work rather than being guessed into this slice.
+`0x00440278` is kept in `OriginalAudioRuntimeState` above encounter/campaign rebuilds, matching its process-global lifetime. Tests cover start/ramp/cap, both decode volume changes, interruption-before-impact ordering, completion/timeout stops, and both destructive weapon stops. Menu/credits fades and the second Y=-40 Drone one-shot remain separate evidence-backed work rather than being guessed into this slice.
+
+## Native `air.wav` ambience envelope
+
+The sixth Phase-5 slice integrates the gameplay-owned portion of `air.wav` without folding menu/overlay behavior into `GameSession`:
+
+- the canonical gameplay load/start path keeps `air.wav` looping at game volume 50, with the live scalar stored process-globally at `0x004729A0`;
+- before the four-phase scheduler, `drone_settlement_tick >= 60` increments that scalar by exactly one per logical state-2 update until the volume-50 cap, preserving the original pre-scheduler ordering;
+- after phase-2 settlement advancement, `drone_settlement_tick < 60` decrements the scalar by exactly one on phase-2 updates until zero; non-phase-2 updates do not perform this fade-down;
+- entering the Drone detonation sequence stops/rewinds `air.wav` immediately, before later gameplay work in that update;
+- the shared post-encounter transition performs the exact `StopAndRewind -> Play(loop) -> SetVolume(0)` sequence and stores scalar zero, so the next encounter naturally fades back toward 50;
+- the separate main-menu/new-run path that restarts `air.wav` at zero and then forces 11025 Hz, plus the raw-state 5/6/99 overlay fade/stop path, remain host/menu ownership and are intentionally not injected into the clean gameplay session yet.
+
+`0x004729A0` now lives beside the other process-global reconstructed audio controls in `OriginalAudioRuntimeState`. Regression coverage locks the +1/cap, phase-2 -1 floor, detonation stop, post-encounter restart ordering and reset lifetime.
 
 ## Initial work
 

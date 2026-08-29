@@ -87,6 +87,22 @@ void append_post_game_phase_stop_audio(
     }
 }
 
+void append_post_encounter_air_restart(
+    drone::audio::AudioEventQueue& queue,
+    drone::audio::OriginalAudioRuntimeState& audio) noexcept {
+    using drone::audio::AudioAction;
+    using drone::audio::AudioCue;
+
+    // Win32 0x0041E373..0x0041E3A5: the shared post-encounter tail
+    // stop/resets air.wav, stores scalar 0, starts the same slot looping again,
+    // then applies SetVolume(0). State 2 subsequently fades it back toward 50.
+    audio.air_loop_volume_0_to_100 = drone::audio::original_air_loop_restart_volume;
+    (void)queue.push({AudioCue::AirLoop, AudioAction::StopAndRewind});
+    (void)queue.push({AudioCue::AirLoop, AudioAction::Play});
+    (void)queue.push({AudioCue::AirLoop, AudioAction::SetVolume,
+                      drone::audio::original_air_loop_restart_volume});
+}
+
 void synchronize_post_game_raw_state(GameSession& session) noexcept {
     if (!session.post_game.plan) {
         return;
@@ -227,6 +243,26 @@ GameSessionTickResult step_game_session(
     result.drone_detonation_outcome_committed =
         destruction_countdown_result.outcome_committed;
     result.drone_detonation_score_delta = destruction_countdown_result.score_delta;
+    if (destruction_countdown_result.detonation_started) {
+        // trigger_drone_detonation_sequence begins by stop/rewinding the
+        // persistent air.wav slot at 0x0041D220..0x0041D22D.
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::AirLoop,
+            drone::audio::AudioAction::StopAndRewind});
+    }
+
+    // Before the shared scheduler advances, state 2 restores post-transition
+    // air ambience whenever the settlement scalar is already >=60. This is an
+    // every-logical-update +1 ramp, capped at the original load volume 50.
+    if (encounter.drone_settlement_tick >= drone::audio::original_air_loop_fade_boundary &&
+        session.original_audio.air_loop_volume_0_to_100 <
+            drone::audio::original_air_loop_volume_cap) {
+        ++session.original_audio.air_loop_volume_0_to_100;
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::AirLoop,
+            drone::audio::AudioAction::SetVolume,
+            session.original_audio.air_loop_volume_0_to_100});
+    }
 
     // Win32 state 2 advances the shared four-phase scalar only after the
     // pre-detonation countdown. A newly triggered detonation therefore resets
@@ -243,6 +279,20 @@ GameSessionTickResult step_game_session(
     encounter.drone_settlement_tick = advance_drone_settlement_tick(
         encounter.drone_settlement_tick,
         encounter.gameplay_substep_phase);
+
+    // While the post-Drone settlement scalar is still below 60, the original
+    // phase-2 branch decreases air.wav by exactly one unit per phase-2 update.
+    // Once it reaches zero the branch simply leaves it at zero; the transition
+    // tail performs the explicit stop/restart described below.
+    if (is_win32_phase2(encounter.gameplay_substep_phase) &&
+        encounter.drone_settlement_tick < drone::audio::original_air_loop_fade_boundary &&
+        session.original_audio.air_loop_volume_0_to_100 > 0) {
+        --session.original_audio.air_loop_volume_0_to_100;
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::AirLoop,
+            drone::audio::AudioAction::SetVolume,
+            session.original_audio.air_loop_volume_0_to_100});
+    }
 
     // The destruction settlement gate is early in state 2 and observes the
     // phase-0 effect-side counter from prior updates. It consumes one life only
@@ -279,6 +329,8 @@ GameSessionTickResult step_game_session(
                 }
 
                 reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
+                append_post_encounter_air_restart(
+                    result.audio_events, session.original_audio);
                 result.drone_destruction_transition_started = true;
                 // Reset may replace the scheduler with phase 0; later helpers in
                 // this same logical update must observe the rebuilt encounter.
@@ -537,6 +589,8 @@ GameSessionTickResult step_game_session(
             }
 
             reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
+            append_post_encounter_air_restart(
+                result.audio_events, session.original_audio);
             encounter.drone.y = drone_reentry_y_for_processed_count(processed_count);
             result.drone_resolution_transition_started = true;
             animation_tick = is_win32_phase2(encounter.gameplay_substep_phase);
