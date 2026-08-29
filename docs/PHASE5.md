@@ -117,6 +117,17 @@ This Phase-5 slice closes the final two shareware Drone one-shot identity gaps f
 
 The Windows/DOS asset inventories independently corroborate both stems (`Sounds/Hintdron.wav` <-> `HINTDRON.CLV`, `Sounds/Parachut.wav` <-> `PARACHUT.CLV`). No original media bytes are required by the semantic runtime.
 
+## Static Squad trajectory pool initialization
+
+This Phase-5 slice closes the last unknown initialization value in the native semantic cue table:
+
+- `squad1.wav` through `squad14.wav` are each loaded by the canonical static audio loader at `0x0041FBE6..0x0041FFD8`, assigned game volume **80**, and never receive a frequency override during initialization;
+- every family consists of one loaded base buffer plus nineteen `DuplicateSoundBuffer` results, yielding the exact 20-voice pool consumed by `0x00420020`;
+- the fourteen pool storage ranges are now represented in `original_trajectory_pool_initializations()` and tested for exact 20-DWORD extent, asset order, volume 80, and source/default frequency;
+- the two trajectory playback switch tables (`0x0040D294..0x0040D388`, `0x0040D596..0x0040D5F6`) preserve the existing `rand()%14` semantic mapping, while global cleanup releases the same pool bases at `0x0040B932..0x0040B9E5`.
+
+With this change, all currently native shareware semantic cues that are statically volume-initialized have explicit initialization metadata. Stack-local Results/Ordering/Credits entries remain source/default where the original issues no initial `SetVolume`; that is evidence, not an unresolved static-loader gap. The next Phase-5 work is Windows-vs-DOS HMI behavior and the portable mixer/backend contract.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

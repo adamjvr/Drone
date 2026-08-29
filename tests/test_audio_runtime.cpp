@@ -198,6 +198,33 @@ int main() {
     assert(trajectory_flight_cue(0) == AudioCue::TrajectoryFlight01);
     assert(trajectory_flight_cue(13) == AudioCue::TrajectoryFlight14);
 
+    static_assert(original_trajectory_squad_volume == 80);
+    const auto trajectory_pools = original_trajectory_pool_initializations();
+    assert(trajectory_pools.size() == 14);
+    for (std::size_t i = 0; i < trajectory_pools.size(); ++i) {
+        const auto& pool = trajectory_pools[i];
+        const auto cue = trajectory_flight_cue(static_cast<std::uint8_t>(i));
+        const auto& definition = audio_cue_definition(cue);
+        assert(pool.original_asset == definition.original_asset);
+        assert(pool.original_volume_0_to_100 == original_trajectory_squad_volume);
+        assert(pool.original_frequency_hz == 0);
+        assert(definition.voice_policy == AudioVoicePolicy::ReusablePool20);
+        assert(definition.original_volume_0_to_100 == original_trajectory_squad_volume);
+        assert(definition.original_frequency_hz == 0);
+        assert(definition.directsound_play_flags == 0);
+        assert(pool.pool_storage_end_va > pool.pool_storage_begin_va);
+        assert((pool.pool_storage_end_va - pool.pool_storage_begin_va) / sizeof(std::uint32_t) ==
+               original_sfx_voice_pool_capacity);
+    }
+    assert(trajectory_pools.front().load_call_site_va == 0x0041FBE6u);
+    assert(trajectory_pools.front().filename_literal_va == 0x0042BEF4u);
+    assert(trajectory_pools.front().pool_storage_begin_va == 0x0042F1A8u);
+    assert(trajectory_pools.front().pool_storage_end_va == 0x0042F1F8u);
+    assert(trajectory_pools.back().load_call_site_va == 0x0041FFD8u);
+    assert(trajectory_pools.back().filename_literal_va == 0x0042BE58u);
+    assert(trajectory_pools.back().pool_storage_begin_va == 0x00441770u);
+    assert(trajectory_pools.back().pool_storage_end_va == 0x004417C0u);
+
     AudioEventQueue queue{};
     assert(queue.push({AudioCue::RapidMissileFire, AudioAction::Play}));
     assert(queue.push({AudioCue::SpecialLaunch, AudioAction::StopAndRewind}));

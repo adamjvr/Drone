@@ -51,6 +51,27 @@ struct OriginalLoopCallSite {
 [[nodiscard]] std::span<const OriginalLoopCallSite>
 original_directsound_loop_call_sites() noexcept;
 
+struct OriginalTrajectoryPoolInitialization {
+    // Address of the call to load_wav (0x00406200) for this Squad asset.
+    std::uint32_t load_call_site_va = 0;
+    // Address of the NUL-terminated filename literal in the canonical image.
+    std::uint32_t filename_literal_va = 0;
+    // Inclusive address of the first DWORD slot and exclusive end of the
+    // twenty-DWORD pool storage in the original process image.
+    std::uint32_t pool_storage_begin_va = 0;
+    std::uint32_t pool_storage_end_va = 0;
+    std::string_view original_asset{};
+    std::int32_t original_volume_0_to_100 = -1;
+    std::uint32_t original_frequency_hz = 0;
+};
+
+// Canonical Win32 shareware static loader 0x0041F4F0. Each Squad family is
+// loaded once, set to volume 80, then duplicated nineteen times so the pool
+// contains exactly twenty DWORD slot handles. No Squad initialization path
+// calls SetFrequency, so frequency 0 means preserve WAV/source default.
+[[nodiscard]] std::span<const OriginalTrajectoryPoolInitialization>
+original_trajectory_pool_initializations() noexcept;
+
 // The original pool helper restarts the first voice whose raw GetStatus value
 // is not exactly DSBSTATUS_PLAYING (1). If every entry is exactly 1, voice 0 is
 // stolen/restarted. No round-robin cursor is maintained.
@@ -67,6 +88,7 @@ original_directsound_loop_call_sites() noexcept;
 inline constexpr std::uint32_t original_missile_frequency_hz = 22050;
 inline constexpr std::uint32_t original_shield_frequency_hz = 11025;
 inline constexpr std::uint32_t original_bigexp3_frequency_hz = 15000;
+inline constexpr std::int32_t original_trajectory_squad_volume = 80;
 
 // air.wav is loaded at game volume 50. The active state-2 start path also
 // writes scalar 50, while post-encounter/menu restart paths deliberately

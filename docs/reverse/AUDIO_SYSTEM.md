@@ -83,12 +83,35 @@ The clean core uses semantic `AudioCue` values and metadata-only `AudioCueDefini
 | Explosion variant 1/2 | `explode2.wav` | 20-voice pool | 60 | source/default | native process-global variant cycle |
 | Explosion variant 3 | `explode3.wav` | 20-voice pool | 50 | source/default | native process-global variant cycle |
 | Explosion variant 4 | `explode4.wav` | 20-voice pool | 50 | source/default | native process-global variant cycle |
-| Trajectory flight 1..14 | `squad1.wav` .. `squad14.wav` | 20-voice pools | not yet cataloged | source/default | native from exact `rand()%14` result |
+| Trajectory flight 1..14 | `squad1.wav` .. `squad14.wav` | 20-voice pools | 80 | source/default | native from exact `rand()%14` result |
 | Mission disarm interstitial | `deepness.wav` | single buffer | 90 | source/default | native transition site |
 | Mission detonation interstitial | `detonate.wav` | single buffer | 90 | source/default | native transition site |
 | Drone approach/decode loop | `drone.wav` | single buffer | 90 at load; runtime-controlled | source/default | native Y=-117 loop start, 0..80 approach control, Probe decode 60/80 changes and exact stop producers |
 | Lid/Top encounter loop | `retro1.wav` | single buffer | 70 | source/default | native start at boss activation; stop on exposed-core Stinger destruction transition |
 | Gemini encounter loop | `gemini.wav` | single buffer | 100 | source/default | native start at boss activation; stop only when the last activity-1 side enters destruction |
+
+### Trajectory Squad static pool initialization
+
+The canonical static audio loader `0x0041F4F0` initializes all fourteen transient trajectory sound families identically: load the named WAV, apply game volume **80**, then duplicate the base buffer nineteen times. Each resulting storage range therefore contains exactly twenty DWORD DirectSound slot handles and is consumed by `0x00420020`. No Squad initialization path calls `0x004067B0`, so frequency remains the WAV/source default.
+
+| asset | `load_wav` call | filename literal | 20-slot pool storage |
+|---|---:|---:|---:|
+| `squad1.wav` | `0x0041FBE6` | `0x0042BEF4` | `0x0042F1A8..0x0042F1F7` |
+| `squad2.wav` | `0x0041FC34` | `0x0042BEE8` | `0x00440F58..0x00440FA7` |
+| `squad3.wav` | `0x0041FC81` | `0x0042BEDC` | `0x0045A2A8..0x0045A2F7` |
+| `squad4.wav` | `0x0041FCCF` | `0x0042BED0` | `0x00467390..0x004673DF` |
+| `squad5.wav` | `0x0041FD1D` | `0x0042BEC4` | `0x004339B0..0x004339FF` |
+| `squad6.wav` | `0x0041FD6A` | `0x0042BEB8` | `0x004461E0..0x0044622F` |
+| `squad7.wav` | `0x0041FDB8` | `0x0042BEAC` | `0x0047FE48..0x0047FE97` |
+| `squad8.wav` | `0x0041FE06` | `0x0042BEA0` | `0x00438A70..0x00438ABF` |
+| `squad9.wav` | `0x0041FE53` | `0x0042BE94` | `0x00446290..0x004462DF` |
+| `squad10.wav` | `0x0041FEA1` | `0x0042BE88` | `0x00440FA8..0x00440FF7` |
+| `squad11.wav` | `0x0041FEEF` | `0x0042BE7C` | `0x00432488..0x004324D7` |
+| `squad12.wav` | `0x0041FF3C` | `0x0042BE70` | `0x004677F0..0x0046783F` |
+| `squad13.wav` | `0x0041FF8A` | `0x0042BE64` | `0x004629F8..0x00462A47` |
+| `squad14.wav` | `0x0041FFD8` | `0x0042BE58` | `0x00441770..0x004417BF` |
+
+The same pool bases appear in the exact `rand()%14` playback jump tables at `0x0040D294..0x0040D388` and `0x0040D596..0x0040D5F6`, and the global cleanup path releases all fourteen pools through `0x00420070` at `0x0040B932..0x0040B9E5`. The clean `original_trajectory_pool_initializations()` catalog makes those storage and loader facts regression-testable without original audio bytes.
 
 The late enemy-bomb collision subsystem still returns historical compatibility booleans for existing callers, but audio order no longer depends on them. The collision pass itself now carries an authoritative event queue, preserving slot order and same-slot fallthrough: special stop/impact precedes the same bomb's later player-hit sound, and an earlier slot may auto-launch `probe3.wav` before a later slot stops it. Shield absorption has no DirectSound call in that recovered late-bomb branch.
 
@@ -117,7 +140,8 @@ This preserves both sound multiplicity and the global `explode2, explode2, explo
 - `include/drone/audio/original_directsound.hpp`
   - exact 20-voice capacity and selector;
   - exact volume conversion;
-  - established frequency constants.
+  - established frequency constants;
+  - exact 14-family Squad static-loader/pool initialization catalog.
 - `include/drone/audio/audio_event.hpp`
   - semantic cue/action types, including parameterized `SetVolume` in original game-scale units;
   - metadata-only cue definitions;
