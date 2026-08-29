@@ -212,24 +212,21 @@ int main() {
     }
 
 
-    // Shareware Gemini activity is read from the pre-boss-update session state;
-    // only head geometry is supplied. Both sides active use nearest-head X and
-    // exact ties select B.
+    // Shareware Gemini activity and head geometry are both read from the
+    // pre-boss-update session snapshot. The native initializer places head A
+    // at x=6 and head B at x=176; player-left x=147 therefore selects B and
+    // targets its exact center x=197.
     {
         GameSession session{};
         session.encounter.boss.family = BossFamily::Gemini;
-        session.encounter.boss.gemini.side_a.body_activity = boss_activity_active;
-        session.encounter.boss.gemini.side_b.body_activity = boss_activity_active;
+        initialize_gemini_boss_runtime(
+            session.encounter.boss.gemini, DifficultyLevel::Beginner);
         session.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
         session.encounter.special_weapon.activity = SpecialWeaponActivity::LoadedTracking;
 
-        GameSessionTargetContext targets{};
-        targets.stinger_targets.gemini_head_a = {.x = 100, .width = 43};
-        targets.stinger_targets.gemini_head_b = {.x = 180, .width = 43};
-
-        const auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        const auto result = step_game_session(session, GameplayInputFrame{});
         assert(result.stinger_target_identity == StingerTargetIdentity::GeminiHeadB);
-        assert(result.stinger_target_desired_x == 201);
+        assert(result.stinger_target_desired_x == 197);
         assert(session.encounter.special_weapon.x == 162);
     }
 
@@ -347,9 +344,9 @@ int main() {
         assert(session.encounter.boss.lid_top.top_activity == boss_activity_destruction);
     }
 
-    // Processed Drone count 1 selects Gemini. Its halves remain independent at
-    // the session boundary and each exact destruction transition contributes
-    // the original +100 award.
+    // Processed Drone count 1 selects Gemini. Its movement/geometry and local
+    // special-weapon damage are native; no semantic destruction triggers cross
+    // the GameSession boundary anymore.
     {
         GameSession session{};
         session.campaign.mission.processed_count = 1;
@@ -361,26 +358,63 @@ int main() {
         auto result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(result.boss_activated);
         assert(result.boss_activated_family == BossFamily::Gemini);
+        assert(session.encounter.boss.gemini.runtime_initialized);
 
-        const std::array both{
-            SharewareBossDestructionTrigger::GeminiSideA,
-            SharewareBossDestructionTrigger::GeminiSideB,
-        };
-        targets.boss_destruction_triggers = both;
+        auto& gemini = session.encounter.boss.gemini;
+        gemini.root_fixed_x = 0;
+        gemini.root_fixed_y = 20 << 16;
+        gemini.root_velocity_x = 0;
+        gemini.root_velocity_y = 0;
+        gemini.horizontal_speed_cap = 0;
+        gemini.side_a.body_x = 0;
+        gemini.side_a.body_y = 20;
+        gemini.side_a.head_x = 6;
+        gemini.side_a.head_y = 61;
+        gemini.side_b.body_x = 170;
+        gemini.side_b.body_y = 20;
+        gemini.side_b.head_x = 176;
+        gemini.side_b.head_y = 61;
+        gemini.side_a.head_damage = 20;
+        gemini.side_b.head_damage = 20;
+
+        std::array<std::uint8_t, gemini_head_width * gemini_head_height> head{};
+        // Common homing moves Y upward by two before the boss collision.
+        head[8 * gemini_head_width + 21] = 1;
+        GeminiBossSpriteMaskView masks{};
+        masks.head_frame = head;
+        targets.gemini_sprite_masks = &masks;
+
+        session.encounter.player.x = 0; // nearest Gemini head is A
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
+        session.encounter.special_weapon.x = gemini.side_a.head_x + 21;
+        session.encounter.special_weapon.y = gemini.side_a.head_y + 10;
         result = step_game_session(session, GameplayInputFrame{}, targets);
-        assert(result.boss_destruction_transitions == 2);
-        assert(result.boss_score_delta == 200);
+        assert(result.gemini_special_hit_side_a);
+        assert(result.gemini_stinger_display_activated);
+        assert(result.boss_destruction_transitions == 1);
+        assert(result.boss_score_delta == 100);
+        assert(gemini.side_a.body_activity == boss_activity_destruction);
+
+        session.encounter.player.x = 250; // only active Gemini side B qualifies
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
+        session.encounter.special_weapon.x = gemini.side_b.head_x + 21;
+        session.encounter.special_weapon.y = gemini.side_b.head_y + 10;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.gemini_special_hit_side_b);
+        assert(result.boss_destruction_transitions == 1);
+        assert(result.boss_score_delta == 100);
         assert(session.campaign.score.total == 200);
         assert(session.campaign.score.extra_life_progress == 200);
-        assert(session.encounter.boss.gemini.side_a.body_activity == boss_activity_destruction);
-        assert(session.encounter.boss.gemini.side_b.body_activity == boss_activity_destruction);
+        assert(gemini.side_b.body_activity == boss_activity_destruction);
 
         // The canonical shareware stop never initializes dispatch slot 2.
         reset_game_session(session, GameplaySessionResetScope::EncounterOnly);
         session.campaign.mission.processed_count = 2;
         session.encounter.drone.y = -201;
         session.encounter.gameplay_substep_phase = 1;
-        targets.boss_destruction_triggers = {};
+        targets.gemini_sprite_masks = nullptr;
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(!result.boss_activated);
         assert(!session.encounter.boss.family.has_value());

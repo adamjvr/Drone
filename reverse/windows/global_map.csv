@@ -162,3 +162,7 @@ address,provisional_name,confidence,notes
 0x0045BEFC,trajectory_spawn_interval_counter,high,WORD initialized threshold-30; live phase-2 producer adds3/reset0; temporarily reused as busy-slot scan scratch after a passing spawn roll
 0x00466B04,encounter_alien_ships_total,high,"encounter-local alien total: reset 7; actor insertion increments; interstitial total/missed/percentage denominator; folded into mission total at transition"
 0x0047EC3C,encounter_alien_ships_hit,high,"encounter-local alien hit count: reset 0; destruction increments; interstitial hit/percentage numerator; folded into mission hit total at transition"
+0x00464D70,gemini_side_a_damage,high,side-A Probe/Stinger damage accumulator; +3/+15; init clears
+0x00464D71,gemini_side_a_damage_threshold,high,20 Beginner; 35 Intermediate/Advanced; strict damage>threshold
+0x00464EC8,gemini_side_b_damage,high,side-B Probe/Stinger damage accumulator; +3/+15; init clears
+0x00464EC9,gemini_side_b_damage_threshold,high,20 Beginner; 30 Intermediate/Advanced; strict damage>threshold

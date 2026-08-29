@@ -37,7 +37,7 @@ See [`WORLD_SCENERY.md`](WORLD_SCENERY.md).
 | Spidey | `0x00414D80` | `0x00415AC0` | `0x00415C80` | `0x00415F40` | state 2 counter reaches 45; +100 |
 | Bomber | `0x00403650` | `0x00404350` | `0x004044B0` | `0x00404690` | state 2 counter reaches 60; +100 |
 
-The Gemini total encounter score must not be simplified to a single generic +100 because the executable contains independent +100 threshold-crossing branches for its two major bodies. Phase 4 preserves those awards and 20-phase-2-tick body retirements independently; exact hit/damage-threshold production remains documented in [`GEMINI_BOSS.md`](GEMINI_BOSS.md).
+The Gemini total encounter score must not be simplified to a single generic +100 because the executable contains independent +100 threshold-crossing branches for its two major bodies. Phase 4 now owns the full shareware gameplay producer: shared-root motion, bombs, head-first/body-second opaque special collision, Probe +3/Stinger +15 damage, asymmetric thresholds, independent awards and 20-phase-2-tick body retirements. See [`GEMINI_BOSS.md`](GEMINI_BOSS.md).
 
 ## Resource-presence rule
 

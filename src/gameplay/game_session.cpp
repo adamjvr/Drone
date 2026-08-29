@@ -343,6 +343,10 @@ GameSessionTickResult step_game_session(
                     encounter.boss.lid_top,
                     session.runtime.difficulty,
                     session.runtime.demo_playback_mode);
+            } else if (encounter.boss.family == BossFamily::Gemini) {
+                initialize_gemini_boss_runtime(
+                    encounter.boss.gemini,
+                    session.runtime.difficulty);
             }
         }
     }
@@ -429,6 +433,14 @@ GameSessionTickResult step_game_session(
                     stinger_boss_snapshot.gemini.side_a.body_activity == boss_activity_active;
                 stinger_context.gemini_body_b_active =
                     stinger_boss_snapshot.gemini.side_b.body_activity == boss_activity_active;
+                stinger_context.gemini_head_a = StingerTargetGeometry{
+                    .x = stinger_boss_snapshot.gemini.side_a.head_x,
+                    .width = gemini_head_width,
+                };
+                stinger_context.gemini_head_b = StingerTargetGeometry{
+                    .x = stinger_boss_snapshot.gemini.side_b.head_x,
+                    .width = gemini_head_width,
+                };
             } else if (stinger_boss_snapshot.family == BossFamily::LidTop) {
                 stinger_context.lid_top_top_active =
                     stinger_boss_snapshot.lid_top.top_activity == boss_activity_active;
@@ -537,20 +549,34 @@ GameSessionTickResult step_game_session(
         result.lid_top_special_closed_top_impact =
             lid_top_result.special_closed_top_impact;
         result.lid_top_stinger_core_hit = lid_top_result.stinger_core_hit;
-    } else {
-        // Gemini still consumes only its already-validated threshold transitions
-        // until its movement/local damage producer is reconstructed. Calling it
-        // at the shared original boss-dispatch position preserves scheduler order.
-        const auto boss_result = step_shareware_boss_encounter(
-            encounter.boss,
+    } else if (encounter.boss.family == BossFamily::Gemini) {
+        const auto gemini_result = step_gemini_boss(
+            encounter.boss.gemini,
             encounter.gameplay_substep_phase,
-            targets.boss_destruction_triggers,
-            campaign.score);
-        result.boss_destruction_transitions += boss_result.destruction_transitions;
-        result.boss_components_retired += boss_result.components_retired;
-        result.boss_score_delta += boss_result.score_delta;
-        result.lid_top_motion_stop_requested =
-            boss_result.lid_top_motion_stop_requested;
+            encounter.player.x,
+            session.runtime.difficulty,
+            session.original_random,
+            encounter.enemy_bombs,
+            encounter.enemy_bomb_spawn_gate,
+            encounter.special_weapon,
+            encounter.stinger_display,
+            campaign.score,
+            targets.gemini_sprite_masks);
+        result.boss_destruction_transitions += gemini_result.destruction_transitions;
+        result.boss_components_retired += gemini_result.components_retired;
+        result.boss_score_delta += gemini_result.score_delta;
+        result.gemini_root_moved = gemini_result.root_moved;
+        result.gemini_vertical_retreat_started =
+            gemini_result.vertical_retreat_started;
+        result.gemini_enemy_bomb_spawned = gemini_result.enemy_bomb_spawned;
+        result.gemini_enemy_bomb_spawn_index = gemini_result.enemy_bomb_spawn_index;
+        result.gemini_special_hit_side_a = gemini_result.special_hit_side_a;
+        result.gemini_special_hit_side_b = gemini_result.special_hit_side_b;
+        result.gemini_special_hit_head = gemini_result.special_hit_head;
+        result.gemini_special_hit_body = gemini_result.special_hit_body;
+        result.gemini_special_damage = gemini_result.special_damage;
+        result.gemini_stinger_display_activated =
+            gemini_result.stinger_display_activated;
     }
 
     // The original late bomb loop is per-slot, not two independent global

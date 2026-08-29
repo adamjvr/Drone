@@ -49,6 +49,7 @@ add_library(drone_core
     src/gameplay/boss_progression.cpp
     src/gameplay/boss_encounter.cpp
     src/gameplay/lid_top_boss.cpp
+    src/gameplay/gemini_boss.cpp
     src/gameplay/trajectory.cpp
     src/gameplay/trajectory_templates.cpp
     src/gameplay/trajectory_encounter.cpp
@@ -145,6 +146,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_lid_top_boss_tests tests/test_lid_top_boss.cpp)
     target_link_libraries(drone_lid_top_boss_tests PRIVATE drone_core)
     add_test(NAME drone_lid_top_boss COMMAND drone_lid_top_boss_tests)
+
+    add_executable(drone_gemini_boss_tests tests/test_gemini_boss.cpp)
+    target_link_libraries(drone_gemini_boss_tests PRIVATE drone_core)
+    add_test(NAME drone_gemini_boss COMMAND drone_gemini_boss_tests)
 
     add_executable(drone_trajectory_encounter_tests tests/test_trajectory_encounter.cpp)
     target_link_libraries(drone_trajectory_encounter_tests PRIVATE drone_core)

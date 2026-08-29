@@ -79,7 +79,7 @@ The late collision chain contains an exact Drone-specific branch. When the Drone
 
 On the first colliding missile in ascending pool order the original deactivates that slot, emits eight explosion/effect requests around temporary Drone jitter, restores the Drone position and writes the shared destruction countdown to zero. The normal end-of-missile-iteration active-count decrement then applies. Because countdown zero no longer passes the `>99` gate, later missile/special Drone hits in that update are suppressed. Clean ownership lives in `gameplay/drone_weapon_interaction.*`.
 
-Several early targets in this collision chain are already tied to specific entity families (including the `gemhead.jba`/Gemini-related objects), but their complete enemy/boss semantics are still being decomposed before clean gameplay names are promoted.
+Several early targets in this collision chain are tied to specific entity families, but they must not be conflated with Gemini combat: the recovered native Gemini damage path in `0x00405000` accepts launched Probe/Stinger opaque-pixel hits, not rapid-missile damage. Other remaining early targets are still being decomposed before clean gameplay names are promoted.
 
 ## Rendering
 

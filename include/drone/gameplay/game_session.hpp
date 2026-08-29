@@ -7,6 +7,7 @@
 #include <drone/gameplay/drone_objective.hpp>
 #include <drone/gameplay/enemy_bomb.hpp>
 #include <drone/gameplay/game_state.hpp>
+#include <drone/gameplay/gemini_boss.hpp>
 #include <drone/gameplay/input.hpp>
 #include <drone/gameplay/lid_top_boss.hpp>
 #include <drone/gameplay/mission_outcome.hpp>
@@ -127,11 +128,11 @@ struct GameSessionTargetContext {
     const TrajectorySpriteMaskCatalogView* trajectory_sprite_masks = nullptr;
     bool mothership_destruction_active = false;
 
-    // Lid/Top combat is now native except for immutable top.jba frame pixels
-    // used by the original rapid-missile opaque-pixel shield test. Gemini's
-    // exact local damage producer remains an already-validated semantic input.
+    // Both shareware bosses now own movement/combat natively. Callers provide
+    // only immutable extracted sprite pixels required by the original opaque-
+    // pixel collision primitives.
     const LidTopBossSpriteMaskView* lid_top_sprite_mask = nullptr;
-    std::span<const SharewareBossDestructionTrigger> boss_destruction_triggers{};
+    const GeminiBossSpriteMaskView* gemini_sprite_masks = nullptr;
 };
 
 struct GameSessionTickResult {
@@ -220,6 +221,16 @@ struct GameSessionTickResult {
     bool lid_top_lid_close_started = false;
     bool lid_top_special_closed_top_impact = false;
     bool lid_top_stinger_core_hit = false;
+    bool gemini_root_moved = false;
+    bool gemini_vertical_retreat_started = false;
+    bool gemini_enemy_bomb_spawned = false;
+    std::optional<std::size_t> gemini_enemy_bomb_spawn_index{};
+    bool gemini_special_hit_side_a = false;
+    bool gemini_special_hit_side_b = false;
+    bool gemini_special_hit_head = false;
+    bool gemini_special_hit_body = false;
+    std::uint8_t gemini_special_damage = 0;
+    bool gemini_stinger_display_activated = false;
 
     bool probe_decode_phase1_completed = false;
     bool probe_decode_completed = false;
@@ -277,12 +288,12 @@ void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
 // already been recovered and independently tested. Trajectory groups, Probe
 // attachment/decode/disarm timing, rapid-missile/Stinger Drone-hit producers,
 // normal Drone objective travel/settlement, the timeout/countdown/detonation/
-// life-loss path, and the shareware Lid/Top/Gemini lifecycle tails are now
-// continuously owned. Stinger target priority/retention is also native while
-// candidate boss geometry/activity remains an explicit actor-owner input.
+// life-loss path, and both shareware boss combat state machines are now
+// continuously owned. Stinger target priority/retention is also native; Gemini
+// and Lid/Top target geometry comes from the pre-boss-update session snapshot.
 // Primary group-0 replenishment and transient formation selection are native;
-// direct detonation visuals, Gemini movement/local combat and remaining enemy
-// actor producers remain later Phase-4 edges.
+// direct detonation/death visuals, presentation-side Gemini RNG consumption and
+// remaining non-trajectory enemy actor producers remain later Phase-4 edges.
 [[nodiscard]] GameSessionTickResult step_game_session(
     GameSession& session,
     const GameplayInputFrame& input,
