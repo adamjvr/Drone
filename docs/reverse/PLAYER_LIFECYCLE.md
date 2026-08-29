@@ -60,7 +60,40 @@ The independently written reconstruction lives in:
 - `include/drone/gameplay/player_lifecycle.hpp`
 - `src/gameplay/player_lifecycle.cpp`
 
-Regression coverage proves both the 3→2 respawn case and the 1→0 game-over case, including the original reset ordering. `GameSession` now owns this settlement continuously: it advances the shared enemy-bomb gate, combines its `> -356` result with player/Drone state, and consumes one explicit presentation-side fact—whether the player-death effect activity is zero. The death-effect actor itself remains a fidelity/presentation reconstruction task rather than being approximated in gameplay code.
+Regression coverage proves both the 3→2 respawn case and the 1→0 game-over case, including the original reset ordering. `GameSession` now owns this settlement continuously: it advances the shared enemy-bomb gate and combines its `> -356` result with the native player-death explosion activity, player/Drone state, and remaining lives. No presentation-side death-effect boolean is required.
+
+## Native player-death explosion lifecycle
+
+The singleton common entity at `0x00491CE0` is initialized as a **42×38** sprite entity and later receives **27** `explode1`-derived frame pointers. The loader writes terminal frame byte `0x00491E21 = 27`. It is separate from the ordinary pooled explosion entities.
+
+`trigger_player_destruction_sequence` (`0x0041CDF0`) performs the state-bearing setup after lethal collision:
+
+```text
+player.active = 0
+bomb_spawn_gate = -20 * terminal_frame   // -540 canonically
+death_effect centered over 22x22 player
+death_effect.motion = player common-entity motion
+death_effect.activity = 3
+death_effect.frame = -6
+```
+
+The centering helper `0x00402770` gives the canonical player position `(147,175)` an explosion origin `(137,167)`. The recovered player-control path writes only horizontal common-entity motion, so canonical vertical inherited motion is zero. The destruction routine also emits randomized debris/explosion/audio work; that presentation-side RNG/effect stream remains a separate fidelity task and is not required for the singleton lifecycle or respawn gate.
+
+State-2 code `0x0040E1DA..0x0040E271` advances the singleton **only when the shared gameplay substep equals 2**:
+
+1. if activity is nonzero, add inherited X/Y motion;
+2. clear activity when `x > 319`, `x < -42`, `y > 199`, or `y < -38`;
+3. increment the signed frame byte;
+4. when the increment reaches `0`, set activity to `1` (visible);
+5. when frame reaches terminal value `27`, set activity to `0`.
+
+The ordering is exact and slightly odd: the bounds clear happens before frame increment, so an out-of-bounds pre-roll frame `-1` can be cleared and then written back to visible when it increments to `0` in the same update. Rendering at `0x00410BA8` draws the singleton only while activity is exactly `1`. Canonically, frame `-6` therefore spends six phase-2 ticks in activity `3`, frame `0` becomes visible on the sixth tick, frames `0..26` are drawable, and frame `27` retires the actor. The later respawn gate reads the resulting activity byte in the same update.
+
+The independent clean reconstruction lives in:
+
+- `include/drone/gameplay/player_death_effect.hpp`
+- `src/gameplay/player_death_effect.cpp`
+- `tests/test_player_death_effect.cpp`
 
 ## `gameover.jba` entity
 
@@ -121,6 +154,6 @@ Until that region is decomposed further, the documentation calls it the **post-g
 
 ## Open questions
 
-- Exact lifecycle represented by death-effect bytes around `0x00491E20..0x00491E22` beyond the proven inactive gate.
+- Full randomized debris/audio/pixel presentation emitted by `0x0041CDF0` beyond the now-native singleton explosion lifecycle.
 - Full semantics of the post-game/results region at `0x004115BE`.
 - Whether the DOS release uses an equivalent deferred decrement and banner motion algorithm; this remains a cross-build target.

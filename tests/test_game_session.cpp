@@ -789,6 +789,12 @@ int main() {
         assert(result.enemy_bomb_player_hit_sfx_requested);
         assert(result.player_destruction_started);
         assert(result.player_death_effect_requested);
+        assert(!result.player_death_effect_visible);
+        assert(result.player_death_effect_frame == canonical_player_death_effect_initial_frame);
+        assert(session.encounter.player_death_effect.activity ==
+               PlayerDeathEffectActivity::PreRoll);
+        assert(session.encounter.player_death_effect.x == session.encounter.player.x - 10);
+        assert(session.encounter.player_death_effect.y == session.encounter.player.y - 8);
         assert(result.player_bomb_spawn_suppression_started);
         assert(result.special_launched);
         assert(!session.campaign.player_lifecycle.player_active);
@@ -812,10 +818,8 @@ int main() {
         session.encounter.shield.energy = 1234;
         session.encounter.enemy_bomb_spawn_gate.counter = -356;
 
-        GameSessionTargetContext targets{};
-        targets.player_death_effect_inactive = true;
         const auto result = step_game_session(
-            session, GameplayInputFrame{}, targets);
+            session, GameplayInputFrame{});
         assert(result.player_life_consumed);
         assert(result.player_respawned);
         assert(result.player_respawn_shield_reset);
@@ -829,6 +833,35 @@ int main() {
         assert(session.encounter.enemy_bomb_spawn_gate.counter == -355);
     }
 
+    // An active native death explosion blocks settlement even when the bomb
+    // gate becomes ready. If phase-2 advancement retires frame 26 -> 27 in the
+    // same update, the later settlement gate observes the now-inactive actor
+    // and may consume the life immediately.
+    {
+        GameSession session{};
+        session.campaign.player_lifecycle.lives = 3;
+        session.campaign.player_lifecycle.player_active = false;
+        session.encounter.enemy_bomb_spawn_gate.counter = -356;
+        session.encounter.gameplay_substep_phase = 0; // advances to phase 1
+        session.encounter.player_death_effect.activity =
+            PlayerDeathEffectActivity::Visible;
+        session.encounter.player_death_effect.frame = 10;
+
+        auto result = step_game_session(session, GameplayInputFrame{});
+        assert(!result.player_death_effect_advanced);
+        assert(!result.player_life_consumed);
+        assert(session.encounter.enemy_bomb_spawn_gate.counter == -355);
+
+        session.encounter.gameplay_substep_phase = 1; // advances to phase 2
+        session.encounter.player_death_effect.frame = 26;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(result.player_death_effect_advanced);
+        assert(result.player_death_effect_retired);
+        assert(result.player_life_consumed);
+        assert(result.player_respawned);
+        assert(session.campaign.player_lifecycle.lives == 2);
+    }
+
     // The last life follows the same reset ordering but remains inactive and
     // requests the already-recovered game-over banner path.
     {
@@ -838,10 +871,8 @@ int main() {
         session.encounter.enemy_bomb_spawn_gate.counter = -356;
         session.encounter.shield.energy = 1;
 
-        GameSessionTargetContext targets{};
-        targets.player_death_effect_inactive = true;
         const auto result = step_game_session(
-            session, GameplayInputFrame{}, targets);
+            session, GameplayInputFrame{});
         assert(result.player_life_consumed);
         assert(!result.player_respawned);
         assert(result.player_respawn_shield_reset);
@@ -862,10 +893,8 @@ int main() {
         session.encounter.enemy_bomb_spawn_gate.counter = -356;
         session.encounter.drone.activity = canonical_drone_destruction_activity;
 
-        GameSessionTargetContext targets{};
-        targets.player_death_effect_inactive = true;
         const auto result = step_game_session(
-            session, GameplayInputFrame{}, targets);
+            session, GameplayInputFrame{});
         assert(!result.player_life_consumed);
         assert(!result.player_respawned);
         assert(session.campaign.player_lifecycle.lives == 2);

@@ -15,6 +15,7 @@
 #include <drone/gameplay/original_random.hpp>
 #include <drone/gameplay/player.hpp>
 #include <drone/gameplay/player_lifecycle.hpp>
+#include <drone/gameplay/player_death_effect.hpp>
 #include <drone/gameplay/rapid_missile.hpp>
 #include <drone/gameplay/scoring.hpp>
 #include <drone/gameplay/shield.hpp>
@@ -63,6 +64,7 @@ struct GameRuntimeOptions {
 struct GameEncounterState {
     PlayerMotionState player{};
     PlayerShieldState shield{};
+    PlayerDeathEffectState player_death_effect{};
     RapidMissilePool rapid_missiles{};
     SpecialWeaponState special_weapon{};
     StingerTargetState stinger_target{};
@@ -112,12 +114,6 @@ struct GameSessionTargetContext {
     // original. Keep that gate explicit instead of assigning it a false name.
     bool redirect_bombs_to_attached_probe = false;
 
-    // The player-death presentation/effect pool is not yet owned by the clean
-    // simulation. The original respawn settlement tests its activity byte == 0.
-    // A host/fidelity owner may therefore expose only that exact semantic fact
-    // without forcing the gameplay core to invent the effect's pixel behavior.
-    bool player_death_effect_inactive = false;
-
     // Immutable trajectory samples remain external asset data, but live
     // transient formation selection/timing/RNG are now session-owned. The
     // registered-only Mothership destruction gate remains an explicit fact
@@ -161,7 +157,15 @@ struct GameSessionTickResult {
     bool enemy_bomb_auto_launch_sound_requested = false;
     bool enemy_bomb_player_hit_sfx_requested = false;
     bool player_destruction_started = false;
+    // Random debris/audio presentation emitted by 0x0041CDF0 still has a host
+    // event, but the singleton death-explosion actor lifecycle itself is native.
     bool player_death_effect_requested = false;
+    bool player_death_effect_advanced = false;
+    bool player_death_effect_became_visible = false;
+    bool player_death_effect_cleared_out_of_bounds = false;
+    bool player_death_effect_retired = false;
+    bool player_death_effect_visible = false;
+    std::int32_t player_death_effect_frame = 0;
     bool player_bomb_spawn_suppression_started = false;
     bool player_life_consumed = false;
     bool player_respawned = false;

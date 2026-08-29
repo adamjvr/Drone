@@ -37,6 +37,7 @@ add_library(drone_core
     src/gameplay/enemy_bomb.cpp
     src/gameplay/shield.cpp
     src/gameplay/player_lifecycle.cpp
+    src/gameplay/player_death_effect.cpp
     src/gameplay/game_over.cpp
     src/gameplay/mission_outcome.cpp
     src/gameplay/mission_progression.cpp
@@ -138,6 +139,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_enemy_bomb_player_collision_tests tests/test_enemy_bomb_player_collision.cpp)
     target_link_libraries(drone_enemy_bomb_player_collision_tests PRIVATE drone_core)
     add_test(NAME drone_enemy_bomb_player_collision COMMAND drone_enemy_bomb_player_collision_tests)
+
+    add_executable(drone_player_death_effect_tests tests/test_player_death_effect.cpp)
+    target_link_libraries(drone_player_death_effect_tests PRIVATE drone_core)
+    add_test(NAME drone_player_death_effect COMMAND drone_player_death_effect_tests)
 
     add_executable(drone_boss_encounter_tests tests/test_boss_encounter.cpp)
     target_link_libraries(drone_boss_encounter_tests PRIVATE drone_core)

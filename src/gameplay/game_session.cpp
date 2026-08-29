@@ -357,11 +357,27 @@ GameSessionTickResult step_game_session(
     advance_enemy_bomb_spawn_gate(encounter.enemy_bomb_spawn_gate);
     advance_rapid_missile_cooldown(encounter.rapid_missiles);
 
+    // Win32 0x0040E1DA..0x0040E271 advances the singleton player-death
+    // explosion only on shared substep phase 2, immediately before the deferred
+    // respawn gate observes its activity byte. This actor is now session-owned;
+    // only its immutable frame pixels/random debris presentation remain outside.
+    const auto player_death_effect_step = step_player_death_effect(
+        encounter.player_death_effect, encounter.gameplay_substep_phase);
+    result.player_death_effect_advanced = player_death_effect_step.advanced;
+    result.player_death_effect_became_visible =
+        player_death_effect_step.became_visible;
+    result.player_death_effect_cleared_out_of_bounds =
+        player_death_effect_step.cleared_out_of_bounds;
+    result.player_death_effect_retired =
+        player_death_effect_step.retired_at_terminal_frame;
+    result.player_death_effect_visible =
+        player_death_effect_visible(encounter.player_death_effect);
+    result.player_death_effect_frame = encounter.player_death_effect.frame;
+
     // Player life consumption is deferred from collision time. The original
-    // settles only after the bomb gate rises above -356, the death presentation
+    // settles only after the bomb gate rises above -356, the native death actor
     // is inactive, the player is inactive, lives remain, and the Drone is not
-    // in destruction activity 2. Presentation inactivity remains an explicit
-    // fidelity-host fact until that effect pool is reconstructed.
+    // in destruction activity 2.
     const auto player_respawn = settle_player_death(
         campaign.player_lifecycle,
         encounter.player,
@@ -369,7 +385,8 @@ GameSessionTickResult step_game_session(
         PlayerRespawnGate{
             .bomb_spawn_gate_allows_settlement =
                 enemy_bomb_spawn_gate_allows_respawn(encounter.enemy_bomb_spawn_gate),
-            .death_effect_inactive = targets.player_death_effect_inactive,
+            .death_effect_inactive =
+                player_death_effect_inactive(encounter.player_death_effect),
             .player_inactive = !campaign.player_lifecycle.player_active,
             .drone_allows_respawn =
                 encounter.drone.activity != canonical_drone_destruction_activity,
@@ -618,6 +635,17 @@ GameSessionTickResult step_game_session(
         bomb_collision.player_hit_sfx_requested;
     result.player_destruction_started = bomb_collision.player_destruction_started;
     result.player_death_effect_requested = bomb_collision.player_death_effect_requested;
+    if (bomb_collision.player_destruction_started) {
+        // trigger_player_destruction_sequence (0x0041CDF0) occurs in this late
+        // collision region, after the earlier phase-2 death-effect update. A new
+        // actor therefore begins at frame -6 and cannot advance until a future
+        // phase-2 substep.
+        trigger_player_death_effect(
+            encounter.player_death_effect, encounter.player);
+        result.player_death_effect_visible =
+            player_death_effect_visible(encounter.player_death_effect);
+        result.player_death_effect_frame = encounter.player_death_effect.frame;
+    }
     result.player_bomb_spawn_suppression_started =
         bomb_collision.bomb_spawn_suppression_started;
     result.special_launched = result.special_launched ||
