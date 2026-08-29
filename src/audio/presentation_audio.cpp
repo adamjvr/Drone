@@ -89,4 +89,32 @@ AudioEventQueue resume_original_gameplay_overlay_audio(OriginalAudioRuntimeState
     return events;
 }
 
+void begin_original_completion_credits_fade(
+    CompletionCreditsAudioRuntimeState& state) noexcept {
+    state.volume_0_to_100 = original_completion_credits_fade_start_volume;
+    state.fade_active = true;
+    state.fade_complete = false;
+}
+
+CompletionCreditsAudioStepResult tick_original_completion_credits_fade(
+    CompletionCreditsAudioRuntimeState& state) noexcept {
+    CompletionCreditsAudioStepResult result{};
+    if (!state.fade_active || state.fade_complete) {
+        return result;
+    }
+
+    if (state.volume_0_to_100 > original_completion_credits_fade_end_volume) {
+        --state.volume_0_to_100;
+        (void)result.audio_events.push({
+            AudioCue::CompletionCredits, AudioAction::SetVolume, state.volume_0_to_100});
+    }
+
+    if (state.volume_0_to_100 == original_completion_credits_fade_end_volume) {
+        state.fade_active = false;
+        state.fade_complete = true;
+        result.fade_completed = true;
+    }
+    return result;
+}
+
 } // namespace drone::audio

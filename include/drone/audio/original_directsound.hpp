@@ -83,6 +83,13 @@ inline constexpr std::uint32_t original_air_loop_menu_frequency_hz = 11025;
 inline constexpr std::int32_t original_main_menu_lowbees_start_volume = 0;
 inline constexpr std::int32_t original_main_menu_lowbees_volume_cap = 80;
 
+// run_completion_credits starts credits.wav without an explicit SetVolume.
+// Its separate local fade scalar is initialized to 100 and, only after the
+// visual scroll has completed, is decremented before each SetVolume call.
+// Therefore the first explicit volume write is 99 and the last is 0.
+inline constexpr std::int32_t original_completion_credits_fade_start_volume = 100;
+inline constexpr std::int32_t original_completion_credits_fade_end_volume = 0;
+
 // drone.wav is loaded at volume 90. The live approach path starts it looping
 // at Y=-117, immediately writes volume 0, ramps toward 80 on eligible phase-2
 // updates, switches to 60 when Probe decoding enters phase 2, and restores 80

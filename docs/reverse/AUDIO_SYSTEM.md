@@ -159,7 +159,7 @@ The Results path is a useful counterexample to a generic “music loops” rule.
 
 ### Completion credits owns a local loop and fade
 
-`run_completion_credits` (`0x00404720`) loads `credits.wav` at `0x00404738` and starts it with flags 1 at `0x0040474D`. Its local fade scalar begins at 100 and is stepped down through the DirectSound volume helper to 0 before the routine stops/resets and releases the slot (`0x00404B1A` / `0x00404B3E`). Phase 5 now owns semantic start/stop at the post-game boundary; the exact per-presentation fade envelope remains a mixer/presentation behavior to implement when the portable backend is introduced.
+`run_completion_credits` (`0x00404720`) loads `credits.wav` at `0x00404738` and starts it with flags 1 at `0x0040474D`. Its local fade scalar begins at 100 and is stepped down through the DirectSound volume helper to 0 before the routine stops/resets and releases the slot (`0x00404B1A` / `0x00404B3E`). Phase 5 now owns semantic start/stop at the post-game boundary and the presentation host executes the exact fade cadence: after the visual scroll terminates, the local scalar decrements before every SetVolume call, producing 99..0 across exactly 100 presentation iterations, then the modal completion boundary stops/rewinds the slot before release.
 
 ### Main-menu ambience is independently owned
 
@@ -305,7 +305,7 @@ finish Ordering Information -> StopAndRewind Ordering Information
 finish Completion Credits   -> StopAndRewind Completion Credits
 ```
 
-Suppressed Results/Ordering paths emit neither cue. A high-score modal itself still has no invented sound ownership; when completion credits follow high scores, the credits cue starts exactly at the semantic transition into `CompletionCredits`. This preserves control ownership while leaving UI rendering, the credits fade envelope, and actual sample playback to later platform/mixer work.
+Suppressed Results/Ordering paths emit neither cue. A high-score modal itself still has no invented sound ownership; when completion credits follow high scores, the credits cue starts exactly at the semantic transition into `CompletionCredits`. This preserves control ownership while leaving UI rendering and actual sample playback to later platform/mixer work; the credits fade envelope itself is now recovered and host-owned.
 
 ## Current clean API
 

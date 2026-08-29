@@ -54,4 +54,32 @@ struct MainMenuAudioRuntimeState {
 [[nodiscard]] AudioEventQueue resume_original_gameplay_overlay_audio(
     OriginalAudioRuntimeState& audio) noexcept;
 
+// Host-owned credits fade state. Win32 run_completion_credits keeps this
+// scalar local to the synchronous presentation routine; it is deliberately
+// not part of GameSession or OriginalAudioRuntimeState.
+struct CompletionCreditsAudioRuntimeState {
+    std::int32_t volume_0_to_100 = original_completion_credits_fade_start_volume;
+    bool fade_active = false;
+    bool fade_complete = false;
+};
+
+struct CompletionCreditsAudioStepResult {
+    AudioEventQueue audio_events{};
+    bool fade_completed = false;
+};
+
+// Win32 0x00404ACC begins only after the scrolling credits have reached their
+// visual terminal condition (the final tracked Y <= -40). No SetVolume is
+// performed here: the original merely enters the fade loop with scalar 100.
+void begin_original_completion_credits_fade(
+    CompletionCreditsAudioRuntimeState& state) noexcept;
+
+// Win32 0x00404ACC..0x00404B13: one synchronous fade/presentation iteration.
+// The scalar is decremented before SetVolume, yielding exactly 99..0 across
+// 100 calls. When zero is emitted, fade_completed becomes true; the host then
+// completes the modal, whose existing GameSession boundary emits the original
+// StopAndRewind before stack-local DirectSound release.
+[[nodiscard]] CompletionCreditsAudioStepResult tick_original_completion_credits_fade(
+    CompletionCreditsAudioRuntimeState& state) noexcept;
+
 } // namespace drone::audio

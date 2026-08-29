@@ -21,6 +21,8 @@ int main() {
     static_assert(original_main_menu_lowbees_start_volume == 0);
     static_assert(original_main_menu_lowbees_volume_cap == 80);
     static_assert(original_air_loop_menu_frequency_hz == 11025);
+    static_assert(original_completion_credits_fade_start_volume == 100);
+    static_assert(original_completion_credits_fade_end_volume == 0);
 
     const auto& lowbees = audio_cue_definition(AudioCue::MainMenuLowBees);
     assert(lowbees.original_asset == "lowbees.wav");
@@ -112,6 +114,36 @@ int main() {
     assert(audio.air_loop_volume_0_to_100 == 50);
     assert_event(events, 0, AudioCue::AirLoop, AudioAction::Play);
     assert_event(events, 1, AudioCue::AirLoop, AudioAction::SetVolume, 50);
+
+    // Credits keep their local scalar at 100 throughout the visual scroll.
+    // Fade execution starts only after the visual terminal condition and then
+    // decrements before each SetVolume call: exactly 99..0 across 100 host
+    // presentation iterations. The existing post-game modal completion boundary
+    // owns the following StopAndRewind.
+    CompletionCreditsAudioRuntimeState credits{};
+    auto credits_step = tick_original_completion_credits_fade(credits);
+    assert(credits_step.audio_events.size == 0);
+    assert(!credits_step.fade_completed);
+    assert(credits.volume_0_to_100 == 100);
+
+    begin_original_completion_credits_fade(credits);
+    assert(credits.fade_active);
+    assert(!credits.fade_complete);
+    assert(credits.volume_0_to_100 == 100);
+
+    for (std::int32_t expected = 99; expected >= 0; --expected) {
+        credits_step = tick_original_completion_credits_fade(credits);
+        assert(credits_step.audio_events.size == 1);
+        assert_event(credits_step.audio_events, 0, AudioCue::CompletionCredits,
+                     AudioAction::SetVolume, expected);
+        assert(credits.volume_0_to_100 == expected);
+        assert(credits_step.fade_completed == (expected == 0));
+    }
+    assert(!credits.fade_active);
+    assert(credits.fade_complete);
+    credits_step = tick_original_completion_credits_fade(credits);
+    assert(credits_step.audio_events.size == 0);
+    assert(!credits_step.fade_completed);
 
     return 0;
 }

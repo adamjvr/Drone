@@ -38,7 +38,7 @@ The third Phase-5 slice closes the first long-form/loop ownership gap:
 - the registered boss slot-2 loop remains explicitly unresolved because the canonical shareware binary does not establish an asset load for its slot;
 - Results playback is proven **one-shot** (`flags=0`) across `choral.wav`, `suspense.wav`, `moon.wav`, and `hiphop.wav`;
 - Ordering Information owns a stack-local looping `thunder2.wav` buffer and stop/release lifetime;
-- completion credits own a stack-local looping `credits.wav` buffer, including the recovered 100->0 fade-before-stop behavior;
+- completion credits own a stack-local looping `credits.wav` buffer; the host runtime now executes the recovered post-scroll fade as exactly 100 explicit SetVolume calls (99 down through 0) before the existing modal boundary stops/rewinds the slot;
 - main-menu `lowbees.wav` ownership is documented as volume-0 loop start, fade-in toward 80, and stop/release on the established exit states;
 - `GameSession` now emits semantic Results -> Ordering -> Credits start/stop events at the already-native post-game modal boundaries, without embedding samples or moving UI/persistence duties into gameplay.
 
