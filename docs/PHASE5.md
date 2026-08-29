@@ -64,10 +64,10 @@ The fifth Phase-5 slice adds that richer control boundary and fully integrates t
 - the dedicated `drone.wav` slot is loaded at game volume 90, but the live approach start at Y=-117 explicitly starts looping playback and immediately applies volume 0 (`0x0040E529..0x0040E544`);
 - eligible phase-2 approach updates with `-116 < Y < 45` increment process-global volume scalar `0x00440278` by exactly one until 80, before normal Drone movement (`0x0040E4C9..0x0040E4E5`);
 - Probe decode phase 1 -> phase 2 forces volume 60 before status changes (`0x0040CE00..0x0040CE0B`), while an enemy-bomb interruption of an attached phase-2 Probe restores volume 80 before the impact SFX (`0x0040F3C8..0x0040F3D7`);
-- successful phase-2 decode completion stops/rewinds `drone.wav` at `0x0040CEB5..0x0040CEBE`; the currently unmapped completion one-shot that precedes that stop remains deliberately unresolved;
+- successful phase-2 decode completion stops/rewinds `drone.wav` at `0x0040CEB5..0x0040CEBE`; at this slice boundary the preceding one-shot was still unmapped, and is resolved by the later Drone one-shot slice below;
 - the exact Y=45/4200-tick timeout, rapid-missile Drone hit, and Stinger Drone hit each stop/rewind the loop at their proven producer sites; ordinary Probe attachment does not stop it.
 
-`0x00440278` is kept in `OriginalAudioRuntimeState` above encounter/campaign rebuilds, matching its process-global lifetime. Tests cover start/ramp/cap, both decode volume changes, interruption-before-impact ordering, completion/timeout stops, and both destructive weapon stops. Menu/credits fades and the second Y=-40 Drone one-shot remain separate evidence-backed work rather than being guessed into this slice.
+`0x00440278` is kept in `OriginalAudioRuntimeState` above encounter/campaign rebuilds, matching its process-global lifetime. Tests cover start/ramp/cap, both decode volume changes, interruption-before-impact ordering, completion/timeout stops, and both destructive weapon stops. At this slice boundary menu/credits fades and the second Y=-40 Drone one-shot remained separate evidence-backed work; those later slices now resolve them without retroactively guessing their identities here.
 
 ## Native `air.wav` ambience envelope
 
@@ -105,6 +105,17 @@ This Phase-5 slice closes the repeating `level1.wav` / `level2.wav` ownership an
 - the clean boss lifecycle now owns the exact traversal counter/wrap and `GameSession` emits `LidTopLevel1Cadence` / `GeminiLevel2Cadence` in the original bottom-crossing order before later boss-bomb attack work.
 
 This supersedes the earlier Phase-4 documentation shorthand that described Y>=240 as an upward retreat.
+
+## Resolved Drone approach/decode one-shots
+
+This Phase-5 slice closes the final two shareware Drone one-shot identity gaps from the static Win32 loader and exact state-2 call sites:
+
+- loader `0x0041F73B..0x0041F75A` assigns slot `0x004D8510` from literal `hintdron.wav` and applies game volume 80. The only playback reference is the transient Y=-40 approach branch at `0x0040E55C..0x0040E56C`, which calls Play with flags 0 and immediately advances Y to -39;
+- loader `0x0041F810..0x0041F82F` assigns slot `0x0042F1F8` from literal `parachut.wav` and applies game volume 60. The successful Probe-decode branch at `0x0040CEA9..0x0040CEBE` plays that buffer once and then stop/rewinds `drone.wav` before normal Drone movement releases the Y=45 hold;
+- `parachut.wav` is intentionally represented by an asset-centered `ParachuteOneShot` cue rather than a decode-specific resource name because the same dedicated slot is reused by separate presentation/input paths at `0x00419660`, `0x004196F9`, `0x0041A8B6`, and `0x0041A8FC`;
+- the clean Drone tick now exposes Y=-117 loop-start and Y=-40 hint landmarks separately. `GameSession` emits the hint one-shot at the latter and preserves decode completion order as `ParachuteOneShot -> StopAndRewind(drone.wav)`.
+
+The Windows/DOS asset inventories independently corroborate both stems (`Sounds/Hintdron.wav` <-> `HINTDRON.CLV`, `Sounds/Parachut.wav` <-> `PARACHUT.CLV`). No original media bytes are required by the semantic runtime.
 
 ## Initial work
 

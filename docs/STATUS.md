@@ -24,6 +24,7 @@
 - Audio event storage remains allocation-free and is sized to 256 events per update to preserve multi-impact multiplicity.
 - Native shareware boss loop ownership is integrated: Lid/Top `retro1.wav` starts at boss activation and stops on the exposed-core Stinger transition; Gemini `gemini.wav` starts at activation and stops only when the last active body begins destruction.
 - Parameterized audio control is now part of the event boundary. `drone.wav` starts looping at Y=-117 with volume 0, ramps one unit per eligible phase-2 update toward 80, switches to 60 at Probe decode phase 2, restores 80 on a phase-2 bomb interruption before impact SFX, and stops on decode completion, exact hover timeout, rapid-missile hit or Stinger hit.
+- The two formerly unresolved Drone one-shots are mapped and native: Y=-40 emits `hintdron.wav` (dedicated slot `0x004D8510`, volume 80, flags 0), while successful Probe decode emits `parachut.wav` (slot `0x0042F1F8`, volume 60, flags 0) immediately before the `drone.wav` stop.
 - Native state-2 `air.wav` ownership is integrated: process-global scalar `0x004729A0` fades +1/update toward 50 while settlement is >=60, fades -1 only on phase-2 updates while settlement is <60, stops at detonation entry, and post-encounter rebuilds preserve the exact stop -> looping restart -> volume-0 sequence.
 - Menu/overlay audio ownership is now host-modeled separately from `GameSession`: `lowbees.wav` starts at 0 and fades +1/menu-iteration to 80 with selective exit cleanup; the menu tail restarts `air.wav` at volume 0 then forces 11025 Hz; raw states 5/6/99 fade air -1/iteration to stop and state-2 resume restarts it at 50.
 
@@ -122,7 +123,7 @@ Phase 4 is complete for the canonical shareware simulation. The remaining non-na
 
 Phase 5 priorities are now:
 
-1. Finish the remaining sound-event/asset map: the two unresolved Drone one-shots and residual cue/pool initialization are the main shareware gaps; the `level1.wav` / `level2.wav` every-eighth-traversal cadence is now native.
+1. Finish residual shareware cue/pool initialization settings now that the two Drone one-shot identities (`hintdron.wav` at Y=-40 and `parachut.wav` before decode-completion Drone stop) and the `level1.wav` / `level2.wav` traversal cadence are native.
 2. Complete the portable audio-event/mixer contract from the established semantic events without erasing original priority/overlap/control behavior.
 3. Preserve Windows-vs-DOS backend differences rather than normalizing them prematurely.
 4. Keep deterministic trace comparison in Phase 6 and end-to-end shareware discrepancy closure in Phase 7.

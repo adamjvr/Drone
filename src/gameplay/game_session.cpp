@@ -378,8 +378,12 @@ GameSessionTickResult step_game_session(
             drone::audio::original_drone_loop_phase2_decode_volume});
     }
     if (probe_decode_result.disarm_completed) {
-        // The completion branch stops/rewinds drone.wav at 0x0040CEB5..BE
-        // after its completion one-shot and before normal Drone movement.
+        // Win32 0x0040CEA9..0x0040CEBE plays the dedicated parachut.wav
+        // buffer once, then stops/rewinds drone.wav, before normal Drone
+        // movement releases Y=45 on this same update.
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::ParachuteOneShot,
+            drone::audio::AudioAction::Play});
         (void)result.audio_events.push({
             drone::audio::AudioCue::DroneApproachLoop,
             drone::audio::AudioAction::StopAndRewind});
@@ -552,6 +556,13 @@ GameSessionTickResult step_game_session(
             drone::audio::AudioCue::DroneApproachLoop,
             drone::audio::AudioAction::SetVolume,
             drone::audio::original_drone_loop_start_volume});
+    }
+    if (drone_result.approach_hint_landmark_reached) {
+        // At transient Y=-40 the original plays hintdron.wav once with
+        // Play(flags=0), then stores Y=-39 in the same phase-2 update.
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneHintOneShot,
+            drone::audio::AudioAction::Play});
     }
     if (drone_result.destruction_countdown_started) {
         // The unresolved Y=45 timeout stops drone.wav immediately when the

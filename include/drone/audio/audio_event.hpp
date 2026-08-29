@@ -51,6 +51,8 @@ enum class AudioCue : std::uint8_t {
     ResultsHiphop,
     OrderingInformation,
     CompletionCredits,
+    DroneHintOneShot,
+    ParachuteOneShot,
 };
 
 enum class AudioAction : std::uint8_t {

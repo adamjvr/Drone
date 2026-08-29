@@ -100,6 +100,14 @@ inline constexpr std::int32_t original_drone_loop_approach_volume_cap = 80;
 inline constexpr std::int32_t original_drone_loop_phase2_decode_volume = 60;
 inline constexpr std::int32_t original_drone_loop_interrupted_decode_volume = 80;
 
+// Dedicated Drone-adjacent one-shots recovered from the same static loader
+// family. hintdron.wav is triggered only at the transient Y=-40 approach
+// landmark. parachut.wav is a reusable dedicated single buffer used in several
+// presentation/input paths; the successful Probe decode branch uses it once
+// immediately before stopping drone.wav.
+inline constexpr std::int32_t original_hintdron_volume = 80;
+inline constexpr std::int32_t original_parachut_volume = 60;
+
 // Both shareware boss traversal routines reuse byte 0x00454B04 as an
 // eight-crossing cadence counter, resetting it in their initializer. The
 // dedicated one-shot buffers are loaded once per boss resource family.

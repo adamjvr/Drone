@@ -32,11 +32,15 @@ int main() {
 
         result = step_drone_objective_normal(drone, 2, mission, settlement);
         assert(result.moved && drone.y == -116);
+        assert(result.approach_loop_start_landmark_reached);
+        assert(!result.approach_hint_landmark_reached);
         assert(!result.boss_approach_boundary_reached);
 
         drone.y = -41;
         result = step_drone_objective_normal(drone, 2, mission, settlement);
         assert(result.moved && drone.y == -39);
+        assert(!result.approach_loop_start_landmark_reached);
+        assert(result.approach_hint_landmark_reached);
 
         drone.y = -201;
         result = step_drone_objective_normal(drone, 2, mission, settlement);

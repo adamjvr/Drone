@@ -30,6 +30,17 @@ bool has_audio_control_event(
     return false;
 }
 
+std::size_t audio_event_index(
+    const drone::audio::AudioEventQueue& queue,
+    const drone::audio::AudioCue cue,
+    const drone::audio::AudioAction action) {
+    const auto view = queue.view();
+    for (std::size_t i = 0; i < view.size(); ++i) {
+        if (view[i] == drone::audio::AudioEvent{cue, action}) return i;
+    }
+    return view.size();
+}
+
 drone::gameplay::TrajectoryPathCatalogView make_session_trajectory_paths(
     std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count>& storage) {
     for (std::size_t family = 0; family < storage.size(); ++family) {
@@ -611,6 +622,20 @@ int main() {
             drone::audio::AudioCue::DroneApproachLoop,
             drone::audio::AudioAction::SetVolume,
             81));
+
+        // The second transient approach landmark is now resolved: entering
+        // Y=-40 plays hintdron.wav once and immediately stores Y=-39.
+        session.encounter.drone.y = -41;
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(session.encounter.drone.y == -39);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneHintOneShot,
+            drone::audio::AudioAction::Play));
+        assert((result.audio_events.view().back() == drone::audio::AudioEvent{
+            drone::audio::AudioCue::DroneHintOneShot,
+            drone::audio::AudioAction::Play}));
     }
 
     // Destructive Drone transitions stop the live approach loop at their exact
@@ -782,8 +807,21 @@ int main() {
         assert(session.original_random.draws == 1);
         assert(has_audio_event(
             result.audio_events,
+            drone::audio::AudioCue::ParachuteOneShot,
+            drone::audio::AudioAction::Play));
+        assert(has_audio_event(
+            result.audio_events,
             drone::audio::AudioCue::DroneApproachLoop,
             drone::audio::AudioAction::StopAndRewind));
+        const auto parachute_index = audio_event_index(
+            result.audio_events,
+            drone::audio::AudioCue::ParachuteOneShot,
+            drone::audio::AudioAction::Play);
+        const auto drone_stop_index = audio_event_index(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind);
+        assert(parachute_index + 1 == drone_stop_index);
     }
 
     // Objective 2 is the compiled shareware termination branch. It zeroes lives

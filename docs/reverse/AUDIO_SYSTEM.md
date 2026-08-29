@@ -210,7 +210,7 @@ attached phase-2 Probe is knocked off by enemy bomb
   -> emit Probe impact sound
 
 Probe decode completes
-  -> completion one-shot (asset mapping still unresolved in this slice)
+  -> Play parachut.wav (flags 0, volume 60 dedicated slot)
   -> StopAndRewind drone.wav
 
 Y=45 hold reaches exactly 4200 phase-2 ticks
@@ -226,7 +226,7 @@ The key call sites are `0x0040E529..0x0040E544` for start-at-zero, `0x0040E4C9..
 
 Because `0x00440278` is process-global rather than encounter-owned, `GameSession::original_audio` retains the scalar across campaign/encounter resets just like the established explosion-SFX selector. The Y=-117 start writes zero before the live ramp consumes it, so a new objective does not require a fabricated reset.
 
-This slice deliberately does not name the Y=-40 one-shot or the decode-completion one-shot until their slot-to-asset identities are proven. It also leaves `air.wav` separate: air has multiple start/restart sites plus bidirectional state-dependent fades, so its ownership requires its own control-state integration rather than piggybacking on Drone semantics.
+The two once-unidentified Drone one-shots are now proven from the static loader family. Slot `0x004D8510` is `hintdron.wav` at volume 80 and is played only by the transient Y=-40 branch; slot `0x0042F1F8` is `parachut.wav` at volume 60 and the decode-completion path plays it once immediately before stopping `drone.wav`. The parachute slot is reused by other presentation/input paths, so the semantic cue remains asset-centered rather than pretending decode owns the resource globally. `air.wav` remains a separate control owner because its start/restart and bidirectional fades are modeled independently.
 
 ## Shareware boss traversal one-shot cadence
 
@@ -349,11 +349,11 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
   - native semantic ownership for the shareware Lid/Top and Gemini loop starts/stops.
 - `include/drone/audio/audio_event.hpp`
   - semantic cue/action types, including parameterized `SetVolume` and `SetFrequency`;
-  - metadata-only cue definitions, including `drone.wav`, `air.wav`, `lowbees.wav`, the two native boss loops, one-shot `level1.wav`/`level2.wav` traversal cues, four one-shot Results tracks and looping Ordering/Credits cues;
+  - metadata-only cue definitions, including `drone.wav`, `hintdron.wav`, `parachut.wav`, `air.wav`, `lowbees.wav`, the two native boss loops, one-shot `level1.wav`/`level2.wav` traversal cues, four one-shot Results tracks and looping Ordering/Credits cues;
   - process-lifetime original-audio control state for the explosion selector, `0x00440278` Drone volume scalar and `0x004729A0` air volume scalar;
   - fixed-capacity allocation-free `AudioEventQueue`.
 - `GameSessionTickResult::audio_events` and `PostGameRuntimeStepResult::audio_events`
-  - exact gameplay event ordering plus native Drone approach/decode volume control, state-2 air envelope/restart control, boss-loop and every-eighth-traversal one-shot ownership, and Results/Ordering/Credits ownership transitions.
+  - exact gameplay event ordering plus native Drone approach/decode volume control and one-shots (`hintdron.wav` at Y=-40, `parachut.wav` before decode stop), state-2 air envelope/restart control, boss-loop and every-eighth-traversal one-shot ownership, and Results/Ordering/Credits ownership transitions.
 - `include/drone/audio/presentation_audio.hpp`
   - host-side main-menu `lowbees.wav` restart/fade/cleanup ownership;
   - main-menu tail `air.wav` zero-volume 11025-Hz restart;
@@ -361,7 +361,7 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 
 ## Next audio work
 
-1. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot and finish remaining Squad/pool initialization settings;
+1. finish remaining Squad/pool initialization settings and any residual shareware cue ownership not yet represented semantically;
 2. finish any still-unmapped long-form volume/pan semantics;
 3. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
 4. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.

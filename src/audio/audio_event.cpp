@@ -7,7 +7,7 @@ namespace {
 
 using Policy = AudioVoicePolicy;
 
-constexpr std::array<AudioCueDefinition, 40> definitions{{
+constexpr std::array<AudioCueDefinition, 42> definitions{{
     // RapidMissileFire
     {"missile.wav", Policy::ReusablePool20, 50, original_missile_frequency_hz, 0},
     // ShieldPulse
@@ -81,9 +81,13 @@ constexpr std::array<AudioCueDefinition, 40> definitions{{
     // volume before Play, so source/default volume remains explicit unknown.
     {"thunder2.wav", Policy::SingleBuffer, -1, 0, directsound_play_looping_flag},
     {"credits.wav", Policy::SingleBuffer, -1, 0, directsound_play_looping_flag},
+    // Drone-adjacent one-shots. These are appended to preserve all earlier
+    // semantic cue ordinals. Both dedicated buffers use Play(flags=0).
+    {"hintdron.wav", Policy::SingleBuffer, original_hintdron_volume, 0, 0},
+    {"parachut.wav", Policy::SingleBuffer, original_parachut_volume, 0, 0},
 }};
 
-static_assert(definitions.size() == static_cast<std::size_t>(AudioCue::CompletionCredits) + 1);
+static_assert(definitions.size() == static_cast<std::size_t>(AudioCue::ParachuteOneShot) + 1);
 
 } // namespace
 

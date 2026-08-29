@@ -8,17 +8,24 @@ namespace drone::gameplay {
 namespace {
 
 // Two approach coordinates are immediately replaced by their following value
-// after the original audio/effect trigger. They are therefore not persistent
-// state at the end of a normal unresolved phase-2 update.
-bool apply_approach_landmark_skip(DroneObjectiveState& state) noexcept {
+// after the original audio trigger. They are therefore not persistent state at
+// the end of a normal unresolved phase-2 update.
+enum class DroneApproachLandmark : std::uint8_t {
+    None,
+    LoopStart,
+    HintOneShot,
+};
+
+DroneApproachLandmark apply_approach_landmark_skip(DroneObjectiveState& state) noexcept {
     if (state.y == -117) {
         state.y = -116;
-        return true;
+        return DroneApproachLandmark::LoopStart;
     }
     if (state.y == -40) {
         state.y = -39;
+        return DroneApproachLandmark::HintOneShot;
     }
-    return false;
+    return DroneApproachLandmark::None;
 }
 
 } // namespace
@@ -158,8 +165,11 @@ DroneObjectiveTickResult step_drone_objective_normal(
     if (!state.disarm_completed && state.y < canonical_drone_hover_y) {
         ++state.y;
         result.moved = true;
+        const auto landmark = apply_approach_landmark_skip(state);
         result.approach_loop_start_landmark_reached =
-            apply_approach_landmark_skip(state);
+            landmark == DroneApproachLandmark::LoopStart;
+        result.approach_hint_landmark_reached =
+            landmark == DroneApproachLandmark::HintOneShot;
     }
 
     // These comparisons happen after the unresolved approach movement but

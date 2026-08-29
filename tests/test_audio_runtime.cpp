@@ -89,6 +89,20 @@ int main() {
     static_assert(original_drone_loop_phase2_decode_volume == 60);
     static_assert(original_drone_loop_interrupted_decode_volume == 80);
 
+    const auto& drone_hint = audio_cue_definition(AudioCue::DroneHintOneShot);
+    assert(drone_hint.original_asset == "hintdron.wav");
+    assert(drone_hint.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(drone_hint.original_volume_0_to_100 == original_hintdron_volume);
+    assert(drone_hint.directsound_play_flags == 0);
+
+    const auto& parachute = audio_cue_definition(AudioCue::ParachuteOneShot);
+    assert(parachute.original_asset == "parachut.wav");
+    assert(parachute.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(parachute.original_volume_0_to_100 == original_parachut_volume);
+    assert(parachute.directsound_play_flags == 0);
+    static_assert(original_hintdron_volume == 80);
+    static_assert(original_parachut_volume == 60);
+
     const auto& lid_top_loop = audio_cue_definition(AudioCue::LidTopBossLoop);
     assert(lid_top_loop.original_asset == "retro1.wav");
     assert(lid_top_loop.voice_policy == AudioVoicePolicy::SingleBuffer);
