@@ -76,14 +76,38 @@ The clean core uses semantic `AudioCue` values and metadata-only `AudioCueDefini
 | Shield pulse | `shields.wav` | 20-voice pool | 50 | 11025 | native, recovered phase-2 cadence |
 | Special load/cycle | `ignite2.wav` | single buffer | 90 | source/default | native load/cycle sites |
 | Special launch | `probe3.wav` | single buffer | 70 | source/default | native ordinary launch site |
-| Probe bomb impact | `explode4.wav` | 20-voice pool | 50 | source/default | mapped, compatibility flag still used by late-bomb bridge |
-| Stinger impact | `stinger1.wav` | 20-voice pool | 100 | source/default | mapped, compatibility flag still used by late-bomb bridge |
-| Player lethal hit | `bigexp3.wav` | 20-voice pool | 90 | 15000 | mapped, compatibility flag still used by late-bomb bridge |
+| Probe bomb impact | `explode4.wav` | 20-voice pool | 50 | source/default | native ordered late-bomb event |
+| Stinger impact | `stinger1.wav` | 20-voice pool | 100 | source/default | native ordered late-bomb event |
+| Player lethal hit | `bigexp3.wav` | 20-voice pool | 90 | 15000 | native ordered late-bomb event |
+| Enemy boss bomb fire | `missile.wav` | 20-voice pool | 50 | source/default | native Gemini/Lid-Top successful spawn site |
+| Explosion variant 1/2 | `explode2.wav` | 20-voice pool | 60 | source/default | native process-global variant cycle |
+| Explosion variant 3 | `explode3.wav` | 20-voice pool | 50 | source/default | native process-global variant cycle |
+| Explosion variant 4 | `explode4.wav` | 20-voice pool | 50 | source/default | native process-global variant cycle |
 | Trajectory flight 1..14 | `squad1.wav` .. `squad14.wav` | 20-voice pools | not yet cataloged | source/default | native from exact `rand()%14` result |
 | Mission disarm interstitial | `deepness.wav` | single buffer | 90 | source/default | native transition site |
 | Mission detonation interstitial | `detonate.wav` | single buffer | 90 | source/default | native transition site |
 
-The late enemy-bomb collision subsystem still returns several historical presentation booleans. Phase 5 will move those calls into the same ordered queue only when per-impact ordering/multiplicity can be preserved; the initial event layer does not manufacture ordering from already-collapsed flags.
+The late enemy-bomb collision subsystem still returns historical compatibility booleans for existing callers, but audio order no longer depends on them. The collision pass itself now carries an authoritative event queue, preserving slot order and same-slot fallthrough: special stop/impact precedes the same bomb's later player-hit sound, and an earlier slot may auto-launch `probe3.wav` before a later slot stops it. Shield absorption has no DirectSound call in that recovered late-bomb branch.
+
+## Process-global explosion-SFX cycle — `0x00402900` / `0x0042EFD8`
+
+The already-established helper `play_explosion_sfx_variant` increments byte `explosion_sfx_variant_cycle`, wraps value 5 back to 1, and selects:
+
+```text
+selector 1 -> explode2.wav
+selector 2 -> explode2.wav
+selector 3 -> explode3.wav
+selector 4 -> explode4.wav
+```
+
+The selector has process lifetime, not encounter/campaign lifetime. `GameSession::original_audio` therefore survives gameplay resets. Exact recovered call multiplicity now reaches the portable event queue:
+
+- rapid-missile trajectory collision: one call on every opaque hit, plus two more when the hit destroys an actor whose `destruction_burst_count != 1`;
+- Stinger-display trajectory overlap: same one-plus-optional-two rule;
+- Gemini Probe hit: one call; Gemini Stinger hit: two calls;
+- Lid/Top closed-top Probe/Stinger impact: one/two calls; rapid top-mask and lid-open weakpoint hits: one call each; exposed-core Stinger destruction does not call `0x00402900`.
+
+This preserves both sound multiplicity and the global `explode2, explode2, explode3, explode4` phase seen by later impacts.
 
 ## Current clean API
 
@@ -94,9 +118,9 @@ The late enemy-bomb collision subsystem still returns several historical present
 - `include/drone/audio/audio_event.hpp`
   - semantic cue/action types;
   - metadata-only cue definitions;
-  - fixed-capacity allocation-free `AudioEventQueue` for one session update.
+  - fixed-capacity allocation-free `AudioEventQueue` for one session update (256 entries to retain worst-case multi-impact fanout).
 - `GameSessionTickResult::audio_events`
-  - currently emitted at proven gameplay call sites for rapid fire, shield pulse, special load/cycle, ordinary special launch, transient trajectory flight sounds and mission interstitial sounds.
+  - emitted at proven gameplay call sites for rapid fire, shield pulse, special load/cycle, ordinary special launch, ordered bomb impacts/player hits, boss bomb fire, explosion variants, transient trajectory flight sounds and mission interstitial sounds.
 
 A fixed-capacity queue is used so the deterministic gameplay core does not depend on allocator behavior or a platform audio API.
 
@@ -106,8 +130,8 @@ A fixed-capacity queue is used so the deterministic gameplay core does not depen
 
 ## Next audio work
 
-1. recover ordered late-bomb impact/audio events without collapsing repeated impacts;
-2. finish exact initialization settings for Squad1..14, Gemini/Level2, Lid/Top and remaining presentation cues;
-3. classify every `Play(... flags=1)` caller and stop/restart interaction;
-4. reconstruct Results/credits/long-form playback and DOS HMI differences;
+1. finish exact initialization settings for Squad1..14, remaining boss/presentation cues and any still-unidentified pools;
+2. classify every `Play(... flags=1)` caller and stop/restart interaction;
+3. reconstruct Results/credits/long-form playback and DOS HMI differences;
+4. replace remaining compatibility-only sound booleans where exact per-call producers are recovered;
 5. add a portable mixer/backend interface only after original voice semantics are fully specified.

@@ -164,3 +164,8 @@ Not yet session-integrated:
 - construction of complete Phase-3 presentation inputs from the session.
 
 Those are intentional post-Phase-4 boundaries: audio/presentation integration and shared-RNG trace parity continue through Phases 5–7, while registered-only hostile actors and bosses remain Phase-8 reconstruction work. They are not missing canonical-shareware gameplay semantics hidden inside the `GameSession` API.
+
+
+## Audio
+
+Phase 5 emits allocation-free semantic audio events from exact gameplay call sites. Ordered late-bomb special/player-hit calls are produced inside the per-slot collision loop; exact trajectory/Gemini/Lid-Top impact sites advance the process-global `0x0042EFD8` `explode2/explode2/explode3/explode4` cycle. `GameSession::original_audio` survives campaign/encounter resets, matching the original process-global lifetime.

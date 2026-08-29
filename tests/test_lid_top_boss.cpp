@@ -164,6 +164,7 @@ int main() {
             state, 1, 0, DifficultyLevel::Beginner, true, random,
             bombs, gate, missiles, special, score, &mask);
         assert(result.rapid_top_opaque_collisions == 1);
+        assert(result.explosion_sfx_variant_calls == 1);
         assert(result.rapid_lid_open_collisions == 0);
         assert(result.rapid_missiles_consumed == 1);
         assert(!result.lid_opened);
@@ -176,6 +177,7 @@ int main() {
             bombs, gate, missiles, special, score, &mask);
         assert(result.rapid_top_opaque_collisions == 0);
         assert(result.rapid_lid_open_collisions == 1);
+        assert(result.explosion_sfx_variant_calls == 1);
         assert(result.rapid_missiles_consumed == 1);
         assert(result.lid_opened);
         assert(missiles.active_count == 0);
@@ -237,6 +239,7 @@ int main() {
             state, 1, 0, DifficultyLevel::Beginner, true, random,
             bombs, gate, missiles, special, score);
         assert(result.special_closed_top_impact);
+        assert(result.explosion_sfx_variant_calls == 1);
         assert(special.activity == SpecialWeaponActivity::ImpactConsumed);
         assert(special.motion_y == 0);
         assert(state.lid_activity == lid_top_initial_lid_activity);

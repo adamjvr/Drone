@@ -15,6 +15,17 @@ void append_mission_interstitial_audio(
     (void)queue.push({cue, drone::audio::AudioAction::Play});
 }
 
+void append_original_explosion_variants(
+    drone::audio::AudioEventQueue& queue,
+    drone::audio::OriginalAudioRuntimeState& audio_runtime,
+    const std::size_t count) noexcept {
+    for (std::size_t i = 0; i < count; ++i) {
+        (void)queue.push({
+            drone::audio::next_original_explosion_sfx_cue(audio_runtime),
+            drone::audio::AudioAction::Play});
+    }
+}
+
 void synchronize_post_game_raw_state(GameSession& session) noexcept {
     if (!session.post_game.plan) {
         return;
@@ -348,6 +359,9 @@ GameSessionTickResult step_game_session(
             static_cast<std::int32_t>(rapid_trajectory.actors_destroyed);
         campaign.alien_ships_hit +=
             static_cast<std::int32_t>(rapid_trajectory.actors_destroyed);
+        append_original_explosion_variants(
+            result.audio_events, session.original_audio,
+            rapid_trajectory.explosion_sfx_variant_calls);
     }
 
     // update_drone_detonation_effect is called after trajectory processing and
@@ -623,6 +637,9 @@ GameSessionTickResult step_game_session(
     result.trajectory_score_delta += stinger_display_trajectory.score_delta;
     encounter.encounter_alien_ships_hit +=
         static_cast<std::int32_t>(stinger_display_trajectory.actors_destroyed);
+    append_original_explosion_variants(
+        result.audio_events, session.original_audio,
+        stinger_display_trajectory.explosion_sfx_variant_calls);
     advance_stinger_display(encounter.stinger_display);
 
     step_rapid_missiles(encounter.rapid_missiles, animation_tick);
@@ -671,6 +688,11 @@ GameSessionTickResult step_game_session(
         result.lid_top_enemy_bomb_spawned = lid_top_result.enemy_bomb_spawned;
         result.lid_top_enemy_bomb_spawn_index =
             lid_top_result.enemy_bomb_spawn_index;
+        if (lid_top_result.enemy_bomb_spawned) {
+            (void)result.audio_events.push({
+                drone::audio::AudioCue::EnemyBombFire,
+                drone::audio::AudioAction::Play});
+        }
         result.lid_top_rapid_missiles_consumed =
             lid_top_result.rapid_missiles_consumed;
         result.lid_top_rapid_top_opaque_collisions =
@@ -682,6 +704,9 @@ GameSessionTickResult step_game_session(
         result.lid_top_special_closed_top_impact =
             lid_top_result.special_closed_top_impact;
         result.lid_top_stinger_core_hit = lid_top_result.stinger_core_hit;
+        append_original_explosion_variants(
+            result.audio_events, session.original_audio,
+            lid_top_result.explosion_sfx_variant_calls);
     } else if (encounter.boss.family == BossFamily::Gemini) {
         const auto gemini_result = step_gemini_boss(
             encounter.boss.gemini,
@@ -703,6 +728,11 @@ GameSessionTickResult step_game_session(
             gemini_result.vertical_retreat_started;
         result.gemini_enemy_bomb_spawned = gemini_result.enemy_bomb_spawned;
         result.gemini_enemy_bomb_spawn_index = gemini_result.enemy_bomb_spawn_index;
+        if (gemini_result.enemy_bomb_spawned) {
+            (void)result.audio_events.push({
+                drone::audio::AudioCue::EnemyBombFire,
+                drone::audio::AudioAction::Play});
+        }
         result.gemini_special_hit_side_a = gemini_result.special_hit_side_a;
         result.gemini_special_hit_side_b = gemini_result.special_hit_side_b;
         result.gemini_special_hit_head = gemini_result.special_hit_head;
@@ -710,6 +740,9 @@ GameSessionTickResult step_game_session(
         result.gemini_special_damage = gemini_result.special_damage;
         result.gemini_stinger_display_activated =
             gemini_result.stinger_display_activated;
+        append_original_explosion_variants(
+            result.audio_events, session.original_audio,
+            gemini_result.explosion_sfx_variant_calls);
     }
 
     // The original late bomb loop is per-slot, not two independent global
@@ -725,6 +758,7 @@ GameSessionTickResult step_game_session(
         encounter.shield.active,
         encounter.enemy_bomb_spawn_gate);
     const auto& bomb_special_hit = bomb_collision.special_impact;
+    drone::audio::append_audio_events(result.audio_events, bomb_collision.audio_events);
     result.enemy_bomb_hit_special_weapon = bomb_special_hit.hit;
     result.enemy_bomb_special_hit_index = bomb_special_hit.bomb_index;
     result.enemy_bomb_probe_decode_reset = bomb_special_hit.probe_decode_reset;

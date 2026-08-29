@@ -346,3 +346,11 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Tightened `0x00420020`: every invocation scans exactly 20 voice handles from index 0, treats only raw status `1` as busy, selects the first status !=1, and steals/restarts voice 0 when all twenty are exactly 1. No round-robin cursor exists.
 - Added asset-free `drone::audio` cue/queue contracts and began emitting ordered semantic events directly at proven `GameSession` call sites: rapid missile, shield pulse, special load/cycle, ordinary special launch, transient Squad flight selection and mission interstitial sound. Historical collapsed late-bomb audio flags remain transitional until per-impact ordering is represented without loss.
 - Added `scripts/analyze_audio_assets.py` and `manifests/audio_asset_crosswalk.csv`. Current metadata inventory is 61 Windows WAVs and 59 DOS audio files (56 CLV, 2 WAV, 1 HMI), with 58 matched stems, four Windows-only stems and one DOS-only stem. Hash metadata exposes Windows Bomb/Missile and DOS Boss/Top1 aliases without shipping sound data.
+
+## 2026-08-28 — Phase 5 ordered impact audio and explosion-SFX runtime
+
+- Moved late enemy-bomb audio out of collapsed presentation booleans: the per-slot collision pass now emits the exact DirectSound order, including `probe3.wav` stop-before-impact, Probe/Stinger-specific impact pools, same-slot fallthrough to `bigexp3.wav`, and earlier-slot auto-launch before later-slot stop.
+- Promoted the already-mapped `0x00402900` / `0x0042EFD8` explosion variant mechanism into portable runtime state. The process-global sequence is `explode2, explode2, explode3, explode4`, and it survives campaign/encounter resets.
+- Recovered exact variant-call multiplicity at rapid/Stinger trajectory impacts, Gemini Probe/Stinger impacts, and Lid/Top top/lid lanes; the exposed-core Lid/Top Stinger destruction does not use this helper.
+- Added the native boss-bomb fire cue: successful Gemini and Lid/Top spawns use the same `missile.wav` 20-voice base pool at volume 50 but preserve source/default frequency rather than forcing the player-missile 22050 Hz override.
+- Increased the allocation-free per-update audio-event queue to 256 entries so multi-actor impact fanout preserves original sound-call multiplicity.

@@ -189,6 +189,7 @@ int main() {
         assert(!result.special_hit_head);
         assert(result.special_hit_body);
         assert(result.special_damage == 3);
+        assert(result.explosion_sfx_variant_calls == 1);
         assert(state.side_a.head_damage == 3);
         assert(special.activity == SpecialWeaponActivity::ImpactConsumed);
         assert(special.motion_y == 0);
@@ -222,6 +223,7 @@ int main() {
         assert(result.special_hit_side_b);
         assert(result.special_hit_head);
         assert(result.stinger_display_activated);
+        assert(result.explosion_sfx_variant_calls == 2);
         assert(display.active);
         assert(state.side_b.head_damage == 30);
         assert(state.side_b.body_activity == boss_activity_active);
@@ -233,6 +235,7 @@ int main() {
         result = step_gemini_boss(
             state, 1, 0, DifficultyLevel::Intermediate, random,
             bombs, gate, special, display, score, &masks);
+        assert(result.explosion_sfx_variant_calls == 2);
         assert(state.side_b.head_damage == 45);
         assert(state.side_b.body_activity == boss_activity_destruction);
         assert(state.side_b.body_destruction_progress == 0);

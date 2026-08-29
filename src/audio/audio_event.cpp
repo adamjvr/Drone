@@ -7,7 +7,7 @@ namespace {
 
 using Policy = AudioVoicePolicy;
 
-constexpr std::array<AudioCueDefinition, 23> definitions{{
+constexpr std::array<AudioCueDefinition, 27> definitions{{
     // RapidMissileFire
     {"missile.wav", Policy::ReusablePool20, 50, original_missile_frequency_hz, 0},
     // ShieldPulse
@@ -22,6 +22,13 @@ constexpr std::array<AudioCueDefinition, 23> definitions{{
     {"stinger1.wav", Policy::ReusablePool20, 100, 0, 0},
     // PlayerHitExplosion
     {"bigexp3.wav", Policy::ReusablePool20, 90, original_bigexp3_frequency_hz, 0},
+    // EnemyBombFire: the boss-bomb pool duplicates the same missile.wav base
+    // but preserves source/default frequency rather than forcing 22050 Hz.
+    {"missile.wav", Policy::ReusablePool20, 50, 0, 0},
+    // Win32 0x00402900 explosion-SFX cycle.
+    {"explode2.wav", Policy::ReusablePool20, 60, 0, 0},
+    {"explode3.wav", Policy::ReusablePool20, 50, 0, 0},
+    {"explode4.wav", Policy::ReusablePool20, 50, 0, 0},
     // Squad1..14 flight pools
     {"squad1.wav", Policy::ReusablePool20, -1, 0, 0},
     {"squad2.wav", Policy::ReusablePool20, -1, 0, 0},
@@ -54,6 +61,22 @@ AudioCue trajectory_flight_cue(const std::uint8_t sound_index) noexcept {
     const auto clamped = sound_index < 14 ? sound_index : std::uint8_t{13};
     return static_cast<AudioCue>(
         static_cast<std::uint8_t>(AudioCue::TrajectoryFlight01) + clamped);
+}
+
+AudioCue next_original_explosion_sfx_cue(OriginalAudioRuntimeState& state) noexcept {
+    auto next = static_cast<std::uint8_t>(state.explosion_sfx_variant_cycle + 1u);
+    if (next == 5u) next = 1u;
+    state.explosion_sfx_variant_cycle = next;
+    switch (next) {
+    case 1:
+    case 2:
+        return AudioCue::ExplosionVariant2;
+    case 3:
+        return AudioCue::ExplosionVariant3;
+    case 4:
+    default:
+        return AudioCue::ExplosionVariant4;
+    }
 }
 
 } // namespace drone::audio

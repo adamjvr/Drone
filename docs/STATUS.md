@@ -15,6 +15,14 @@
 | death/restart/post-game continuity | CONFIRMED simulation/control flow | bomb-driven player destruction entry, -540 spawn quiet period, native 42×38 death-explosion lifecycle, exact deferred life-consumption/respawn/game-over gate, lives<=0 Results diversion, 58-presentation confirmation lock, Ordering state-7 handoff, high-score state-8 handoff, credits and final state-1/state-4 outcome are session-owned; randomized debris/audio/pixels, result-screen rendering, interactive score-name editing and legacy score-file writes remain external |
 | session → fidelity presentation handoff | DEFERRED fidelity integration | Phase-3 renderer contracts are complete; exact presentation/trace parity belongs to Phases 6–7 and does not reopen Phase 4 |
 
+## Phase 5 audio progress
+
+- DirectSound primitive and exact 20-voice reuse semantics are clean-modeled.
+- Ordered impact audio is now emitted at the late bomb producer with exact stop/play ordering; shield absorption remains silent at that branch.
+- The established process-global explosion selector `0x0042EFD8` is session-owned and advances at exact trajectory/Gemini/Lid-Top impact call counts, preserving `explode2, explode2, explode3, explode4`.
+- Successful Gemini/Lid-Top enemy-bomb spawns emit the original `missile.wav` pool at source/default frequency.
+- Audio event storage remains allocation-free and is sized to 256 events per update to preserve multi-impact multiplicity.
+
 ## Phase 5 audio reconstruction
 
 | area | status | current result |

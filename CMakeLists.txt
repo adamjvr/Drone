@@ -154,6 +154,10 @@ if(DRONE_BUILD_TESTS)
     target_link_libraries(drone_enemy_bomb_player_collision_tests PRIVATE drone_core)
     add_test(NAME drone_enemy_bomb_player_collision COMMAND drone_enemy_bomb_player_collision_tests)
 
+    add_executable(drone_ordered_audio_events_tests tests/test_ordered_audio_events.cpp)
+    target_link_libraries(drone_ordered_audio_events_tests PRIVATE drone_core)
+    add_test(NAME drone_ordered_audio_events COMMAND drone_ordered_audio_events_tests)
+
     add_executable(drone_player_death_effect_tests tests/test_player_death_effect.cpp)
     target_link_libraries(drone_player_death_effect_tests PRIVATE drone_core)
     add_test(NAME drone_player_death_effect COMMAND drone_player_death_effect_tests)

@@ -761,6 +761,9 @@ int main() {
         assert(result.enemy_bomb_probe_impact_effect_requested);
         assert(result.enemy_bomb_probe_impact_sound_requested);
         assert(!result.enemy_bomb_stinger_impact_effect_requested);
+        assert(result.audio_events.size == 1);
+        assert(result.audio_events.view()[0].cue == drone::audio::AudioCue::ProbeImpact);
+        assert(result.audio_events.view()[0].action == drone::audio::AudioAction::Play);
         assert(session.encounter.enemy_bombs.active_count == 0);
         assert(!session.encounter.enemy_bombs.bombs[0].active);
         assert(session.encounter.special_weapon.activity ==
@@ -789,6 +792,11 @@ int main() {
         assert(result.enemy_bomb_player_hits == 1);
         assert(result.enemy_bomb_shield_absorptions == 1);
         assert(result.enemy_bomb_first_player_hit_index == 0);
+        for (const auto event : result.audio_events.view()) {
+            assert(event.cue != drone::audio::AudioCue::ProbeImpact);
+            assert(event.cue != drone::audio::AudioCue::StingerImpact);
+            assert(event.cue != drone::audio::AudioCue::PlayerHitExplosion);
+        }
         assert(!result.player_destruction_started);
         assert(session.campaign.player_lifecycle.player_active);
         assert(session.campaign.player_lifecycle.lives == 3);
@@ -814,6 +822,11 @@ int main() {
         assert(result.enemy_bomb_auto_launched_special);
         assert(result.enemy_bomb_auto_launch_sound_requested);
         assert(result.enemy_bomb_player_hit_sfx_requested);
+        assert(result.audio_events.size == 2);
+        assert((result.audio_events.view()[0] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::SpecialLaunch, drone::audio::AudioAction::Play}));
+        assert((result.audio_events.view()[1] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::PlayerHitExplosion, drone::audio::AudioAction::Play}));
         assert(result.player_destruction_started);
         assert(result.player_death_effect_requested);
         assert(!result.player_death_effect_visible);

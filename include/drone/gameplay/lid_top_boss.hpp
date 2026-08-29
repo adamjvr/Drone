@@ -45,6 +45,7 @@ struct LidTopBossStepResult {
     bool lid_close_started = false;
     bool special_closed_top_impact = false;
     bool stinger_core_hit = false;
+    std::size_t explosion_sfx_variant_calls = 0;
     std::size_t destruction_transitions = 0;
     std::size_t components_retired = 0;
     std::int32_t score_delta = 0;

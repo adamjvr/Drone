@@ -16,6 +16,20 @@ The first Phase-5 slice establishes the portable event/runtime boundary without 
 
 See [`reverse/AUDIO_SYSTEM.md`](reverse/AUDIO_SYSTEM.md).
 
+## Ordered impact/audio integration
+
+The second Phase-5 slice removes the first lossy presentation bridges and preserves original call order/multiplicity:
+
+- late enemy-bomb collisions now emit `probe3` stop/restart plus Probe/Stinger/player-hit events directly inside the per-slot collision loop;
+- `0x00402900` is represented as a process-global explosion-SFX cycle (`explode2`, `explode2`, `explode3`, `explode4`) backed by established byte `0x0042EFD8`;
+- rapid-missile and Stinger-display trajectory impacts expose their exact 1-or-3 variant-call counts;
+- Gemini Probe/Stinger impacts expose exact 1/2 variant-call counts;
+- Lid/Top closed-top and rapid-missile impact lanes expose their exact variant calls while the exposed-core Stinger kill correctly emits none through `0x00402900`;
+- successful Gemini/Lid-Top enemy-bomb spawns emit the original `missile.wav` 20-voice pool cue at source/default frequency;
+- the session audio runtime owns the explosion selector above campaign/encounter resets, matching its process-global Win32 lifetime.
+
+The per-update queue is fixed at 256 entries: still allocation-free, but deliberately large enough to preserve same-tick multi-actor Stinger/trajectory sound fanout rather than collapsing valid calls.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

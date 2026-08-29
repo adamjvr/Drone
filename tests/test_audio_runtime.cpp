@@ -1,5 +1,6 @@
 #include <drone/audio/audio_event.hpp>
 #include <drone/audio/original_directsound.hpp>
+#include <drone/gameplay/game_session.hpp>
 
 #include <array>
 #include <cassert>
@@ -46,6 +47,34 @@ int main() {
     const auto& player_hit = audio_cue_definition(AudioCue::PlayerHitExplosion);
     assert(player_hit.original_asset == "bigexp3.wav");
     assert(player_hit.original_frequency_hz == 15000);
+
+    const auto& bomb = audio_cue_definition(AudioCue::EnemyBombFire);
+    assert(bomb.original_asset == "missile.wav");
+    assert(bomb.voice_policy == AudioVoicePolicy::ReusablePool20);
+    assert(bomb.original_volume_0_to_100 == 50);
+    assert(bomb.original_frequency_hz == 0);
+
+    assert(audio_cue_definition(AudioCue::ExplosionVariant2).original_asset == "explode2.wav");
+    assert(audio_cue_definition(AudioCue::ExplosionVariant2).original_volume_0_to_100 == 60);
+    assert(audio_cue_definition(AudioCue::ExplosionVariant3).original_asset == "explode3.wav");
+    assert(audio_cue_definition(AudioCue::ExplosionVariant3).original_volume_0_to_100 == 50);
+    assert(audio_cue_definition(AudioCue::ExplosionVariant4).original_asset == "explode4.wav");
+    assert(audio_cue_definition(AudioCue::ExplosionVariant4).original_volume_0_to_100 == 50);
+
+    OriginalAudioRuntimeState variant{};
+    assert(next_original_explosion_sfx_cue(variant) == AudioCue::ExplosionVariant2);
+    assert(next_original_explosion_sfx_cue(variant) == AudioCue::ExplosionVariant2);
+    assert(next_original_explosion_sfx_cue(variant) == AudioCue::ExplosionVariant3);
+    assert(next_original_explosion_sfx_cue(variant) == AudioCue::ExplosionVariant4);
+    assert(next_original_explosion_sfx_cue(variant) == AudioCue::ExplosionVariant2);
+
+    drone::gameplay::GameSession session{};
+    (void)next_original_explosion_sfx_cue(session.original_audio);
+    (void)next_original_explosion_sfx_cue(session.original_audio);
+    assert(session.original_audio.explosion_sfx_variant_cycle == 2);
+    drone::gameplay::reset_game_session(
+        session, drone::gameplay::GameplaySessionResetScope::FullCampaign);
+    assert(session.original_audio.explosion_sfx_variant_cycle == 2);
 
     assert(trajectory_flight_cue(0) == AudioCue::TrajectoryFlight01);
     assert(trajectory_flight_cue(13) == AudioCue::TrajectoryFlight14);

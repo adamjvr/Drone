@@ -53,6 +53,9 @@ struct TrajectoryWeaponCollisionResult {
     std::uint32_t destruction_bursts = 0;
     std::int32_t score_delta = 0;
     std::size_t rapid_missiles_consumed = 0;
+    // Number of calls to Win32 0x00402900 caused by this collision pass.
+    // The caller advances the process-global audio variant state in-order.
+    std::size_t explosion_sfx_variant_calls = 0;
     bool special_collision = false;
     bool stinger_display_activated = false;
 };

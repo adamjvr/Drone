@@ -38,6 +38,7 @@ struct GeminiBossStepResult {
     bool special_hit_body = false;
     std::uint8_t special_damage = 0;
     bool stinger_display_activated = false;
+    std::size_t explosion_sfx_variant_calls = 0;
     std::size_t destruction_transitions = 0;
     std::size_t components_retired = 0;
     std::int32_t score_delta = 0;

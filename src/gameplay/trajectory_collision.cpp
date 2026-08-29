@@ -96,6 +96,12 @@ TrajectoryWeaponCollisionResult collide_rapid_missiles_with_trajectories(
                         TrajectoryHitSource::RapidMissile},
                     score);
                 accumulate_destroyed(result, hit);
+                // Win32 0x004164A8..0x0041662B always calls 0x00402900 once
+                // for an opaque missile collision. A destroyed actor whose
+                // +0x14F destruction_burst_count is not 1 makes two additional
+                // variant calls before the common final call.
+                result.explosion_sfx_variant_calls +=
+                    1u + ((hit.destroyed && hit.destruction_burst_count != 1u) ? 2u : 0u);
             }
         }
     }
@@ -137,6 +143,11 @@ TrajectoryWeaponCollisionResult collide_stinger_display_with_trajectories(
                     TrajectoryHitSource::SpecialWeapon},
                 score);
             accumulate_destroyed(result, hit);
+            // Win32 0x0040EE2C plays one explosion variant for every Stinger
+            // display overlap before applying +15 damage. On destruction, a
+            // burst-count other than 1 adds two more calls at 0x0040EEBE/C3.
+            result.explosion_sfx_variant_calls +=
+                1u + ((hit.destroyed && hit.destruction_burst_count != 1u) ? 2u : 0u);
         }
     }
     return result;

@@ -69,6 +69,7 @@ int main() {
         assert(result.actors_destroyed == 1);
         assert(result.groups_retired == 1);
         assert(result.destruction_bursts == 2);
+        assert(result.explosion_sfx_variant_calls == 3);
         assert(result.score_delta == 4);
         assert(!missiles.missiles[0].active);
     }
@@ -109,6 +110,7 @@ int main() {
         result = collide_stinger_display_with_trajectories(encounter, display, score);
         assert(result.collisions == 1);
         assert(result.actors_destroyed == 1);
+        assert(result.explosion_sfx_variant_calls == 3);
 
         display.current_frame = 5;
         advance_stinger_display(display);
@@ -183,6 +185,11 @@ int main() {
         assert(session.encounter.encounter_alien_ships_hit == 1);
         assert(session.campaign.alien_ships_hit == 1);
         assert(!missile.active);
+        assert(tick.audio_events.size == 3);
+        assert(tick.audio_events.view()[0].cue == drone::audio::AudioCue::ExplosionVariant2);
+        assert(tick.audio_events.view()[1].cue == drone::audio::AudioCue::ExplosionVariant2);
+        assert(tick.audio_events.view()[2].cue == drone::audio::AudioCue::ExplosionVariant3);
+        assert(session.original_audio.explosion_sfx_variant_cycle == 3);
     }
 
     // Capture the late-block state-3 gate before Drone collision: attaching a

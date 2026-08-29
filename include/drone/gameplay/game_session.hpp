@@ -112,6 +112,11 @@ struct GameSession {
     // neither encounter-only nor full-campaign gameplay resets reseed it.
     OriginalRandomState original_random{};
 
+    // Original audio helper state also lives for the process lifetime. In
+    // particular Win32 0x0042EFD8 cycles explosion2/2/3/4 and is not reset by
+    // encounter or campaign gameplay reinitialization.
+    drone::audio::OriginalAudioRuntimeState original_audio{};
+
     // Clean diagnostic counter for the whole run. This is intentionally not an
     // assertion about an original scalar/global.
     std::uint64_t total_gameplay_updates = 0;

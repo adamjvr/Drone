@@ -125,3 +125,7 @@ The repository contains independently written project code, tools, specification
 - Phase 3 scaled-overlay reconstruction: see `docs/reverse/SCALED_OVERLAYS.md`.
 - Phase 4 integration plan: see `docs/PHASE4.md`.
 - Continuous session ownership and deterministic state oracle: see `docs/GAME_SESSION.md`.
+
+### Phase 5 audio reconstruction
+
+The portable core now models the Win32 DirectSound primitives/20-voice allocator, emits allocation-free semantic cues, preserves ordered late-bomb audio calls, and owns the process-global `explode2, explode2, explode3, explode4` impact-SFX cycle at recovered trajectory and shareware-boss call sites. Original audio bytes remain private evidence; checked-in audio data is metadata-only.

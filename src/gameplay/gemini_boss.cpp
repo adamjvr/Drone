@@ -276,6 +276,10 @@ bool process_special_collision_side(
     const auto damage = special.kind == SpecialWeaponKind::Probe
         ? probe_damage : stinger_damage;
     result.special_damage = damage;
+    // Win32 0x00405637..0x0040570E and the mirrored side-B block route
+    // Probe impacts through one 0x00402900 call and Stinger impacts through two.
+    result.explosion_sfx_variant_calls +=
+        special.kind == SpecialWeaponKind::Probe ? 1u : 2u;
     if (special.kind == SpecialWeaponKind::Stinger) {
         activate_stinger_display_at(stinger_display, special.x, special.y);
         result.stinger_display_activated = true;

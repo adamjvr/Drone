@@ -1,5 +1,6 @@
 #pragma once
 
+#include <drone/audio/audio_event.hpp>
 #include <drone/gameplay/player.hpp>
 #include <drone/gameplay/player_lifecycle.hpp>
 #include <drone/gameplay/special_weapon.hpp>
@@ -157,6 +158,10 @@ EnemyBombPlayerImpactResult resolve_enemy_bomb_player_impact(
 
 struct EnemyBombLateCollisionPassResult {
     EnemyBombSpecialImpactResult special_impact{};
+    // Ordered DirectSound calls emitted by this per-slot loop. Phase 5 keeps
+    // the historical booleans below for compatibility, but this queue is the
+    // authoritative multiplicity/order representation.
+    drone::audio::AudioEventQueue audio_events{};
     std::size_t player_hits = 0;
     std::size_t shield_absorptions = 0;
     std::optional<std::size_t> first_player_hit_index{};

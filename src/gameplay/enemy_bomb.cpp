@@ -288,6 +288,21 @@ EnemyBombLateCollisionPassResult process_enemy_bomb_late_collision_pass(
                 const auto impact = apply_special_impact_without_count_change(
                     bomb, index, special);
                 if (!result.special_impact.hit) result.special_impact = impact;
+
+                // Win32 0x0040F388..0x0040F4B8 performs these audio calls
+                // inside the same bomb slot before falling through to the
+                // player test. State 3 first stops/rewinds probe3.wav, then the
+                // impact cue is selected by Probe/Stinger kind.
+                if (impact.launch_sound_stop_requested) {
+                    (void)result.audio_events.push({
+                        drone::audio::AudioCue::SpecialLaunch,
+                        drone::audio::AudioAction::StopAndRewind});
+                }
+                (void)result.audio_events.push({
+                    impact.kind == SpecialWeaponKind::Stinger
+                        ? drone::audio::AudioCue::StingerImpact
+                        : drone::audio::AudioCue::ProbeImpact,
+                    drone::audio::AudioAction::Play});
             }
         }
 
@@ -310,8 +325,14 @@ EnemyBombLateCollisionPassResult process_enemy_bomb_late_collision_pass(
                     special.activity = SpecialWeaponActivity::LaunchedHoming;
                     result.loaded_special_auto_launched = true;
                     result.auto_launch_sound_requested = true;
+                    (void)result.audio_events.push({
+                        drone::audio::AudioCue::SpecialLaunch,
+                        drone::audio::AudioAction::Play});
                 }
                 result.player_hit_sfx_requested = true;
+                (void)result.audio_events.push({
+                    drone::audio::AudioCue::PlayerHitExplosion,
+                    drone::audio::AudioAction::Play});
                 result.player_destruction_started = true;
                 result.player_death_effect_requested = true;
                 lifecycle.player_active = false;

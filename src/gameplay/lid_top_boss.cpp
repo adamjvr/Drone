@@ -166,6 +166,10 @@ void process_special_collisions(
         special.activity = SpecialWeaponActivity::ImpactConsumed;
         special.motion_y = 0;
         result.special_closed_top_impact = true;
+        // Win32 0x00416B11..0x00416BC6: Probe uses one 0x00402900
+        // explosion call; Stinger uses two.
+        result.explosion_sfx_variant_calls +=
+            special.kind == SpecialWeaponKind::Probe ? 1u : 2u;
     }
 
     // The original does not re-read special activity here. This second branch
@@ -229,6 +233,7 @@ void process_rapid_missiles(
             point_hits_opaque_pixel(Point{missile.x, missile.y}, top, sprite_mask->top_frame)) {
             missile.active = false;
             ++result.rapid_top_opaque_collisions;
+            ++result.explosion_sfx_variant_calls;
         }
 
         if (state.lid_activity == lid_top_initial_lid_activity &&
@@ -238,6 +243,7 @@ void process_rapid_missiles(
             state.lid_activity = boss_activity_active;
             result.lid_opened = true;
             ++result.rapid_lid_open_collisions;
+            ++result.explosion_sfx_variant_calls;
         }
 
         if (active_at_entry && !missile.active) {
