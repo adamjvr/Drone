@@ -24,11 +24,13 @@ Recover sprite/frame loading, animation, clipping, layering, scrolling, palettes
 
 **Exit achieved:** the original Win32 presentation path is represented as a corrected 19-pass semantic contract; detailed world/effect and scaled-overlay ownership, startup palette fade, HUD/special/shield presentation, JBA families, cyclic scenery composition, deterministic framebuffer snapshots/comparison tooling, and a validated Linux capture boundary are in clean code/tests. Exact original-runtime trace parity remains Phase 6 rather than blocking renderer architecture closure.
 
-## Phase 4 — Complete Game Simulation — IN PROGRESS
+## Phase 4 — Complete Game Simulation — COMPLETE
 
-Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, lives, pickups, special weapons, scripted events, bosses, death/restart, level progression, and game-over behavior. Current integration owns trajectory lifecycle, persistent group-0 replenishment, exact Probe-to-Drone attach/decode/disarm, attached-Probe bomb vulnerability, the ordered bomb→special/player collision loop with shield/lethal player consequences and deferred respawn settlement, rapid-missile/Stinger Drone-hit entry, normal/destructive Drone progression and shareware boss lifecycle tails; red-Stinger target priority/retention is internally selected from explicit candidate facts, and trajectory spawning now owns both non-phase-2 primary replenishment and phase-2 transient timing/group/path variation with encounter-local insertion totals; remaining work concentrates on non-trajectory actor geometry/AI, randomized death presentation, render-time detonation radial-noise/framebuffer ownership and presentation-side shared-RNG fidelity; native trajectory collisions, both shareware boss combat state machines, and Results/Ordering/high-score/credits control-flow continuity are already integrated.
+Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, lives, pickups, special weapons, scripted events, bosses, death/restart, level progression, and game-over behavior.
 
-## Phase 5 — Audio Reconstruction
+**Exit achieved:** the canonical shareware simulation now executes continuously through one portable `GameSession`: player/weapon/shield/bomb state, exact Probe attachment/decode/disarm, trajectory population/movement/collisions/accounting, both shareware boss combat state machines, normal/destructive Drone progression, native player-death lifecycle and respawn, update-side detonation RNG, mission transitions, Results/Ordering/high-score/credits control flow, and the processed-count-dependent attached-Probe bomb steering policy are owned without calling the original executable. Remaining mutable hostile candidates are registered-progression content assigned to Phase 8. Immutable sprite/path data remains an asset boundary. Render/audio presentation RNG and exact runtime trace parity are fidelity work for Phases 5–7, not blockers for complete simulation architecture.
+
+## Phase 5 — Audio Reconstruction — IN PROGRESS
 
 Recover sound-event mapping, playback priority, voice/channel behavior, panning, volume, loops, music if applicable, and DOS HMI versus Windows DirectSound behavioral differences behind a portable audio interface.
 

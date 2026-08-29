@@ -205,10 +205,19 @@ int main() {
         session.encounter.special_weapon.x = 0;
         assert(spawn_live_enemy_bomb(session.encounter.enemy_bombs, 100, 50, 2));
         session.encounter.drone.x = 80;
-        targets.redirect_bombs_to_attached_probe = true;
+
+        // Processed counts 0/1 keep the ordinary player.x+17 steering target.
+        session.campaign.mission.processed_count = 1;
         (void)step_game_session(session, GameplayInputFrame{}, targets);
         assert(session.encounter.special_weapon.x == 85); // Drone.x + 5
-        assert(session.encounter.enemy_bombs.bombs[0].x == 98); // target = probe.x+1=86
+        assert(session.encounter.enemy_bombs.bombs[0].x == 102);
+
+        // Win32 0x0040E3D9 redirects only after more than one Drone outcome
+        // has been processed while the Probe is attached. No host flag exists.
+        session.campaign.mission.processed_count = 2;
+        (void)step_game_session(session, GameplayInputFrame{}, targets);
+        assert(session.encounter.special_weapon.x == 85); // pinned to Drone.x + 5
+        assert(session.encounter.enemy_bombs.bombs[0].x == 100); // target = probe.x+1=86
     }
 
 

@@ -203,6 +203,10 @@ if(DRONE_BUILD_TESTS)
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase3_exit.py
         )
         add_test(
+            NAME drone_phase4_exit
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_phase4_exit.py
+        )
+        add_test(
             NAME drone_game_session_probe
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_game_session_probe.py $<TARGET_FILE:drone_session_probe>
         )

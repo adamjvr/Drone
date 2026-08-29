@@ -53,14 +53,21 @@ bool enemy_bomb_spawn_gate_allows_respawn(const EnemyBombSpawnGate& gate);
 
 struct EnemyBombSteeringContext {
     std::int32_t player_x = 0;
-
-    // The original update redirects bombs toward the attached Probe only when
-    // an additional gameplay condition is true and special state == 2. The
-    // still-unnamed condition is deliberately exposed to callers rather than
-    // guessed here.
     bool redirect_to_attached_probe = false;
     std::int32_t attached_probe_x = 0;
 };
+
+// Win32 0x0040E3D9..0x0040E412 compares the already-established
+// drone_outcome_processed_count (0x00433B54) against 1 and redirects active
+// bombs only when more than one Drone outcome has been processed and the
+// Probe is attached/decoding (special activity 2). Keeping this policy native
+// removes the last caller-supplied semantic steering gate from GameSession.
+[[nodiscard]] constexpr bool enemy_bombs_target_attached_probe(
+    const std::size_t processed_drone_count,
+    const SpecialWeaponActivity special_activity) noexcept {
+    return processed_drone_count > 1 &&
+           special_activity == SpecialWeaponActivity::ProbeAttachedDecoding;
+}
 
 // Allocate the first inactive entry. This mirrors the live path after the
 // caller has already chosen the spawn location and rand()%3 steering value.
@@ -81,8 +88,8 @@ bool spawn_replay_enemy_bomb(
 
 // Reconstructs the state-2 active-bomb update. On the shared animation tick
 // the three frames advance and wrap. X steers by horizontal_step toward either
-// player.x+17 or (when caller enables the recovered redirect condition)
-// attached_probe.x+1. Y always advances by two pixels.
+// player.x+17 or (when the native processed-count/attached-Probe policy is
+// true) attached_probe.x+1. Y always advances by two pixels.
 void step_enemy_bombs(
     EnemyBombPool& pool,
     bool animation_tick,

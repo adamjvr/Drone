@@ -572,8 +572,17 @@ int main() {
         assert(bombs.bombs[0].x == 102); // target = 107, step +2
         assert(bombs.bombs[0].y == 52);
 
-        // Attached-Probe redirection uses probe.x+1 when the caller supplies
-        // the independently recovered gating condition.
+        // Attached-Probe redirection uses probe.x+1. The session-level policy
+        // enabling this branch is the native processed-Drone count > 1 plus
+        // attached special activity, recovered from 0x0040E3D9.
+        assert(!drone::gameplay::enemy_bombs_target_attached_probe(
+            0, drone::gameplay::SpecialWeaponActivity::ProbeAttachedDecoding));
+        assert(!drone::gameplay::enemy_bombs_target_attached_probe(
+            1, drone::gameplay::SpecialWeaponActivity::ProbeAttachedDecoding));
+        assert(drone::gameplay::enemy_bombs_target_attached_probe(
+            2, drone::gameplay::SpecialWeaponActivity::ProbeAttachedDecoding));
+        assert(!drone::gameplay::enemy_bombs_target_attached_probe(
+            2, drone::gameplay::SpecialWeaponActivity::LaunchedHoming));
         drone::gameplay::step_enemy_bombs(
             bombs, false,
             EnemyBombSteeringContext{

@@ -1,19 +1,19 @@
 # Project Status
 
 **Repository:** `Drone`  
-**Current engineering phase:** Phase 4 — Complete Game Simulation  
+**Current engineering phase:** Phase 5 — Audio Reconstruction
 **Primary decompilation reference:** canonical 1999 Win32 shareware executable (`BIN-WIN-SW-01`)  
 **Independent cross-check:** canonical 1997 DOS shareware executable (`BIN-DOS-SW-01`)
 
-## Phase 4 current integration
+## Phase 4 closure / Phase 5 entry
 
 | area | status | current result |
 |---|---|---|
 | continuous `GameSession` ownership | ESTABLISHED first contract | clean campaign-vs-encounter state split; full/encounter reset; active-state-only deterministic tick; player, rapid missile, special weapon, shield, enemy-bomb movement plus ordered late special/player collisions, deferred player respawn settlement, four-phase cadence, world scroll and one-extra-life conversion integrated |
 | whole-session regression oracle | CONFIRMED clean oracle | asset-free `drone_session_probe` executes a fixed 120-update semantic input script and is checked exactly by CTest |
-| encounter actor integration | CURRENT | all 17 trajectory groups, persistent group-0 replenishment, exact live transient formation timing/template/path randomization, encounter-local alien hit/total statistics with the original mission double-count/fold quirks, and both shareware boss combat state machines are session-owned; native trajectory weapon collisions are connected; Lid/Top and Gemini both own movement, bomb attacks and boss-local weapon damage while remaining non-trajectory enemies still need integration |
-| death/restart/post-game continuity | CONFIRMED control-flow integration / presentation partial | bomb-driven player destruction entry, -540 spawn quiet period, native 42×38 death-explosion lifecycle, exact deferred life-consumption/respawn/game-over gate, lives<=0 Results diversion, 58-presentation confirmation lock, Ordering state-7 handoff, high-score state-8 handoff, credits and final state-1/state-4 outcome are session-owned; randomized debris/audio/pixels, result-screen rendering, interactive score-name editing and legacy score-file writes remain external |
-| session → fidelity presentation handoff | OPEN Phase-4 integration | Phase-3 renderer contracts are complete; complete semantic presentation inputs are not yet generated from `GameSession` each frame |
+| encounter actor integration | CONFIRMED canonical shareware | all 17 trajectory groups, persistent group-0 replenishment, exact live transient formation timing/template/path randomization, encounter-local alien hit/total statistics with the original mission double-count/fold quirks, and both shareware boss combat state machines are session-owned; native trajectory weapon collisions are connected; Lid/Top and Gemini both own movement, bomb attacks and boss-local weapon damage while remaining non-trajectory enemies still need integration |
+| death/restart/post-game continuity | CONFIRMED simulation/control flow | bomb-driven player destruction entry, -540 spawn quiet period, native 42×38 death-explosion lifecycle, exact deferred life-consumption/respawn/game-over gate, lives<=0 Results diversion, 58-presentation confirmation lock, Ordering state-7 handoff, high-score state-8 handoff, credits and final state-1/state-4 outcome are session-owned; randomized debris/audio/pixels, result-screen rendering, interactive score-name editing and legacy score-file writes remain external |
+| session → fidelity presentation handoff | DEFERRED fidelity integration | Phase-3 renderer contracts are complete; exact presentation/trace parity belongs to Phases 6–7 and does not reopen Phase 4 |
 
 ## Status legend
 
@@ -91,17 +91,15 @@
 | fidelity framebuffer | CONFIRMED | indexed 320×200 core-owned contract |
 | world/effect subpass catalog | CONFIRMED Win32 order | 28 evidence-backed subpasses resolve boss composites, direct point particles, Gemini procedural effect, explosion/debris routing and actor/projectile tail before scaled overlays |
 | native fidelity host | PARTIAL platform validation | Linux build validated; source backends included for Windows/macOS |
-| simulation reconstruction | PARTIAL continuous integration | `GameSession` now continuously owns campaign/encounter state, all 17 trajectory groups, exact Probe attachment/decode/disarm state, attached-Probe bomb interruption, ordered bomb→player shield/lethal handling, player destruction entry and deferred respawn/game-over settlement, rapid-missile/Stinger Drone-hit producers, normal Drone objective X/Y travel/hover/disarm/settlement, the exact timeout-driven pre-detonation countdown, outcome-2/-1000 detonation commit, logical effect settlement, Drone life-loss/restart/EndRun ordering, automatic Y=-200 shareware boss dispatch, native Lid/Top combat and native Gemini movement/bombs/Probe-Stinger damage/destruction; red-Stinger target selection/retention, live transient trajectory spawn selection/timing, trajectory weapon collisions, and encounter-to-mission alien-statistics accounting are internal; player-death randomized debris/audio/pixels, render-time Drone-detonation radial-noise/framebuffer presentation, presentation-side Gemini RNG consumption and remaining non-trajectory actor geometry/AI remain Phase-4 work; Results/Ordering/high-score/credits control flow is now session-owned through the exact 58-presentation lock and state-7/state-8/final-state handoffs |
+| simulation reconstruction | CONFIRMED canonical shareware architecture | `GameSession` now continuously owns campaign/encounter state, all 17 trajectory groups, exact Probe attachment/decode/disarm state, attached-Probe bomb interruption, ordered bomb→player shield/lethal handling, player destruction entry and deferred respawn/game-over settlement, rapid-missile/Stinger Drone-hit producers, normal Drone objective X/Y travel/hover/disarm/settlement, the exact timeout-driven pre-detonation countdown, outcome-2/-1000 detonation commit, logical effect settlement, Drone life-loss/restart/EndRun ordering, automatic Y=-200 shareware boss dispatch, native Lid/Top combat and native Gemini movement/bombs/Probe-Stinger damage/destruction; red-Stinger target selection/retention, live transient trajectory spawn selection/timing, trajectory weapon collisions, and encounter-to-mission alien-statistics accounting are internal; processed-count-dependent attached-Probe bomb steering is native; registered-only non-trajectory actors are Phase 8, while player-death/detonation/Gemini presentation RNG is Phase 5–7 fidelity work; Results/Ordering/high-score/credits control flow is now session-owned through the exact 58-presentation lock and state-7/state-8/final-state handoffs |
 
-## Phase 3 closure / Phase 4 priorities
+## Phase 4 closure / Phase 5 priorities
 
-Phase 3 is complete. The renderer/world architecture now includes the corrected 19-pass Win32 presentation order, detailed world/effect and scaled-overlay catalogs, startup palette fade, complete late HUD/outcome-cursor contracts, framebuffer comparison tooling, and Linux headless capture validation.
+Phase 4 is complete for the canonical shareware simulation. The remaining non-native mutable encounters are registered-progression content and are explicitly assigned to Phase 8; presentation/audio RNG does not reopen the gameplay simulation phase.
 
-Phase 4 priorities are now:
+Phase 5 priorities are now:
 
-1. Extend established continuous `GameSession` ownership from trajectories, Drone/Probe interaction and both native shareware bosses into the remaining non-trajectory encounter actors.
-2. Finish the remaining non-trajectory actor geometry/AI and collision producers feeding the now-native Stinger selector without inventing unavailable retail behavior.
-3. Continue whole-frame integration into remaining encounter producers and complete randomized player-death plus render-time Drone-detonation presentation ownership; Results/post-game control-flow continuity is now native, leaving UI/name-entry/file persistence outside the simulation core.
-4. Feed the Phase-3 fidelity presentation contracts from clean session state while preserving the simulation/presentation boundary.
-
-Exact original-runtime trace parity remains Phase 6; end-to-end shareware discrepancy closure remains Phase 7.
+1. Recover the complete sound-event/asset map and DirectSound voice-pool semantics.
+2. Build a portable audio-event/mixer contract driven from native `GameSession` events.
+3. Preserve Windows-vs-DOS backend differences rather than normalizing them prematurely.
+4. Keep deterministic trace comparison in Phase 6 and end-to-end shareware discrepancy closure in Phase 7.

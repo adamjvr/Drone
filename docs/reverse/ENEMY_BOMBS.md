@@ -80,13 +80,20 @@ Normal target X is:
 player.x + 17
 ```
 
-When an additional still-unnamed gameplay condition is greater than one **and** the Probe/Stinger entity is in attached/decode state `2`, the bomb instead targets:
+The formerly unnamed condition is now resolved as the already-established `drone_outcome_processed_count` at `0x00433B54`. When:
+
+```text
+processed_drone_count > 1
+AND special activity == 2 (attached Probe decoding)
+```
+
+the bomb instead targets:
 
 ```text
 attached_probe.x + 1
 ```
 
-The clean API exposes this redirect as an explicit caller-supplied condition. We intentionally do not invent a name for the additional original gate yet.
+Counts `0` and `1` retain the ordinary `player.x+17` target. `GameSession` derives this policy directly from native mission/special state; there is no host steering flag.
 
 ### Visibility versus lifetime
 
@@ -157,8 +164,6 @@ No proprietary pixels or replay records are required by the unit tests.
 
 ## Remaining questions
 
-- What is the best semantic name for the additional condition that redirects bombs toward an attached Probe?
 - Which original enemy families feed each live bomb-spawn path and what are their exact scheduler probabilities?
 - Which remaining Probe/Stinger states 4/10 have additional bomb-collision consequences beyond the now-integrated ordinary nonzero-state consumption path?
 - Which original enemy families feed every remaining bomb/special collision consequence and how do those outcomes interact with special states 4/10?
-- What is the exact clean presentation model for the player-death effect actor whose activity byte gates deferred life settlement?

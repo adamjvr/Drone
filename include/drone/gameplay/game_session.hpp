@@ -122,10 +122,6 @@ struct GameSession {
 struct GameSessionTargetContext {
     StingerTargetSelectionContext stinger_targets{};
 
-    // Bomb redirection has an independently recovered external gate in the
-    // original. Keep that gate explicit instead of assigning it a false name.
-    bool redirect_bombs_to_attached_probe = false;
-
     // Immutable trajectory samples remain external asset data, but live
     // transient formation selection/timing/RNG are now session-owned. The
     // registered-only Mothership destruction gate remains an explicit fact

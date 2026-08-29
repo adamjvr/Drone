@@ -62,12 +62,13 @@ if "canonical_win32_presentation_pass_count = 19" not in presentation_header:
 roadmap = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8")
 if "## Phase 3 — Rendering & World Reconstruction — COMPLETE" not in roadmap:
     fail("ROADMAP.md does not mark Phase 3 complete")
-if "## Phase 4 — Complete Game Simulation — IN PROGRESS" not in roadmap:
-    fail("ROADMAP.md has not advanced to Phase 4")
+if "## Phase 4 — Complete Game Simulation" not in roadmap:
+    fail("ROADMAP.md has not advanced beyond Phase 3")
 
 status = (ROOT / "docs/STATUS.md").read_text(encoding="utf-8")
-if "**Current engineering phase:** Phase 4 — Complete Game Simulation" not in status:
-    fail("STATUS.md has not advanced the current engineering phase to Phase 4")
+if "**Current engineering phase:** Phase 2 — Gameplay Reconstruction" in status or \
+   "**Current engineering phase:** Phase 3 — Rendering & World Reconstruction" in status:
+    fail("STATUS.md has not advanced beyond Phase 3")
 
 phase3 = (ROOT / "docs/PHASE3.md").read_text(encoding="utf-8")
 if "**Status:** complete." not in phase3:

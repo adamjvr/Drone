@@ -586,15 +586,13 @@ GameSessionTickResult step_game_session(
 
     step_rapid_missiles(encounter.rapid_missiles, animation_tick);
 
-    const bool attached_probe =
-        encounter.special_weapon.activity == SpecialWeaponActivity::ProbeAttachedDecoding;
     step_enemy_bombs(
         encounter.enemy_bombs,
         animation_tick,
         EnemyBombSteeringContext{
             .player_x = encounter.player.x,
-            .redirect_to_attached_probe =
-                attached_probe && targets.redirect_bombs_to_attached_probe,
+            .redirect_to_attached_probe = enemy_bombs_target_attached_probe(
+                campaign.mission.processed_count, encounter.special_weapon.activity),
             .attached_probe_x = encounter.special_weapon.x,
         });
 

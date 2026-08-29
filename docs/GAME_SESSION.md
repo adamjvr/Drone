@@ -97,9 +97,10 @@ encounter/collision producers are integrated in subsequent Phase-4 milestones.
 
 The session accepts `GameSessionTargetContext` for facts produced by encounter systems that are deliberately kept outside mutable session ownership:
 
+The processed-Drone bomb redirect is **not** one of those facts anymore: `0x00433B54` is the native mission processed-count, so `processed_count > 1 && ProbeAttachedDecoding` is derived internally.
+
+
 - Stinger target-candidate activity/geometry facts for hostile actors whose movement/geometry is not yet session-owned; selection priority and retained target state themselves are owned by the session;
-- the independently recovered but still unnamed condition that redirects enemy
-  bombs toward an attached Probe;
 - immutable trajectory path samples;
 - the registered-only Mothership destruction-state fact that suppresses the live trajectory producer until that encounter is session-owned;
 - immutable current-frame trajectory sprite-mask pixels used by the native rapid-missile producer;
@@ -162,5 +163,4 @@ Not yet session-integrated:
 - post-game pixel/audio presentation, interactive high-score name editing and score-file persistence; the Results/Ordering/high-score/credits control flow itself is session-owned;
 - construction of complete Phase-3 presentation inputs from the session.
 
-Those are the remaining Phase-4 workstreams, not deficiencies hidden inside the
-first `GameSession` API.
+Those are intentional post-Phase-4 boundaries: audio/presentation integration and shared-RNG trace parity continue through Phases 5–7, while registered-only hostile actors and bosses remain Phase-8 reconstruction work. They are not missing canonical-shareware gameplay semantics hidden inside the `GameSession` API.
