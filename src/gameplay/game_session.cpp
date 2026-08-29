@@ -4,6 +4,40 @@
 
 namespace drone::gameplay {
 
+namespace {
+
+void synchronize_post_game_raw_state(GameSession& session) noexcept {
+    if (!session.post_game.plan) {
+        return;
+    }
+
+    switch (session.post_game.phase) {
+    case PostGameModalPhase::ResultsConfirmLock:
+    case PostGameModalPhase::ResultsAwaitConfirmation:
+        // Results is inline in the original state-2 tail.
+        session.state = GameState::ActiveGameplay;
+        break;
+    case PostGameModalPhase::OrderingInformation:
+        session.state = GameState::OrderingInformation;
+        break;
+    case PostGameModalPhase::HighScoreTable:
+        session.state = GameState::HighScores;
+        break;
+    case PostGameModalPhase::CompletionCredits:
+        // The perfect-completion path is normalized to state 1 by the recovered
+        // semantic planner around the synchronous credits call.
+        session.state = session.post_game.plan->final_state;
+        break;
+    case PostGameModalPhase::Complete:
+        session.state = session.post_game.plan->final_state;
+        break;
+    case PostGameModalPhase::Inactive:
+        break;
+    }
+}
+
+} // namespace
+
 GameSession::GameSession() {
     reset_trajectory_encounter(encounter.trajectories);
     reset_trajectory_spawn_scheduler(
@@ -13,6 +47,7 @@ GameSession::GameSession() {
 void reset_game_session(GameSession& session, const GameplaySessionResetScope scope) {
     if (scope == GameplaySessionResetScope::FullCampaign) {
         session.campaign = GameCampaignState{};
+        session.post_game = PostGameRuntimeState{};
         session.total_gameplay_updates = 0;
     }
 
@@ -36,7 +71,43 @@ GameSessionTickResult step_game_session(
     const GameSessionTargetContext& targets) {
 
     GameSessionTickResult result{};
+    if (session.post_game.phase != PostGameModalPhase::Inactive) {
+        result.post_game_phase = session.post_game.phase;
+        result.post_game_plan = session.post_game.plan;
+        return result;
+    }
     if (session.state != GameState::ActiveGameplay) {
+        return result;
+    }
+
+    // Win32 state 2 branches directly into the inline 0x004115BE post-game
+    // tail when player_lives <= 0, before any ordinary gameplay subsystem can
+    // consume input, advance RNG or mutate encounter state on that dispatch.
+    if (win32_enters_post_game_results(session.campaign.player_lifecycle.lives)) {
+        const auto plan = win32_post_game_plan(
+            Win32PostGameContext{
+                .mission = session.campaign.mission,
+                .mothership_destroyed = session.campaign.mothership_destroyed,
+                .suppress_results_and_ordering =
+                    session.campaign.suppress_results_and_ordering,
+                .demo_playback_mode = session.runtime.demo_playback_mode,
+                .high_score_disqualified = session.campaign.high_score_disqualified,
+                .score = session.campaign.score.total,
+                .alien_ships_hit = session.campaign.alien_ships_hit,
+                .alien_ships_total = session.campaign.alien_ships_total,
+            },
+            session.high_scores);
+        if (!plan) {
+            result.post_game_plan_invalid = true;
+            return result;
+        }
+
+        (void)begin_post_game_runtime(session.post_game, *plan);
+        synchronize_post_game_raw_state(session);
+        result.post_game_started = true;
+        result.post_game_phase = session.post_game.phase;
+        result.post_game_plan = session.post_game.plan;
+        result.advanced = true;
         return result;
     }
 
@@ -747,6 +818,14 @@ GameSessionTickResult step_game_session(
     result.total_update = session.total_gameplay_updates;
     result.gameplay_substep_phase = encounter.gameplay_substep_phase;
     result.animation_tick = animation_tick;
+    return result;
+}
+
+PostGameRuntimeStepResult step_game_session_post_game(
+    GameSession& session,
+    const PostGameModalInput& input) {
+    auto result = step_post_game_runtime(session.post_game, input);
+    synchronize_post_game_raw_state(session);
     return result;
 }
 

@@ -3,8 +3,53 @@
 #include <drone/gameplay/high_scores.hpp>
 
 #include <limits>
+#include <utility>
 
 namespace drone::gameplay {
+
+namespace {
+
+PostGameModalPhase phase_after_results(const Win32PostGamePlan& plan) noexcept {
+    if (plan.show_ordering_information) {
+        return PostGameModalPhase::OrderingInformation;
+    }
+    if (plan.high_score.invoke_high_score_table) {
+        return PostGameModalPhase::HighScoreTable;
+    }
+    if (plan.show_completion_credits) {
+        return PostGameModalPhase::CompletionCredits;
+    }
+    return PostGameModalPhase::Complete;
+}
+
+PostGameModalPhase phase_after_ordering(const Win32PostGamePlan& plan) noexcept {
+    if (plan.high_score.invoke_high_score_table) {
+        return PostGameModalPhase::HighScoreTable;
+    }
+    if (plan.show_completion_credits) {
+        return PostGameModalPhase::CompletionCredits;
+    }
+    return PostGameModalPhase::Complete;
+}
+
+PostGameModalPhase phase_after_high_scores(const Win32PostGamePlan& plan) noexcept {
+    return plan.show_completion_credits
+        ? PostGameModalPhase::CompletionCredits
+        : PostGameModalPhase::Complete;
+}
+
+void mark_phase_start(
+    PostGameRuntimeStepResult& result,
+    const PostGameModalPhase phase) noexcept {
+    result.ordering_information_started =
+        phase == PostGameModalPhase::OrderingInformation;
+    result.high_score_table_started =
+        phase == PostGameModalPhase::HighScoreTable;
+    result.completion_credits_started =
+        phase == PostGameModalPhase::CompletionCredits;
+}
+
+} // namespace
 
 std::optional<Win32PostGamePlan> win32_post_game_plan(
     const Win32PostGameContext& context,
@@ -72,6 +117,101 @@ std::optional<Win32PostGamePlan> win32_post_game_plan(
     }
 
     return plan;
+}
+
+bool begin_post_game_runtime(
+    PostGameRuntimeState& runtime,
+    Win32PostGamePlan plan) noexcept {
+    if (runtime.phase != PostGameModalPhase::Inactive) {
+        return false;
+    }
+
+    runtime.plan = std::move(plan);
+    runtime.results_presentations_remaining = 0;
+    if (runtime.plan->show_results_screen) {
+        runtime.phase = PostGameModalPhase::ResultsConfirmLock;
+        runtime.results_presentations_remaining =
+            win32_results_confirm_lock_presentations;
+    } else {
+        runtime.phase = phase_after_results(*runtime.plan);
+    }
+    return true;
+}
+
+PostGameRuntimeStepResult step_post_game_runtime(
+    PostGameRuntimeState& runtime,
+    const PostGameModalInput& input) noexcept {
+    PostGameRuntimeStepResult result{};
+    result.phase = runtime.phase;
+    result.results_presentations_remaining = runtime.results_presentations_remaining;
+
+    if (!runtime.plan || runtime.phase == PostGameModalPhase::Inactive) {
+        return result;
+    }
+
+    const auto transition_to = [&](const PostGameModalPhase next) {
+        runtime.phase = next;
+        result.advanced = true;
+        mark_phase_start(result, next);
+    };
+
+    switch (runtime.phase) {
+    case PostGameModalPhase::ResultsConfirmLock:
+        // 0x00411AF4 tests the positive counter before calling 0x004174A0.
+        // Thus confirmation is not polled during these 58 presentation loops.
+        if (input.results_presentation_advanced &&
+            runtime.results_presentations_remaining > 0) {
+            --runtime.results_presentations_remaining;
+            result.advanced = true;
+            result.results_presentation_counted = true;
+            if (runtime.results_presentations_remaining == 0) {
+                runtime.phase = PostGameModalPhase::ResultsAwaitConfirmation;
+                result.results_lock_expired = true;
+            }
+        }
+        break;
+
+    case PostGameModalPhase::ResultsAwaitConfirmation:
+        if (input.confirm_pressed) {
+            result.results_confirmation_accepted = true;
+            transition_to(phase_after_results(*runtime.plan));
+        }
+        break;
+
+    case PostGameModalPhase::OrderingInformation:
+        if (input.ordering_information_finished) {
+            transition_to(phase_after_ordering(*runtime.plan));
+        }
+        break;
+
+    case PostGameModalPhase::HighScoreTable:
+        if (input.high_score_table_finished) {
+            transition_to(phase_after_high_scores(*runtime.plan));
+        }
+        break;
+
+    case PostGameModalPhase::CompletionCredits:
+        if (input.completion_credits_finished) {
+            transition_to(PostGameModalPhase::Complete);
+        }
+        break;
+
+    case PostGameModalPhase::Complete:
+        result.completed = true;
+        result.final_state = runtime.plan->final_state;
+        break;
+
+    case PostGameModalPhase::Inactive:
+        break;
+    }
+
+    if (runtime.phase == PostGameModalPhase::Complete) {
+        result.completed = true;
+        result.final_state = runtime.plan->final_state;
+    }
+    result.phase = runtime.phase;
+    result.results_presentations_remaining = runtime.results_presentations_remaining;
+    return result;
 }
 
 } // namespace drone::gameplay

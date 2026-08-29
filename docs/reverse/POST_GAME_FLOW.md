@@ -9,8 +9,11 @@ The clean semantic model is implemented in:
 - `include/drone/gameplay/post_game.hpp`
 - `src/gameplay/post_game.cpp`
 - `tests/test_gameplay.cpp`
+- `include/drone/gameplay/game_session.hpp`
+- `src/gameplay/game_session.cpp`
+- `tests/test_game_session_post_game.cpp`
 
-It composes the already-established mission-outcome and high-score modules rather than reproducing the original global-memory UI implementation.
+The Phase-2 planner composes the already-established mission-outcome and high-score modules rather than reproducing the original global-memory UI implementation. Phase 4 now also binds that plan into `GameSession` through a persistent modal runtime, so the host no longer decides whether/when Results, Ordering Information, high scores or completion credits follow a depleted-life run.
 
 ## Entry and presentation suppression
 
@@ -42,7 +45,7 @@ The original assumes a nonzero alien-ship total before the percentage division. 
 
 ## Exact confirmation lock
 
-The result-screen confirmation counter is initialized to `0x3A`, so the original performs **58 presentation/vblank iterations** before confirmation input can be accepted.
+The result-screen confirmation counter is initialized to `0x3A`. At `0x00411AF4` the original tests the positive counter *before* calling `confirm_input_pressed`; while positive it skips input polling, decrements the counter and performs the presentation loop. Therefore it performs **exactly 58 presentation/vblank iterations with confirmation polling disabled**, and the first confirmation opportunity is the following modal iteration after the counter is already zero.
 
 After the lock expires, `0x004174A0` (`confirm_input_pressed`) accepts either:
 
@@ -147,4 +150,4 @@ Thus the compiled perfect endgame is not merely a special result card/music choi
 - whether completion credits run; and
 - the resulting menu-entry state.
 
-`Q-RESULT-001` is therefore resolved at the gameplay/control-flow level. Pixel-perfect presentation internals can continue under rendering/UI work without blocking the Phase 2 state architecture.
+`Q-RESULT-001` is therefore resolved at the gameplay/control-flow level. Phase 4 additionally owns this sequence in `GameSession`: lives<=0 diverts before ordinary gameplay/RNG advancement, `PostGameRuntimeState` enforces the exact locked-presentation/confirmation ordering, and subordinate raw-state handoffs use state 7 for Ordering Information and state 8 for qualifying high-score presentation before the established final state 1/4 result. Pixel-perfect presentation, interactive name entry and actual legacy score-file persistence remain rendering/UI/platform work rather than simulation-control inputs.

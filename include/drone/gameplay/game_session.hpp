@@ -16,6 +16,7 @@
 #include <drone/gameplay/player.hpp>
 #include <drone/gameplay/player_lifecycle.hpp>
 #include <drone/gameplay/player_death_effect.hpp>
+#include <drone/gameplay/post_game.hpp>
 #include <drone/gameplay/rapid_missile.hpp>
 #include <drone/gameplay/scoring.hpp>
 #include <drone/gameplay/shield.hpp>
@@ -45,6 +46,7 @@ struct GameCampaignState {
     // path. Phase 4 owns them here even though their producers are integrated
     // in later milestones.
     bool high_score_disqualified = false;
+    bool suppress_results_and_ordering = false;
     bool mothership_destroyed = false;
     std::int32_t alien_ships_hit = 0;
     // Full-session initialization seeds the mission-wide counter to the same
@@ -94,6 +96,16 @@ struct GameSession {
     GameRuntimeOptions runtime{};
     GameCampaignState campaign{};
     GameEncounterState encounter{};
+
+    // Persisted score data belongs to the application/session rather than a
+    // gameplay campaign reset. Hosts may populate this from the legacy scores
+    // file before a run; FullCampaign reset intentionally does not erase it.
+    HighScoreTable high_scores{};
+
+    // Inline Win32 post-game/results state. Raw game_state remains state 2
+    // through Results itself; subordinate modal state changes are reflected as
+    // OrderingInformation/HighScores only at the original handoff points.
+    PostGameRuntimeState post_game{};
 
     // The original CRT RNG is process-global and is seeded once at startup, so
     // neither encounter-only nor full-campaign gameplay resets reseed it.
@@ -171,6 +183,11 @@ struct GameSessionTickResult {
     bool player_respawned = false;
     bool player_respawn_shield_reset = false;
     bool player_game_over_banner_requested = false;
+
+    bool post_game_started = false;
+    bool post_game_plan_invalid = false;
+    PostGameModalPhase post_game_phase = PostGameModalPhase::Inactive;
+    std::optional<Win32PostGamePlan> post_game_plan{};
 
     bool primary_trajectory_replenishment_checked = false;
     bool primary_trajectory_roll_forced_to_one = false;
@@ -307,5 +324,13 @@ void reset_game_session(GameSession& session, GameplaySessionResetScope scope);
     GameSession& session,
     const GameplayInputFrame& input,
     const GameSessionTargetContext& targets = {});
+
+// Advance the synchronous post-game modal sequence after step_game_session has
+// detected lives <= 0 and entered the recovered inline state-2 tail. This does
+// not render UI or write score files; it owns the exact phase/state ordering and
+// the 58-presentation confirmation lock while the host reports modal completion.
+[[nodiscard]] PostGameRuntimeStepResult step_game_session_post_game(
+    GameSession& session,
+    const PostGameModalInput& input = {});
 
 } // namespace drone::gameplay

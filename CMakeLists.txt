@@ -120,6 +120,10 @@ if(DRONE_BUILD_TESTS)
     target_link_libraries(drone_game_session_tests PRIVATE drone_core)
     add_test(NAME drone_game_session COMMAND drone_game_session_tests)
 
+    add_executable(drone_game_session_post_game_tests tests/test_game_session_post_game.cpp)
+    target_link_libraries(drone_game_session_post_game_tests PRIVATE drone_core)
+    add_test(NAME drone_game_session_post_game COMMAND drone_game_session_post_game_tests)
+
     add_executable(drone_drone_objective_tests tests/test_drone_objective.cpp)
     target_link_libraries(drone_drone_objective_tests PRIVATE drone_core)
     add_test(NAME drone_drone_objective COMMAND drone_drone_objective_tests)

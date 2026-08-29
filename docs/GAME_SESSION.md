@@ -17,7 +17,7 @@ from state rebuilt for each encounter.
 - lives / player lifecycle;
 - total score and extra-life progress;
 - six-Drone mission outcome ledger;
-- high-score disqualification state;
+- high-score disqualification and Results/Ordering suppression state;
 - Mothership completion state;
 - mission-wide alien hit/total statistics used by post-game results, including the original live-accounting quirks plus later encounter folds.
 
@@ -49,6 +49,9 @@ The session also carries a clean whole-run update counter for diagnostics and a 
 - `FullCampaign` rebuilds both campaign and encounter state;
 - `EncounterOnly` preserves score, lives, outcomes, post-game statistics and
   eligibility while rebuilding per-encounter state.
+- the persisted ten-entry high-score table lives at the `GameSession` level rather
+  than inside campaign state, so a `FullCampaign` gameplay reset does not erase
+  scores loaded by the host; the inline post-game modal runtime itself does reset.
 
 The encounter reset also reactivates the player when lives remain. This is a
 clean normalization required because the earlier narrow `PlayerLifecycleState`
@@ -105,6 +108,27 @@ The session accepts `GameSessionTargetContext` for facts produced by encounter s
 
 This is intentional. Mutable trajectory lifecycle, encounter-local alien hit/total statistics plus their source-sensitive mission accounting/fold, the exact Probe attachment/decode/disarm chain, ordered enemy-bomb collision ownership for Probe/Stinger and player, lethal player entry plus the shared -540 quiet period, deferred life consumption/respawn/game-over settlement, normal Drone position/progression, rapid-missile/Stinger Drone-hit entry producers, the timeout-driven destructive countdown/detonation/life-loss state, and the persistent shareware boss lifecycle/score tails are now owned by the session. The Drone weapon producers do **not** use sprite masks: the executable calls `0x00401F60`, whose inclusive collision extent for the 15×38 Drone is 12×32. Immutable trajectory path/mask asset data remains external, but rapid-missile opaque-pixel, launched-special point-hitbox, and Stinger-display broad-phase trajectory collision production are now session-owned. Non-owned hostile actor geometry/AI and the separate render-time Drone-detonation radial-noise/framebuffer pass remain separate producers; update-side explosion requests and their CRT RNG consumption are native. The player-death singleton lifecycle is now native; only its immutable pixels plus randomized debris/audio presentation remain fidelity-side. Both shareware bosses are native: Lid/Top owns root geometry/movement, bomb attacks, lid animation/vulnerability and missile/Stinger hit validation; Gemini owns shared-root movement, opposing body animation, bomb attacks, native head/body Probe/Stinger collision, asymmetric damage thresholds and independent destruction tails. Live transient trajectory timing/template selection and its CRT-random path/offset variation are now native. Red-Stinger target **selection** is now native; only candidate facts for actors not yet owned by the session remain external. No shareware boss-destruction trigger remains in the session boundary; immutable boss mask pixels and presentation-side effects remain explicit fidelity inputs.
 
+## Native post-game continuity
+
+When campaign lives are non-positive, `step_game_session()` diverts before
+ordinary gameplay/RNG advancement and materializes the recovered
+`Win32PostGamePlan` from session-owned mission/statistics/eligibility state and
+the persisted score table. `PostGameRuntimeState` then owns the synchronous
+modal sequence without inventing a nonexistent Results `GameState`:
+
+- Results remains inline under raw state 2;
+- 58 completed present/vblank iterations occur before confirmation is polled;
+- the first confirmation opportunity is a distinct following modal iteration;
+- Ordering Information writes raw state 7;
+- qualifying score handoff writes raw state 8;
+- completion credits follow the recovered perfect-run predicate;
+- the outer tail lands in the established state 1/state 4 result.
+
+`step_game_session_post_game()` accepts only modal completion/input facts from
+the host. It does not render original assets, edit names or write the legacy
+`scores` file. Those remain presentation/persistence boundaries rather than
+gameplay control-flow inputs.
+
 ## Headless state oracle
 
 `drone_session_probe` runs a deterministic 120-update semantic input script with
@@ -135,7 +159,7 @@ Not yet session-integrated:
 - remaining non-Drone special-weapon collision consequences and non-owned hostile actor geometry/AI feeding the now-native Stinger selector;
 - render-time Drone detonation radial-noise/direct-framebuffer presentation; update-side explosion request geometry and its 17-draw RNG stream are already native;
 - reconstruction of the player-death randomized debris/audio/pixel presentation around the now-native singleton explosion actor;
-- remaining post-game/results execution;
+- post-game pixel/audio presentation, interactive high-score name editing and score-file persistence; the Results/Ordering/high-score/credits control flow itself is session-owned;
 - construction of complete Phase-3 presentation inputs from the session.
 
 Those are the remaining Phase-4 workstreams, not deficiencies hidden inside the

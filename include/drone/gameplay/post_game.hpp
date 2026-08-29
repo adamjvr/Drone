@@ -70,6 +70,53 @@ struct Win32PostGamePlan {
     GameState final_state = GameState::MainMenuResetEntry;
 };
 
+// The original post-game region is inline inside raw game state 2.  Results,
+// Ordering Information, the high-score table and completion credits are
+// synchronous/modal calls rather than independent dispatcher states.  Keep a
+// separate semantic phase so the clean GameSession can own that control flow
+// without inventing a nonexistent "Results" GameState value.
+enum class PostGameModalPhase : std::uint8_t {
+    Inactive,
+    ResultsConfirmLock,
+    ResultsAwaitConfirmation,
+    OrderingInformation,
+    HighScoreTable,
+    CompletionCredits,
+    Complete,
+};
+
+struct PostGameRuntimeState {
+    PostGameModalPhase phase = PostGameModalPhase::Inactive;
+    std::optional<Win32PostGamePlan> plan{};
+    std::int32_t results_presentations_remaining = 0;
+};
+
+// One host/UI iteration of the already-recovered synchronous modal paths.
+// `results_presentation_advanced` means one original result-screen
+// present/vblank iteration completed. Confirmation is deliberately separate:
+// Win32 does not poll 0x004174A0 until the 58 locked presentations are over.
+struct PostGameModalInput {
+    bool results_presentation_advanced = false;
+    bool confirm_pressed = false;
+    bool ordering_information_finished = false;
+    bool high_score_table_finished = false;
+    bool completion_credits_finished = false;
+};
+
+struct PostGameRuntimeStepResult {
+    bool advanced = false;
+    bool results_presentation_counted = false;
+    bool results_lock_expired = false;
+    bool results_confirmation_accepted = false;
+    bool ordering_information_started = false;
+    bool high_score_table_started = false;
+    bool completion_credits_started = false;
+    bool completed = false;
+    std::optional<GameState> final_state{};
+    PostGameModalPhase phase = PostGameModalPhase::Inactive;
+    std::int32_t results_presentations_remaining = 0;
+};
+
 // Models the established Win32 post-game region beginning at 0x004115BE.
 // Returns nullopt only for impossible/unsafe clean inputs that the original
 // code assumed valid (processed_count > 6, negative hit counts, or a zero /
@@ -79,5 +126,18 @@ struct Win32PostGamePlan {
 [[nodiscard]] std::optional<Win32PostGamePlan> win32_post_game_plan(
     const Win32PostGameContext& context,
     const HighScoreTable& table) noexcept;
+
+// Begin the modal sequence described by an already-validated plan. Returns
+// false only if a post-game sequence is already active.
+[[nodiscard]] bool begin_post_game_runtime(
+    PostGameRuntimeState& runtime,
+    Win32PostGamePlan plan) noexcept;
+
+// Advance one modal/UI iteration. Presentation and persistence are still host
+// responsibilities; the ordering, raw-state handoff points and confirmation
+// lock are owned here.
+[[nodiscard]] PostGameRuntimeStepResult step_post_game_runtime(
+    PostGameRuntimeState& runtime,
+    const PostGameModalInput& input) noexcept;
 
 } // namespace drone::gameplay
