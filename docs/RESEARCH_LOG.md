@@ -171,6 +171,7 @@ This file records major findings and engineering decisions chronologically. It i
 - Added `gameplay_phase` clean code/tests and `docs/reverse/GAMEPLAY_UPDATE_PHASE.md`, recording the first reliable whole-frame ordering landmarks from creation/trajectory work through boss, collision/effects, rendering/HUD, QPC pacing, and framebuffer presentation without overstating branch-complete partitioning.
 - Reconciled status, Phase 2, timing, subsystem, structure, findings, globals, and open-work documentation so the fixed template catalog and four-phase protocol are no longer listed as unresolved.
 - Identified the formerly unnamed post-trajectory state-2 call `0x0041E4D0` as `update_drone_detonation_effect`, paired with `0x0041D220` `trigger_drone_detonation_sequence`. The updater is gated to gameplay phase 0, detonation tick >25, and Drone activity 2; it emits explosion sprites around the captured Drone center and drives the late destruction-settlement field after the logical tick caps at 330.
+- Recovered the exact update-side Drone-detonation RNG sequence in `0x0041E4D0`: each eligible phase-0 effect tick consumes 17 MSVC CRT `rand` draws, emits four center-scatter and four 90-degree radial-ring explosion requests, resets settlement at tick 329 and advances it above 329. `0x00401D20` itself consumes no RNG. The separate render-only `0x0041EBE0` radial-noise pass retains its own geometry-dependent RNG stream and remains fidelity-renderer work.
 
 
 ## Phase 2 — cyclic scenery scroll ownership and Drone approach split

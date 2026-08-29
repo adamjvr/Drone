@@ -78,7 +78,8 @@ void advance_drone_detonation_tick(DroneObjectiveState& state) noexcept {
 
 DroneDetonationEffectTickResult step_drone_detonation_effect_logic(
     DroneObjectiveState& state,
-    const std::int32_t gameplay_substep_phase) noexcept {
+    const std::int32_t gameplay_substep_phase,
+    OriginalRandomState& random) noexcept {
     DroneDetonationEffectTickResult result{};
 
     if (gameplay_substep_phase != 0 ||
@@ -88,9 +89,40 @@ DroneDetonationEffectTickResult step_drone_detonation_effect_logic(
     }
 
     result.logical_effect_tick = true;
-    result.explosion_spawns_requested =
-        canonical_drone_detonation_explosions_per_effect_tick;
     ++state.detonation_center_y;
+
+    std::size_t request_index = 0;
+    for (std::uint8_t i = 0;
+         i < canonical_drone_detonation_center_explosions_per_effect_tick;
+         ++i) {
+        const auto random_x = next_original_random(random);
+        const auto random_y = next_original_random(random);
+        auto& request = result.explosions[request_index++];
+        request.kind = DroneDetonationExplosionKind::CenterScatter;
+        request.x = state.detonation_center_x - static_cast<std::int32_t>(random_x & 0x7fu) + 60;
+        request.y = state.detonation_center_y - static_cast<std::int32_t>(random_y & 0x7fu) + 60;
+        request.center_x = state.detonation_center_x;
+        request.center_y = state.detonation_center_y;
+    }
+
+    result.radial_start_angle = original_random_mod(random, 90);
+    const std::int32_t radius = (state.detonation_tick >> 1) + 5;
+    for (std::uint8_t i = 0;
+         i < canonical_drone_detonation_ring_explosions_per_effect_tick;
+         ++i) {
+        auto& request = result.explosions[request_index++];
+        request.kind = DroneDetonationExplosionKind::RadialRing;
+        request.center_x = state.detonation_center_x;
+        request.center_y = state.detonation_center_y;
+        request.angle_degrees = static_cast<std::uint16_t>(
+            result.radial_start_angle + static_cast<std::uint16_t>(i) * 90u);
+        request.radius = radius;
+        request.jitter_x = static_cast<std::uint8_t>(next_original_random(random) & 0x1fu);
+        request.jitter_y = static_cast<std::uint8_t>(next_original_random(random) & 0x1fu);
+    }
+
+    result.explosion_spawns_requested = static_cast<std::uint8_t>(request_index);
+    result.random_draws_consumed = canonical_drone_detonation_random_draws_per_effect_tick;
 
     if (state.detonation_tick == canonical_drone_detonation_tick_settlement_reset) {
         state.destruction_settlement_phase0_ticks = 0;

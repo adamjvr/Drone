@@ -260,6 +260,11 @@ struct GameSessionTickResult {
     std::int32_t drone_detonation_score_delta = 0;
     bool drone_detonation_effect_tick = false;
     std::uint8_t drone_detonation_explosion_spawns_requested = 0;
+    std::uint8_t drone_detonation_random_draws_consumed = 0;
+    std::uint16_t drone_detonation_radial_start_angle = 0;
+    std::array<DroneDetonationExplosionRequest,
+               canonical_drone_detonation_explosions_per_effect_tick>
+        drone_detonation_explosions{};
     bool drone_detonation_settlement_reset = false;
     bool drone_detonation_settlement_advanced = false;
     bool drone_destruction_settled = false;

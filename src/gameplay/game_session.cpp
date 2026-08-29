@@ -264,15 +264,21 @@ GameSessionTickResult step_game_session(
     }
 
     // update_drone_detonation_effect is called after trajectory processing and
-    // before the normal Drone/boss region. The portable core publishes only its
-    // proven logical events; random explosion placement and framebuffer
-    // distortion remain fidelity/presentation responsibilities.
+    // before the normal Drone/boss region. The portable core now owns the exact
+    // update-side 17-draw CRT sequence and eight explosion requests. The separate
+    // render-only radial-noise routine remains a fidelity renderer concern.
     const auto detonation_effect_result = step_drone_detonation_effect_logic(
         encounter.drone,
-        encounter.gameplay_substep_phase);
+        encounter.gameplay_substep_phase,
+        session.original_random);
     result.drone_detonation_effect_tick = detonation_effect_result.logical_effect_tick;
     result.drone_detonation_explosion_spawns_requested =
         detonation_effect_result.explosion_spawns_requested;
+    result.drone_detonation_random_draws_consumed =
+        detonation_effect_result.random_draws_consumed;
+    result.drone_detonation_radial_start_angle =
+        detonation_effect_result.radial_start_angle;
+    result.drone_detonation_explosions = detonation_effect_result.explosions;
     result.drone_detonation_settlement_reset = detonation_effect_result.settlement_reset;
     result.drone_detonation_settlement_advanced =
         detonation_effect_result.settlement_advanced;

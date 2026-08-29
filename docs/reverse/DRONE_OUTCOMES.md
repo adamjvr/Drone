@@ -50,7 +50,7 @@ The 16-bit scalar at **`0x00491CAC`** is now established as the Drone destructio
 
 Crucially, this countdown is processed **before** the shared four-phase gameplay scheduler. While below 100 it increments once per logical state-2 update. When an increment reaches **99**, the original immediately increments it again to **100**, then calls `trigger_drone_detonation_sequence` at `0x0041D220`. The same update writes outcome value 2 at the current processed slot and increments `processed_count`. Because the trigger resets `drone_detonation_tick` to zero before the later early-state-2 tick update, the first active destruction update ends with logical detonation tick **1**.
 
-The clean gameplay owner reproduces the logical side of `0x0041D220`: Drone activity becomes 2, completed Probe status clears, the detonation center captures `x + 7, y + 19` from the established 15x38 sprite geometry, the destruction settlement field resets, total score loses 1000 with a floor at zero, extra-life progress resets to zero, and the current mission outcome commits as Detonated. Original audio, randomized debris placement and direct-framebuffer setup remain presentation/fidelity concerns.
+The clean gameplay owner reproduces the logical side of `0x0041D220`: Drone activity becomes 2, completed Probe status clears, the detonation center captures `x + 7, y + 19` from the established 15x38 sprite geometry, the destruction settlement field resets, total score loses 1000 with a floor at zero, extra-life progress resets to zero, and the current mission outcome commits as Detonated. Original audio and the separate render-time radial-noise/direct-framebuffer pass remain presentation/fidelity concerns; the update-side explosion request geometry and its CRT RNG consumption are now native.
 
 ## Drone detonation effect timing and the post-trajectory call
 
@@ -66,7 +66,7 @@ drone.activity == 2
 
 On those eligible calls it drifts the captured Y center down by one, emits four randomized explosion sprites around the center using `spawn_explosion_sprite`, and performs the large direct-framebuffer radial/distortion/fade effect used by the Drone destruction presentation. The logical destruction tick itself is incremented once per state-2 update and capped at **330** by the earlier orchestrator bookkeeping. At tick 329 the updater resets the Drone-context `+0x32` settlement field; once the capped tick is greater than 329, eligible phase-0 calls increment that field. The earlier state-2 gate advances the outcome/destruction path only after this field exceeds 70.
 
-This separates two timing domains that should remain distinct in clean code: the detonation tick advances every logical gameplay update, while the expensive visual/settlement updater runs only on one of the four gameplay substeps. The direct framebuffer distortion itself remains a fidelity-rendering reconstruction target rather than being approximated inside the portable gameplay core.
+This separates three timing domains that should remain distinct in clean code: the detonation tick advances every logical gameplay update; `0x0041E4D0` runs only on phase 0 and now owns the exact update-side explosion requests plus their CRT RNG stream; the separate `0x0041EBE0` render-time radial-noise/direct-framebuffer path remains a fidelity-rendering reconstruction target rather than being approximated inside the portable gameplay core.
 
 ## Destruction settlement and life-loss ordering
 
@@ -177,5 +177,5 @@ The surrounding Win32 region beginning at `0x004115BE` is now partitioned at the
 
 - Complete semantics of Mothership core-target states other than the established state-2 destruction outcome; see [`MOTHERSHIP.md`](MOTHERSHIP.md).
 - Exact rapid-missile/Stinger point-hitbox producers that start the same owned destruction countdown are session-integrated; Drone collision does not require opaque-pixel masks.
-- Direct-framebuffer/randomized detonation presentation parity driven from the new logical effect events.
+- Render-time radial-noise/direct-framebuffer detonation parity; update-side randomized explosion requests are already native.
 - DOS-side storage/selection correspondence for the same six objective outcomes.

@@ -599,9 +599,15 @@ int main() {
         session.encounter.drone.destruction_settlement_phase0_ticks = 17;
         session.encounter.gameplay_substep_phase = 3;
 
+        const auto random_draws_before = session.original_random.draws;
         auto result = step_game_session(session, GameplayInputFrame{});
         assert(result.drone_detonation_effect_tick);
-        assert(result.drone_detonation_explosion_spawns_requested == 4);
+        assert(result.drone_detonation_explosion_spawns_requested ==
+               canonical_drone_detonation_explosions_per_effect_tick);
+        assert(result.drone_detonation_random_draws_consumed ==
+               canonical_drone_detonation_random_draws_per_effect_tick);
+        assert(session.original_random.draws ==
+               random_draws_before + canonical_drone_detonation_random_draws_per_effect_tick);
         assert(result.drone_detonation_settlement_reset);
         assert(!result.drone_detonation_settlement_advanced);
         assert(session.encounter.drone.detonation_tick == 329);
@@ -609,8 +615,15 @@ int main() {
         assert(session.encounter.drone.detonation_center_y == 81);
 
         session.encounter.gameplay_substep_phase = 3;
+        const auto second_random_draws_before = session.original_random.draws;
         result = step_game_session(session, GameplayInputFrame{});
         assert(result.drone_detonation_effect_tick);
+        assert(result.drone_detonation_explosion_spawns_requested ==
+               canonical_drone_detonation_explosions_per_effect_tick);
+        assert(result.drone_detonation_random_draws_consumed ==
+               canonical_drone_detonation_random_draws_per_effect_tick);
+        assert(session.original_random.draws ==
+               second_random_draws_before + canonical_drone_detonation_random_draws_per_effect_tick);
         assert(!result.drone_detonation_settlement_reset);
         assert(result.drone_detonation_settlement_advanced);
         assert(session.encounter.drone.detonation_tick == 330);

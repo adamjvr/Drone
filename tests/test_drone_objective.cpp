@@ -126,26 +126,29 @@ int main() {
         drone.detonation_center_y = 100;
         drone.detonation_tick = 25;
 
-        auto effect = step_drone_detonation_effect_logic(drone, 0);
+        OriginalRandomState random{};
+        auto effect = step_drone_detonation_effect_logic(drone, 0, random);
         assert(!effect.logical_effect_tick);
 
         drone.detonation_tick = 26;
-        effect = step_drone_detonation_effect_logic(drone, 1);
+        effect = step_drone_detonation_effect_logic(drone, 1, random);
         assert(!effect.logical_effect_tick);
-        effect = step_drone_detonation_effect_logic(drone, 0);
+        effect = step_drone_detonation_effect_logic(drone, 0, random);
         assert(effect.logical_effect_tick);
-        assert(effect.explosion_spawns_requested == 4);
+        assert(effect.explosion_spawns_requested == 8);
+        assert(effect.random_draws_consumed == 17);
+        assert(random.draws == 17);
         assert(drone.detonation_center_y == 101);
 
         drone.detonation_tick = canonical_drone_detonation_tick_settlement_reset;
         drone.destruction_settlement_phase0_ticks = 17;
-        effect = step_drone_detonation_effect_logic(drone, 0);
+        effect = step_drone_detonation_effect_logic(drone, 0, random);
         assert(effect.settlement_reset);
         assert(!effect.settlement_advanced);
         assert(drone.destruction_settlement_phase0_ticks == 0);
 
         drone.detonation_tick = canonical_drone_detonation_tick_cap;
-        effect = step_drone_detonation_effect_logic(drone, 0);
+        effect = step_drone_detonation_effect_logic(drone, 0, random);
         assert(effect.settlement_advanced);
         assert(drone.destruction_settlement_phase0_ticks == 1);
 

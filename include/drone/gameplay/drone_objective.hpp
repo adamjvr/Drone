@@ -1,9 +1,11 @@
 #pragma once
 
 #include <drone/gameplay/mission_progression.hpp>
+#include <drone/gameplay/original_random.hpp>
 #include <drone/gameplay/scoring.hpp>
 #include <drone/gameplay/world_scroll.hpp>
 
+#include <array>
 #include <cstdint>
 
 namespace drone::gameplay {
@@ -22,7 +24,10 @@ inline constexpr std::int32_t canonical_drone_detonation_tick_cap = 330;
 inline constexpr std::uint16_t canonical_drone_destruction_settlement_gate = 70;
 inline constexpr std::int32_t canonical_drone_sprite_width = 15;
 inline constexpr std::int32_t canonical_drone_sprite_height = 38;
-inline constexpr std::uint8_t canonical_drone_detonation_explosions_per_effect_tick = 4;
+inline constexpr std::uint8_t canonical_drone_detonation_center_explosions_per_effect_tick = 4;
+inline constexpr std::uint8_t canonical_drone_detonation_ring_explosions_per_effect_tick = 4;
+inline constexpr std::uint8_t canonical_drone_detonation_explosions_per_effect_tick = 8;
+inline constexpr std::uint8_t canonical_drone_detonation_random_draws_per_effect_tick = 17;
 
 struct DroneObjectiveState {
     std::int32_t x = canonical_drone_session_initial_x;
@@ -77,9 +82,34 @@ struct DroneDestructionCountdownTickResult {
     std::int32_t score_delta = 0;
 };
 
+enum class DroneDetonationExplosionKind : std::uint8_t {
+    CenterScatter,
+    RadialRing,
+};
+
+// Update-side presentation request reconstructed from Win32 0x0041E4D0.
+// CenterScatter requests carry exact x/y positions. RadialRing requests retain
+// the original angle/radius/jitter recipe; applying the original fixed-point
+// trig lookup remains a fidelity-renderer responsibility.
+struct DroneDetonationExplosionRequest {
+    DroneDetonationExplosionKind kind = DroneDetonationExplosionKind::CenterScatter;
+    std::int32_t x = 0;
+    std::int32_t y = 0;
+    std::int32_t center_x = 0;
+    std::int32_t center_y = 0;
+    std::uint16_t angle_degrees = 0;
+    std::int32_t radius = 0;
+    std::uint8_t jitter_x = 0;
+    std::uint8_t jitter_y = 0;
+};
+
 struct DroneDetonationEffectTickResult {
     bool logical_effect_tick = false;
     std::uint8_t explosion_spawns_requested = 0;
+    std::uint8_t random_draws_consumed = 0;
+    std::uint16_t radial_start_angle = 0;
+    std::array<DroneDetonationExplosionRequest,
+               canonical_drone_detonation_explosions_per_effect_tick> explosions{};
     bool settlement_reset = false;
     bool settlement_advanced = false;
 };
@@ -108,12 +138,14 @@ struct DroneDetonationEffectTickResult {
 // same update is reset to zero and therefore becomes tick 1 here.
 void advance_drone_detonation_tick(DroneObjectiveState& state) noexcept;
 
-// Portable logical counterpart of update_drone_detonation_effect. It preserves
-// the exact phase/tick gates, center drift, four-spawn request and destruction
-// settlement timing, while intentionally omitting randomized framebuffer work.
+// Portable update-side counterpart of update_drone_detonation_effect. It
+// preserves the exact phase/tick gates, center drift, eight explosion requests,
+// all 17 CRT rand draws, and destruction-settlement timing. The separate
+// render_drone_detonation_radial_noise routine remains in the fidelity renderer.
 [[nodiscard]] DroneDetonationEffectTickResult step_drone_detonation_effect_logic(
     DroneObjectiveState& state,
-    std::int32_t gameplay_substep_phase) noexcept;
+    std::int32_t gameplay_substep_phase,
+    OriginalRandomState& random) noexcept;
 
 [[nodiscard]] constexpr bool drone_destruction_settlement_ready(
     const DroneObjectiveState& state) noexcept {

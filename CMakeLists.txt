@@ -124,6 +124,10 @@ if(DRONE_BUILD_TESTS)
     target_link_libraries(drone_drone_objective_tests PRIVATE drone_core)
     add_test(NAME drone_drone_objective COMMAND drone_drone_objective_tests)
 
+    add_executable(drone_drone_detonation_effect_tests tests/test_drone_detonation_effect.cpp)
+    target_link_libraries(drone_drone_detonation_effect_tests PRIVATE drone_core)
+    add_test(NAME drone_drone_detonation_effect COMMAND drone_drone_detonation_effect_tests)
+
     add_executable(drone_drone_weapon_interaction_tests tests/test_drone_weapon_interaction.cpp)
     target_link_libraries(drone_drone_weapon_interaction_tests PRIVATE drone_core)
     add_test(NAME drone_drone_weapon_interaction COMMAND drone_drone_weapon_interaction_tests)
