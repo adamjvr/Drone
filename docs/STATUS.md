@@ -15,6 +15,16 @@
 | death/restart/post-game continuity | CONFIRMED simulation/control flow | bomb-driven player destruction entry, -540 spawn quiet period, native 42×38 death-explosion lifecycle, exact deferred life-consumption/respawn/game-over gate, lives<=0 Results diversion, 58-presentation confirmation lock, Ordering state-7 handoff, high-score state-8 handoff, credits and final state-1/state-4 outcome are session-owned; randomized debris/audio/pixels, result-screen rendering, interactive score-name editing and legacy score-file writes remain external |
 | session → fidelity presentation handoff | DEFERRED fidelity integration | Phase-3 renderer contracts are complete; exact presentation/trace parity belongs to Phases 6–7 and does not reopen Phase 4 |
 
+## Phase 5 audio reconstruction
+
+| area | status | current result |
+|---|---|---|
+| audio corpus inventory | CONFIRMED metadata | 61 Win32 WAVs and 59 DOS audio files (56 CLV, 2 WAV, 1 HMI); 58 matched stems; asset-safe crosswalk generated from checked-in hashes/sizes only |
+| Win32 DirectSound primitives | CONFIRMED | WAV slot loader, buffer duplication, play/rewind, exact volume conversion, frequency, stop/reset, release and raw status helpers mapped |
+| reusable SFX voices | CONFIRMED | exact 20-voice scan from slot 0; first raw status != 1 wins; if all 20 are exactly 1, slot 0 is stolen/restarted |
+| portable audio-event boundary | ESTABLISHED first contract | allocation-free semantic event queue emitted natively for rapid missile, shield cadence, special load/cycle/ordinary launch, transient Squad flight selection and mission interstitial cues |
+| remaining audio semantics | PARTIAL | ordered late-bomb impact events, all loop-flag callers, complete cue init settings, Results/credits playback, DOS HMI behavior and platform mixer/backend remain Phase-5 work |
+
 ## Status legend
 
 - **CONFIRMED** — directly established by binary evidence, independent correspondence, or exact reproduction.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <drone/audio/audio_event.hpp>
 #include <drone/gameplay/alien_accounting.hpp>
 #include <drone/gameplay/boss_encounter.hpp>
 #include <drone/gameplay/difficulty.hpp>
@@ -145,6 +146,7 @@ struct GameSessionTickResult {
     std::uint64_t total_update = 0;
     std::int32_t gameplay_substep_phase = 0;
     bool animation_tick = false;
+    drone::audio::AudioEventQueue audio_events{};
 
     bool rapid_missile_fired = false;
     std::size_t rapid_missiles_retired = 0;

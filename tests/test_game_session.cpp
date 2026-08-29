@@ -121,6 +121,9 @@ int main() {
         assert(first.rapid_missile_fired);
         assert(first.special_loaded && !first.special_cycled && !first.special_launched);
         assert(first.shield_active && !first.shield_sound_requested);
+        assert(first.audio_events.size == 2);
+        assert(first.audio_events.view()[0].cue == drone::audio::AudioCue::RapidMissileFire);
+        assert(first.audio_events.view()[1].cue == drone::audio::AudioCue::SpecialLoadCycle);
         assert(first.extra_life_awarded);
 
         assert(session.encounter.player.x == 145);
@@ -146,6 +149,8 @@ int main() {
         assert(second.gameplay_substep_phase == 2);
         assert(!second.rapid_missile_fired);
         assert(second.shield_sound_requested);
+        assert(second.audio_events.size == 1);
+        assert(second.audio_events.view()[0].cue == drone::audio::AudioCue::ShieldPulse);
         assert(session.encounter.world_scroll_row == 598);
         assert(session.encounter.rapid_missiles.missiles[0].frame == 1);
         assert(session.encounter.rapid_missiles.missiles[0].y == 165);

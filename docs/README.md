@@ -28,6 +28,7 @@ This directory is the durable engineering record for the **Drone** reverse-engin
 - [`reverse/HUD_PRESENTATION.md`](reverse/HUD_PRESENTATION.md) — score/lives, six-Drone strip/cursor, special-target/status and shield presentation contracts.
 - [`reverse/BITMAP_FONT.md`](reverse/BITMAP_FONT.md) — exact DOS/Win32 FONT2 glyph cache, 0x14-byte descriptor, sheet geometry, ASCII mapping, and clean extraction boundary.
 - [`reverse/GAMEPLAY_EFFECTS.md`](reverse/GAMEPLAY_EFFECTS.md) — explosion/debris pools and effect/audio relationships.
+- [`reverse/AUDIO_SYSTEM.md`](reverse/AUDIO_SYSTEM.md) — Win32 DirectSound primitives, exact 20-voice reuse policy, DOS↔Windows audio corpus crosswalk and portable semantic audio-event boundary.
 - [`reverse/SPRITE_SHEETS.md`](reverse/SPRITE_SHEETS.md) — recovered JBA sprite-grid extraction and canonical frame evidence.
 - [`reverse/SCORING.md`](reverse/SCORING.md) — total score, extra-life progress, penalties, threshold conversion, and HUD arithmetic quirks.
 - [`reverse/HIGH_SCORES.md`](reverse/HIGH_SCORES.md) — high-score eligibility, nine-lives disqualification, ordering, insertion, and name entry.

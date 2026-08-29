@@ -34,6 +34,8 @@ Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, 
 
 Recover sound-event mapping, playback priority, voice/channel behavior, panning, volume, loops, music if applicable, and DOS HMI versus Windows DirectSound behavioral differences behind a portable audio interface.
 
+**Current progress:** the first asset-free audio runtime is integrated: exact DirectSound play/stop/volume/frequency/status behavior, the original 20-voice reuse/steal policy, semantic `GameSession` audio events for proven call sites, and a generated DOS↔Windows metadata crosswalk are clean-tested. Remaining work is ordered impact-event coverage, loop/long-form classification, full cue initialization settings, backend playback and DOS HMI comparison.
+
 ## Phase 6 — Deterministic Replay & Validation
 
 Decode demo semantics, create deterministic playback/state snapshots, compare simulation/framebuffer/audio traces against the originals, and turn those comparisons into regression tests.

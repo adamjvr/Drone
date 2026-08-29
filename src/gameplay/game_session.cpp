@@ -6,6 +6,15 @@ namespace drone::gameplay {
 
 namespace {
 
+void append_mission_interstitial_audio(
+    drone::audio::AudioEventQueue& queue,
+    const MissionInterstitialPlan& plan) noexcept {
+    const auto cue = plan.sound == MissionInterstitialSound::Deepness
+        ? drone::audio::AudioCue::MissionDeepness
+        : drone::audio::AudioCue::MissionDetonate;
+    (void)queue.push({cue, drone::audio::AudioAction::Play});
+}
+
 void synchronize_post_game_raw_state(GameSession& session) noexcept {
     if (!session.post_game.plan) {
         return;
@@ -173,6 +182,8 @@ GameSessionTickResult step_game_session(
         if (run_interstitial) {
             result.mission_interstitial = mission_interstitial_plan(campaign.mission);
             if (result.mission_interstitial.has_value()) {
+                append_mission_interstitial_audio(
+                    result.audio_events, *result.mission_interstitial);
                 result.encounter_transition = win32_post_drone_transition_plan(
                     result.mission_interstitial->processed_count,
                     result.mission_interstitial->detonated_count);
@@ -286,6 +297,11 @@ GameSessionTickResult step_game_session(
         result.trajectory_spawn_roll_passed = spawn_result.spawn_roll_passed;
         result.trajectory_spawned_group = spawn_result.group_index;
         result.trajectory_spawn_sound_index = spawn_result.sound_index;
+        if (spawn_result.sound_index.has_value()) {
+            (void)result.audio_events.push({
+                drone::audio::trajectory_flight_cue(*spawn_result.sound_index),
+                drone::audio::AudioAction::Play});
+        }
         result.trajectory_spawn_runtime_family = spawn_result.runtime_path_family;
         result.trajectory_spawn_x_offset = spawn_result.group_x_offset;
         result.trajectory_spawn_y_offset = spawn_result.group_y_offset;
@@ -375,6 +391,8 @@ GameSessionTickResult step_game_session(
     if (drone_result.resolution_transition_ready) {
         result.mission_interstitial = mission_interstitial_plan(campaign.mission);
         if (result.mission_interstitial.has_value()) {
+            append_mission_interstitial_audio(
+                result.audio_events, *result.mission_interstitial);
             result.encounter_transition = win32_post_drone_transition_plan(
                 result.mission_interstitial->processed_count,
                 result.mission_interstitial->detonated_count);
@@ -483,6 +501,11 @@ GameSessionTickResult step_game_session(
         encounter.player,
         input.rapid_fire,
         player_active);
+    if (result.rapid_missile_fired) {
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::RapidMissileFire,
+            drone::audio::AudioAction::Play});
+    }
 
     // The loaded special's recovered switch counter advances independently of
     // Down-key input. A Down action loads when inactive, otherwise attempts the
@@ -493,6 +516,9 @@ GameSessionTickResult step_game_session(
             result.special_loaded = load_special_weapon(
                 encounter.special_weapon, encounter.player, true, player_active);
             if (result.special_loaded) {
+                (void)result.audio_events.push({
+                    drone::audio::AudioCue::SpecialLoadCycle,
+                    drone::audio::AudioAction::Play});
                 // Win32 0x0040CD83 resets the shared target pointer to the
                 // center-screen dummy object on every successful load.
                 reset_stinger_target(encounter.stinger_target);
@@ -500,6 +526,11 @@ GameSessionTickResult step_game_session(
         } else if (encounter.special_weapon.activity == SpecialWeaponActivity::LoadedTracking) {
             result.special_cycled = toggle_loaded_special_weapon(
                 encounter.special_weapon, true, player_active);
+            if (result.special_cycled) {
+                (void)result.audio_events.push({
+                    drone::audio::AudioCue::SpecialLoadCycle,
+                    drone::audio::AudioAction::Play});
+            }
         }
     }
 
@@ -507,6 +538,11 @@ GameSessionTickResult step_game_session(
         encounter.special_weapon,
         input.special_launch,
         player_active);
+    if (result.special_launched) {
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::SpecialLaunch,
+            drone::audio::AudioAction::Play});
+    }
 
     // Common special movement now owns the original Stinger target-priority
     // chain. Geometry for boss families whose movement is not reconstructed is
@@ -568,6 +604,11 @@ GameSessionTickResult step_game_session(
         animation_tick);
     result.shield_active = shield_result.active;
     result.shield_sound_requested = shield_result.play_sound;
+    if (result.shield_sound_requested) {
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::ShieldPulse,
+            drone::audio::AudioAction::Play});
+    }
 
     // The separate six-frame stinger.jba display is processed before the later
     // bomb/special collision block. Frames 3..5 deal +15 trajectory damage; the

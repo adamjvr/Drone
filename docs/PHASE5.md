@@ -4,6 +4,18 @@
 
 Phase 5 begins from the Phase-4-complete portable simulation. Its job is to reconstruct the original audio behavior behind a portable event/mixer boundary without changing established gameplay semantics.
 
+## First integrated foundation
+
+The first Phase-5 slice establishes the portable event/runtime boundary without bundling audio:
+
+- exact Win32 DirectSound slot/play/stop/volume/frequency/status primitives are documented;
+- the exact 20-voice first-free/all-busy-slot-0 policy is clean-tested;
+- a fixed-capacity semantic `AudioEventQueue` is emitted from proven `GameSession` call sites;
+- metadata-only DOS/Windows audio crosswalk generation is checked in;
+- original assets remain private evidence.
+
+See [`reverse/AUDIO_SYSTEM.md`](reverse/AUDIO_SYSTEM.md).
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;
