@@ -214,7 +214,29 @@ Sustained sounds explicitly write `_SOS_SAMPLE.wLoopCount = 0xFFFFFFFF` before `
 
 Controlled sounds save the voice index returned by StartSample and use it for later status/stop/volume/rate operations. Proven examples include gameplay Air (`StartSample 0x00077737`, handle global `0x004CCC8`), Drone (`0x0007A60D`, handle `0x004CB90`) and main-menu Lowbees (`0x00081709`, handle `0x004CBF0`). The broad cleanup region at `0x0007DE88..0x0007E165` performs SampleDone checks before stopping active tracked handles.
 
-This is enough to close configured voices, arbitration, volume representation and loop encoding. `Q-AUDIO-007` deliberately remains open only for the **complete state-by-state menu/modal lifecycle catalog**; the portable mixer must not wait on already-established low-level voice semantics, but exact DOS presentation parity still requires that final classification.
+This closes configured voices, arbitration, volume representation and loop encoding. The final presentation-lifecycle question is also now resolved below, so the portable backend can be designed against an executable-backed DOS contract rather than HMI defaults.
+
+### Canonical DOS menu / overlay lifecycle
+
+The main menu owns a retained `lowbees.clv` voice. On a restart request the menu loads the descriptor at `0x004CBE0`, writes native volume zero, sets `wLoopCount = 0xFFFFFFFF`, starts it at `0x00081709`, and saves the returned voice handle at `0x004CBF0`. Its fade checks the scalar against `0x7000` **before** adding `0x7D`, so the final volume write is `0x704E`, not exactly `0x7000`.
+
+The seven menu selections have distinct ownership effects:
+
+| selection | raw state | Lowbees ownership | modal |
+|---|---:|---|---|
+| Play Game | `2` | stop / free / rearm | gameplay |
+| Instructions | `3` | **continues** | `0x00085A04`, returns state `4` |
+| Ordering Information | `7` | stop / free / rearm in a dedicated branch | `0x00085D10`, returns state `4` |
+| High Scores | `8` | **continues** | `0x00086E04`, returns state `4` |
+| Configure Joystick | no raw-state write | **continues** | inline |
+| Play Demo | `13` | stop / free / rearm | dispatcher converts to gameplay |
+| Quit | `0` | stop / free / rearm | exit |
+
+The generic cleanup also covers raw state `-1`. Ordering Information is the important special case: state `7` is absent from the generic stop condition because selection index 2 performs its own Lowbees stop/free/rearm at `0x00082E26..0x00082E5A` before entering the local `thunder2.clv` modal.
+
+DOS pause (`5`), quit confirmation (`6`) and nine-lives (`99`) are materially different from the reconstructed Win32 host behavior. The DOS overlay loop does **not** write the retained Air sample volume or stop the Air voice. It subtracts `0x15E` from an HMI-wide digital-master scalar while that scalar is above the step and calls the master control at `0x0008AF88`. From a full `0x7FFF` start the held remainder is `0x00D9`. Returning to raw state `2` restores master `0x7FFF` at `0x000788F2..0x0007890B` and does **not** restart Air; the original Air voice simply continued through the overlay.
+
+Gameplay teardown is a separate ownership boundary. After master attenuation, it queries Air with `sosDIGISampleDone` at `0x0007DF24` and conditionally stops the retained handle at `0x0007DF38`. The HMI master is then restored to full before the state-4 menu path can own Lowbees again. Thus Air does not survive gameplay-to-menu teardown even though it survives pause/quit/nine-lives overlays. This closes `Q-AUDIO-007`.
 
 ## Current clean API
 
@@ -470,7 +492,7 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 
 ## Next audio work
 
-1. finish the remaining state-by-state DOS menu/modal lifecycle classification tracked by `Q-AUDIO-007`, using the now-identified Start/Stop/Done/Volume/Rate primitives and retained handles;
-2. capture the resulting Windows-vs-DOS backend differences as executable regression fixtures, especially saturation behavior (Win32 steal-slot-0 versus DOS return-failure) and native volume/loop control;
-3. finalize the portable mixer/backend around shared semantic `AudioEvent`s while keeping historically distinct voice arbitration, volume representation and loop encoding behind backend adapters;
+1. define the portable mixer/backend boundary around shared semantic `AudioEvent`s now that DOS `Q-AUDIO-003..007` are resolved;
+2. add executable regression fixtures for the platform policies that must remain distinct: Win32 steal-slot-0 saturation versus DOS return-failure, DirectSound normalized attenuation versus HMI packed levels, loop flags versus HMI loop counts, and direct-Air overlay fades versus DOS HMI-master attenuation;
+3. bind those backend contracts to host audio APIs without moving presentation cadence or device latency into deterministic `GameSession`;
 4. leave later exact audio-trace parity and device/host latency validation to deterministic/fidelity phases rather than collapsing those concerns into the event contract.

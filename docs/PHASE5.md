@@ -151,7 +151,15 @@ The canonical `DRONE_SW.EXE` now upgrades the prior middleware-only HMI foundati
 - sustained samples set `wLoopCount = 0xFFFFFFFF` before start, while ordinary one-shots retain zero/default loop count;
 - controlled loops retain the StartSample return value and later use exact StopSample / SampleDone / SetSampleVolume / SetSampleRate routines with that voice handle.
 
-This closes `Q-AUDIO-003` through `Q-AUDIO-006`. `Q-AUDIO-007` remains intentionally open only for complete state-by-state menu/modal stop/restart classification. The important backend distinction is now established: Win32 has game-owned 20-buffer transient pools with slot-0 steal on saturation; DOS has 32 dynamic HMI voices and **returns failure instead of stealing**.
+This closes `Q-AUDIO-003` through `Q-AUDIO-006`. The important backend distinction is established: Win32 has game-owned 20-buffer transient pools with slot-0 steal on saturation; DOS has 32 dynamic HMI voices and **returns failure instead of stealing**.
+
+## Canonical DOS presentation lifecycle
+
+`Q-AUDIO-007` is now resolved from the canonical DOS executable. Main-menu `lowbees.clv` is a retained infinite-loop voice whose native fade advances by `0x7D` while below threshold `0x7000`, making the terminal write `0x704E`. Play Game, Play Demo, Quit and `-1` use generic stop/free/rearm cleanup; Ordering Information performs equivalent cleanup in its dedicated modal branch; Instructions, High Scores and Configure Joystick leave Lowbees running.
+
+Pause (`5`), quit confirmation (`6`) and nine-lives (`99`) do not directly manipulate Air in DOS. They attenuate the HMI-wide digital master at `0x0008AF88` by `0x15E` per overlay iteration, leaving Air continuously voiced. A full `0x7FFF` start reaches remainder `0x00D9`; resume state `2` restores full master volume without restarting Air. Gameplay teardown separately fades the master, checks Air with SampleDone and stops it if still active before restoring the master and returning to menu ownership.
+
+This establishes `DOS-AUD-005..007` and `CROSS-AUD-004`. All five DOS audio-runtime questions (`Q-AUDIO-003..007`) are now resolved, so the next Phase-5 engineering step can define the portable mixer/backend contract while keeping the original platform policies distinct.
 
 ## Initial work
 

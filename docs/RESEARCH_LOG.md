@@ -433,3 +433,11 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Proved sustained-loop encoding: matched sustained descriptors use `wLoopCount=0xFFFFFFFF`; ordinary one-shots retain zero/default.
 - Proved retained-handle control for Air, Drone and Lowbees plus global SampleDone-before-Stop cleanup; left only the complete menu/modal raw-state lifecycle catalog open as `Q-AUDIO-007`.
 - Added `DOS-AUD-001..004`, `CROSS-AUD-003`, exact HMI function ledger entries, and upgraded `CORR-AUD-001` from candidate to established behavioral/data correspondence without claiming function equivalence.
+
+## 2026-08-29 — Canonical DOS menu/modal audio lifecycle
+
+- Recovered the complete `run_main_menu` Lowbees ownership map: start at native zero with `wLoopCount=0xFFFFFFFF`, `+0x7D` per menu iteration while below `0x7000`, terminal write `0x704E`, generic stop/free/rearm for Play Game, Demo, Quit and `-1`, dedicated equivalent cleanup for Ordering, and continuous playback through Instructions, High Scores and joystick configuration.
+- Identified `0x0008AF88` as the HMI-wide digital master-volume control, distinct from `sosDIGISetSampleVolume`; active gameplay ramps it by `0x96`, while pause/quit/nine-lives overlays attenuate it by `0x15E`.
+- Proved DOS overlays leave the retained Air voice running. From full master `0x7FFF`, overlay attenuation settles at remainder `0x00D9`; resume state `2` restores `0x7FFF` without an Air restart.
+- Proved gameplay teardown separately performs Air `SampleDone` then conditional `StopSample`, so Air does not survive the gameplay-to-menu boundary; the master is restored before Lowbees menu ownership resumes.
+- Added `DOS-AUD-005..007`, `CROSS-AUD-004`, `DOS-FN-041`, the static DOS presentation-lifecycle contract/tests, and resolved `Q-AUDIO-007`. All five executable-level DOS audio-runtime questions are now closed, unblocking portable mixer/backend design.

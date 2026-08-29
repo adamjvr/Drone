@@ -53,7 +53,7 @@ Win32 remains intentionally different: selected high-overlap sounds are predupli
 
 Both builds can share semantic cue/control intent, but voice arbitration, volume representation and loop encoding belong behind platform backend adapters. This is the established `CROSS-AUD-003` architectural constraint.
 
-`Q-AUDIO-003` through `Q-AUDIO-006` are resolved from canonical DOS code. `Q-AUDIO-007` remains open only for complete state-by-state menu/modal lifecycle ownership; retained-handle control itself is established.
+`Q-AUDIO-003` through `Q-AUDIO-007` are now resolved from canonical DOS code. The final lifecycle result adds another backend-level difference: Win32 states `5/6/99` directly fade/stop Air and restart it on resume, whereas DOS leaves the retained Air voice continuously active and attenuates/restores the HMI-wide digital master. Gameplay-to-menu teardown then performs SampleDone-before-Stop on Air before Lowbees menu ownership resumes. This is established as `CROSS-AUD-004`.
 
 ## Procedure for adding a mapping
 

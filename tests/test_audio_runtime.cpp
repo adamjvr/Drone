@@ -290,6 +290,72 @@ int main() {
     assert(original_drone_dos_hmi_sample_done_va == 0x0008B549u);
     assert(original_drone_dos_hmi_init_driver_va == 0x0008D4AFu);
     assert(original_drone_dos_hmi_voice_count_write_va == 0x0008D78Au);
+    assert(dos_hmi.master_digital_volume_control_va == 0x0008AF88u);
+    assert(dos_hmi.master_volume_full == 0x7FFFu);
+    assert(dos_hmi.master_volume_mask == 0x7FFFu);
+    assert(dos_hmi.master_control_is_distinct_from_sample_volume);
+
+    // DOS presentation ownership diverges materially from Win32. Lowbees is
+    // a retained main-menu voice, while pause/quit/nine-lives attenuate the
+    // HMI-wide digital master and leave the gameplay Air voice running.
+    const auto& dos_presentation = original_drone_dos_presentation_audio_contract();
+    assert(dos_presentation.lowbees_descriptor_va == 0x004CBE0u);
+    assert(dos_presentation.lowbees_voice_handle_va == 0x004CBF0u);
+    assert(dos_presentation.lowbees_restart_byte_va == 0x0083881u);
+    assert(dos_presentation.lowbees_start_call_va == 0x00081709u);
+    assert(dos_presentation.lowbees_stop_call_va == 0x00082C73u);
+    assert(dos_presentation.ordering_lowbees_stop_call_va == 0x00082E2Fu);
+    assert(dos_presentation.lowbees_initial_level == 0);
+    assert(dos_presentation.lowbees_fade_step == 0x007Du);
+    assert(dos_presentation.lowbees_fade_threshold == 0x7000u);
+    assert(dos_presentation.lowbees_terminal_written_level == 0x704Eu);
+    assert(dos_presentation.lowbees_loop_count == 0xFFFFFFFFu);
+
+    assert(dos_presentation.air_descriptor_va == 0x004CBBCu);
+    assert(dos_presentation.air_voice_handle_va == 0x004CCC8u);
+    assert(dos_presentation.air_start_call_va == 0x00077737u);
+    assert(dos_presentation.master_digital_volume_control_va == 0x0008AF88u);
+    assert(dos_presentation.master_full_level == 0x7FFFu);
+    assert(dos_presentation.active_master_fade_step == 0x0096u);
+    assert(dos_presentation.overlay_master_fade_step == 0x015Eu);
+    assert(dos_presentation.overlay_full_start_terminal_remainder == 0x00D9u);
+    assert(dos_presentation.pause_raw_state == 5);
+    assert(dos_presentation.quit_confirmation_raw_state == 6);
+    assert(dos_presentation.nine_lives_raw_state == 99);
+    assert(!dos_presentation.overlay_directly_controls_air_sample);
+    assert(dos_presentation.air_voice_continues_through_overlay);
+    assert(!dos_presentation.resume_state_2_restarts_air);
+    assert(dos_presentation.resume_state_2_restores_master_full);
+    assert(dos_presentation.teardown_air_sample_done_call_va == 0x0007DF24u);
+    assert(dos_presentation.teardown_air_stop_call_va == 0x0007DF38u);
+    assert(dos_presentation.teardown_checks_sample_done_before_stop);
+    assert(!dos_presentation.air_survives_gameplay_to_menu_transition);
+
+    assert(dos_presentation.menu_transition_count == 7);
+    const auto* menu = dos_presentation.menu_transitions;
+    assert(menu != nullptr);
+    assert(menu[0].selection == OriginalDroneDosMenuSelection::PlayGame);
+    assert(menu[0].writes_raw_state && menu[0].raw_state == 2);
+    assert(menu[0].stops_lowbees && menu[0].frees_lowbees_descriptor &&
+           menu[0].rearms_lowbees_restart);
+    assert(menu[1].selection == OriginalDroneDosMenuSelection::Instructions);
+    assert(menu[1].writes_raw_state && menu[1].raw_state == 3);
+    assert(!menu[1].stops_lowbees && menu[1].modal_function_va == 0x00085A04u &&
+           menu[1].modal_returns_raw_state_4);
+    assert(menu[2].selection == OriginalDroneDosMenuSelection::OrderingInformation);
+    assert(menu[2].writes_raw_state && menu[2].raw_state == 7);
+    assert(menu[2].stops_lowbees && menu[2].uses_ordering_specific_cleanup &&
+           menu[2].modal_function_va == 0x00085D10u && menu[2].modal_returns_raw_state_4);
+    assert(menu[3].selection == OriginalDroneDosMenuSelection::HighScores);
+    assert(menu[3].writes_raw_state && menu[3].raw_state == 8);
+    assert(!menu[3].stops_lowbees && menu[3].modal_function_va == 0x00086E04u &&
+           menu[3].modal_returns_raw_state_4);
+    assert(menu[4].selection == OriginalDroneDosMenuSelection::ConfigureJoystick);
+    assert(!menu[4].writes_raw_state && !menu[4].stops_lowbees);
+    assert(menu[5].selection == OriginalDroneDosMenuSelection::PlayDemo);
+    assert(menu[5].writes_raw_state && menu[5].raw_state == 13 && menu[5].stops_lowbees);
+    assert(menu[6].selection == OriginalDroneDosMenuSelection::Quit);
+    assert(menu[6].writes_raw_state && menu[6].raw_state == 0 && menu[6].stops_lowbees);
 
     AudioEventQueue queue{};
     assert(queue.push({AudioCue::RapidMissileFire, AudioAction::Play}));

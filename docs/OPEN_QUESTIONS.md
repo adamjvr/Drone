@@ -85,9 +85,11 @@ Drone DOS writes HMI-native packed channel values directly. `sosDIGISetSampleVol
 
 Matched sustained DOS descriptors write `wLoopCount = 0xFFFFFFFF` before `sosDIGIStartSample`. This is independently present for Gemini, `air.clv`, `retro1.clv`, `lowbees.clv`, `drone.clv`, and a local `thunder2.clv` presentation descriptor. Ordinary one-shots retain zero/default loop count. The clean backend contract therefore records zero as one-shot and `UINT32_MAX` as indefinite repetition rather than translating DirectSound Play flags.
 
-### Q-AUDIO-007 — What exact stop/pause/restart lifecycle does Drone DOS use across all states?
+### Resolved — Q-AUDIO-007 DOS menu/modal stop/pause/restart lifecycle
 
-The low-level ownership contract is now established: controlled samples retain the voice index returned by `sosDIGIStartSample`, and later use `sosDIGISampleDone`, `sosDIGIStopSample`, `sosDIGISetSampleVolume`, or `sosDIGISetSampleRate` with that handle. Air, Drone and Lowbees all have proven retained handles, and global teardown performs SampleDone-before-Stop on tracked voices. Remaining work is narrower: finish classifying every menu/modal raw-state branch and exact stop/restart ordering before declaring complete DOS presentation lifecycle parity.
+The canonical DOS lifecycle is now state-complete for presentation audio. Main-menu `lowbees.clv` starts at native level zero, loops indefinitely and advances by `0x7D` while its scalar is below `0x7000`; because the check precedes the increment, the terminal written level is `0x704E`. Play Game, Play Demo, Quit and the `-1` exit path use generic Lowbees stop/free/rearm cleanup. Ordering Information performs the same ownership transfer through a dedicated branch before entering its `thunder2.clv` modal. Instructions, High Scores and inline joystick configuration leave Lowbees running.
+
+Pause (`5`), quit confirmation (`6`) and nine-lives (`99`) do **not** directly fade or stop Air in the DOS build. They subtract `0x15E` from the HMI-wide digital master while the scalar is above that threshold, leaving the retained Air voice active; a full `0x7FFF` start therefore reaches terminal remainder `0x00D9`. Resume to raw state `2` restores master `0x7FFF` without restarting Air. Gameplay teardown separately fades the master, performs `sosDIGISampleDone` on the retained Air handle, conditionally stops it, and restores master volume before returning to menu ownership. This closes DOS presentation lifecycle parity at the contract level while preserving its material difference from the Win32 direct-Air overlay implementation.
 
 ## Evidence acquisition
 

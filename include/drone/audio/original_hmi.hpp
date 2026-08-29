@@ -32,6 +32,9 @@ inline constexpr std::uint32_t original_drone_dos_hmi_set_sample_rate_va = 0x000
 inline constexpr std::uint32_t original_drone_dos_hmi_sample_done_va = 0x0008B549u;
 inline constexpr std::uint32_t original_drone_dos_hmi_init_driver_va = 0x0008D4AFu;
 inline constexpr std::uint32_t original_drone_dos_hmi_voice_count_write_va = 0x0008D78Au;
+inline constexpr std::uint32_t original_drone_dos_hmi_master_digital_volume_va = 0x0008AF88u;
+inline constexpr std::uint16_t original_drone_dos_hmi_master_volume_full = 0x7FFFu;
+inline constexpr std::uint16_t original_drone_dos_hmi_master_volume_mask = 0x7FFFu;
 
 [[nodiscard]] constexpr std::uint32_t original_hmi_pack_equal_channel_volume(
     std::uint16_t level) noexcept {
@@ -97,9 +100,84 @@ struct OriginalDroneDosHmiRuntimeContract {
     // Controlled sounds retain the voice index returned by StartSample and
     // later use SampleDone / StopSample / SetSampleVolume / SetSampleRate.
     bool retained_voice_handles_for_runtime_control = false;
+
+    // Drone also uses an HMI-wide digital master-volume control separate from
+    // per-sample SetSampleVolume. The routine masks the supplied scalar to
+    // 15 bits and returns the prior master level.
+    std::uint32_t master_digital_volume_control_va = 0;
+    std::uint16_t master_volume_full = 0;
+    std::uint16_t master_volume_mask = 0;
+    bool master_control_is_distinct_from_sample_volume = false;
+};
+
+enum class OriginalDroneDosMenuSelection : std::uint8_t {
+    PlayGame = 0,
+    Instructions = 1,
+    OrderingInformation = 2,
+    HighScores = 3,
+    ConfigureJoystick = 4,
+    PlayDemo = 5,
+    Quit = 6,
+};
+
+struct OriginalDroneDosMenuAudioTransition {
+    OriginalDroneDosMenuSelection selection{};
+    bool writes_raw_state = false;
+    std::int32_t raw_state = 0;
+    bool stops_lowbees = false;
+    bool frees_lowbees_descriptor = false;
+    bool rearms_lowbees_restart = false;
+    bool uses_ordering_specific_cleanup = false;
+    std::uint32_t modal_function_va = 0;
+    bool modal_returns_raw_state_4 = false;
+};
+
+struct OriginalDroneDosPresentationAudioContract {
+    // Main-menu Lowbees ownership.
+    std::uint32_t lowbees_descriptor_va = 0;
+    std::uint32_t lowbees_voice_handle_va = 0;
+    std::uint32_t lowbees_restart_byte_va = 0;
+    std::uint32_t lowbees_start_call_va = 0;
+    std::uint32_t lowbees_stop_call_va = 0;
+    std::uint32_t ordering_lowbees_stop_call_va = 0;
+    std::uint16_t lowbees_initial_level = 0;
+    std::uint16_t lowbees_fade_step = 0;
+    std::uint16_t lowbees_fade_threshold = 0;
+    std::uint16_t lowbees_terminal_written_level = 0;
+    std::uint32_t lowbees_loop_count = 0;
+
+    // Gameplay Air ownership and HMI-wide master attenuation.
+    std::uint32_t air_descriptor_va = 0;
+    std::uint32_t air_voice_handle_va = 0;
+    std::uint32_t air_start_call_va = 0;
+    std::uint32_t master_digital_volume_control_va = 0;
+    std::uint16_t master_full_level = 0;
+    std::uint16_t active_master_fade_step = 0;
+    std::uint16_t overlay_master_fade_step = 0;
+    std::uint16_t overlay_full_start_terminal_remainder = 0;
+    std::uint8_t pause_raw_state = 0;
+    std::uint8_t quit_confirmation_raw_state = 0;
+    std::uint8_t nine_lives_raw_state = 0;
+    bool overlay_directly_controls_air_sample = false;
+    bool air_voice_continues_through_overlay = false;
+    bool resume_state_2_restarts_air = false;
+    bool resume_state_2_restores_master_full = false;
+
+    // Gameplay teardown fades the master, then checks the retained Air voice
+    // with SampleDone and stops it when still active before menu ownership.
+    std::uint32_t teardown_air_sample_done_call_va = 0;
+    std::uint32_t teardown_air_stop_call_va = 0;
+    bool teardown_checks_sample_done_before_stop = false;
+    bool air_survives_gameplay_to_menu_transition = false;
+
+    // Seven main-menu selections, in the original on-screen order.
+    const OriginalDroneDosMenuAudioTransition* menu_transitions = nullptr;
+    std::uint32_t menu_transition_count = 0;
 };
 
 [[nodiscard]] const OriginalHmiSosApiContract& original_hmi_sos_api_contract() noexcept;
 [[nodiscard]] const OriginalDroneDosHmiRuntimeContract& original_drone_dos_hmi_runtime_contract() noexcept;
+[[nodiscard]] const OriginalDroneDosPresentationAudioContract&
+original_drone_dos_presentation_audio_contract() noexcept;
 
 } // namespace drone::audio

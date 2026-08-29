@@ -38,7 +38,7 @@
 | reusable SFX voices | CONFIRMED | exact 20-voice scan from slot 0; first raw status != 1 wins; if all 20 are exactly 1, slot 0 is stolen/restarted |
 | portable audio-event boundary | ESTABLISHED parameterized contract | allocation-free semantic event queue emitted natively for rapid missile, shield cadence, special load/cycle/ordinary launch, transient Squad flight selection and mission interstitial cues; `SetVolume` and `SetFrequency` now carry original control values |
 | long-form/loop ownership | CONFIRMED expanding integration | 13 effective Win32 flags-1 Play sites cataloged (8 literal + 5 register-proven); Results is flags-0 one-shot; Ordering/Credits plus native Lid/Top/Gemini lifetimes emit start/stop events; `drone.wav` has exact gameplay control; native state-2 `air.wav` owns its bidirectional envelope/detonation/restart; and the separate presentation host owns `lowbees.wav`, the 11025-Hz air restart, overlay fade-to-stop/state-2 resume restart, plus the exact post-scroll credits 99..0 volume envelope |
-| DOS HMI / remaining audio semantics | EXECUTABLE RUNTIME CONTRACT ESTABLISHED / lifecycle PARTIAL | Canonical DOS configures 32 x 0xF0 voices; StartSample selects first inactive and returns -1 on saturation with no steal/priority selection; sample volume is native packed HMI channel data; sustained loops use wLoopCount=0xFFFFFFFF; retained handles drive status/stop/volume/rate. Complete menu/modal raw-state lifecycle classification (Q-AUDIO-007) and the portable mixer/backend remain Phase-5 work |
+| DOS HMI / presentation semantics | EXECUTABLE RUNTIME + LIFECYCLE CONTRACT ESTABLISHED | Canonical DOS configures 32 x 0xF0 voices; StartSample selects first inactive and returns -1 on saturation; packed HMI sample volume and UINT32_MAX loop count are exact; Lowbees menu ownership is state-mapped; states 5/6/99 attenuate the HMI digital master while Air continues; gameplay teardown SampleDone/stops Air before menu return. Q-AUDIO-003..007 are resolved; portable mixer/backend design remains Phase-5 work |
 
 ## Status legend
 
@@ -124,7 +124,7 @@ Phase 4 is complete for the canonical shareware simulation. The remaining non-na
 
 Phase 5 priorities are now:
 
-1. Finish the narrowed DOS `Q-AUDIO-007` state-by-state menu/modal lifecycle map using the now-identified retained voice handles and HMI Start/Stop/Done/Volume/Rate primitives.
+1. Define the portable audio mixer/backend interface now that Win32 DirectSound and DOS HMI voice, control, loop, and presentation-lifecycle policies are executable-backed.
 2. Complete the portable audio-event/mixer backend from the established semantic events while preserving exact backend differences: Win32 20-buffer steal-on-saturation pools versus DOS 32 dynamic return-failure voices, normalized DirectSound attenuation versus native HMI packed levels, and distinct loop representations.
 3. Add backend-level regression fixtures for saturation, loop and control semantics before binding the clean event layer to host audio APIs.
 4. Keep deterministic audio-trace comparison in Phase 6 and end-to-end shareware discrepancy closure in Phase 7.

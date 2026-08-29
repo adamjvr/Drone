@@ -40,6 +40,64 @@ const OriginalDroneDosHmiRuntimeContract& original_drone_dos_hmi_runtime_contrac
         .infinite_loop_count = original_drone_dos_hmi_infinite_loop_count,
         .infinite_loop_uses_loop_count_field = true,
         .retained_voice_handles_for_runtime_control = true,
+        .master_digital_volume_control_va = original_drone_dos_hmi_master_digital_volume_va,
+        .master_volume_full = original_drone_dos_hmi_master_volume_full,
+        .master_volume_mask = original_drone_dos_hmi_master_volume_mask,
+        .master_control_is_distinct_from_sample_volume = true,
+    };
+    return contract;
+}
+
+
+const OriginalDroneDosPresentationAudioContract&
+original_drone_dos_presentation_audio_contract() noexcept {
+    static constexpr OriginalDroneDosMenuAudioTransition menu_transitions[]{
+        {OriginalDroneDosMenuSelection::PlayGame, true, 2, true, true, true, false, 0, false},
+        {OriginalDroneDosMenuSelection::Instructions, true, 3, false, false, false, false,
+         0x00085A04u, true},
+        {OriginalDroneDosMenuSelection::OrderingInformation, true, 7, true, true, true, true,
+         0x00085D10u, true},
+        {OriginalDroneDosMenuSelection::HighScores, true, 8, false, false, false, false,
+         0x00086E04u, true},
+        {OriginalDroneDosMenuSelection::ConfigureJoystick, false, 0, false, false, false, false,
+         0, false},
+        {OriginalDroneDosMenuSelection::PlayDemo, true, 13, true, true, true, false, 0, false},
+        {OriginalDroneDosMenuSelection::Quit, true, 0, true, true, true, false, 0, false},
+    };
+
+    static constexpr OriginalDroneDosPresentationAudioContract contract{
+        .lowbees_descriptor_va = 0x004CBE0u,
+        .lowbees_voice_handle_va = 0x004CBF0u,
+        .lowbees_restart_byte_va = 0x0083881u,
+        .lowbees_start_call_va = 0x00081709u,
+        .lowbees_stop_call_va = 0x00082C73u,
+        .ordering_lowbees_stop_call_va = 0x00082E2Fu,
+        .lowbees_initial_level = 0,
+        .lowbees_fade_step = 0x007Du,
+        .lowbees_fade_threshold = 0x7000u,
+        .lowbees_terminal_written_level = 0x704Eu,
+        .lowbees_loop_count = original_drone_dos_hmi_infinite_loop_count,
+        .air_descriptor_va = 0x004CBBCu,
+        .air_voice_handle_va = 0x004CCC8u,
+        .air_start_call_va = 0x00077737u,
+        .master_digital_volume_control_va = original_drone_dos_hmi_master_digital_volume_va,
+        .master_full_level = original_drone_dos_hmi_master_volume_full,
+        .active_master_fade_step = 0x0096u,
+        .overlay_master_fade_step = 0x015Eu,
+        .overlay_full_start_terminal_remainder = 0x00D9u,
+        .pause_raw_state = 5,
+        .quit_confirmation_raw_state = 6,
+        .nine_lives_raw_state = 99,
+        .overlay_directly_controls_air_sample = false,
+        .air_voice_continues_through_overlay = true,
+        .resume_state_2_restarts_air = false,
+        .resume_state_2_restores_master_full = true,
+        .teardown_air_sample_done_call_va = 0x0007DF24u,
+        .teardown_air_stop_call_va = 0x0007DF38u,
+        .teardown_checks_sample_done_before_stop = true,
+        .air_survives_gameplay_to_menu_transition = false,
+        .menu_transitions = menu_transitions,
+        .menu_transition_count = 7,
     };
     return contract;
 }
