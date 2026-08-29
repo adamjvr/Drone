@@ -22,6 +22,7 @@
 - The established process-global explosion selector `0x0042EFD8` is session-owned and advances at exact trajectory/Gemini/Lid-Top impact call counts, preserving `explode2, explode2, explode3, explode4`.
 - Successful Gemini/Lid-Top enemy-bomb spawns emit the original `missile.wav` pool at source/default frequency.
 - Audio event storage remains allocation-free and is sized to 256 events per update to preserve multi-impact multiplicity.
+- Native shareware boss loop ownership is integrated: Lid/Top `retro1.wav` starts at boss activation and stops on the exposed-core Stinger transition; Gemini `gemini.wav` starts at activation and stops only when the last active body begins destruction.
 
 ## Phase 5 audio reconstruction
 
@@ -31,8 +32,8 @@
 | Win32 DirectSound primitives | CONFIRMED | WAV slot loader, buffer duplication, play/rewind, exact volume conversion, frequency, stop/reset, release and raw status helpers mapped |
 | reusable SFX voices | CONFIRMED | exact 20-voice scan from slot 0; first raw status != 1 wins; if all 20 are exactly 1, slot 0 is stolen/restarted |
 | portable audio-event boundary | ESTABLISHED first contract | allocation-free semantic event queue emitted natively for rapid missile, shield cadence, special load/cycle/ordinary launch, transient Squad flight selection and mission interstitial cues |
-| long-form/loop ownership | CONFIRMED first integration | 13 effective Win32 flags-1 Play sites cataloged (8 literal + 5 register-proven); Results is flags-0 one-shot; Ordering/Credits lifetimes are native post-game events; menu `lowbees` and credits fade lifecycles documented |
-| remaining audio semantics | PARTIAL | clean menu/air/Drone/remaining boss loop integration, credits/menu fade execution, complete Squad/pool init settings, DOS HMI behavior and portable mixer/backend remain Phase-5 work |
+| long-form/loop ownership | CONFIRMED expanding integration | 13 effective Win32 flags-1 Play sites cataloged (8 literal + 5 register-proven); Results is flags-0 one-shot; Ordering/Credits plus native Lid/Top and Gemini encounter-loop lifetimes now emit semantic start/stop events; menu `lowbees`, air, Drone and credits fade lifecycles remain staged work |
+| remaining audio semantics | PARTIAL | clean menu/air/Drone loop + volume-control integration, repeating boss `level1`/`level2` cadence, credits/menu fade execution, complete Squad/pool init settings, DOS HMI behavior and portable mixer/backend remain Phase-5 work |
 
 ## Status legend
 

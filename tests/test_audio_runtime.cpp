@@ -60,6 +60,18 @@ int main() {
     assert(results.voice_policy == AudioVoicePolicy::SingleBuffer);
     assert(results.directsound_play_flags == 0);
 
+    const auto& lid_top_loop = audio_cue_definition(AudioCue::LidTopBossLoop);
+    assert(lid_top_loop.original_asset == "retro1.wav");
+    assert(lid_top_loop.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(lid_top_loop.original_volume_0_to_100 == 70);
+    assert(lid_top_loop.directsound_play_flags == directsound_play_looping_flag);
+
+    const auto& gemini_loop = audio_cue_definition(AudioCue::GeminiBossLoop);
+    assert(gemini_loop.original_asset == "gemini.wav");
+    assert(gemini_loop.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(gemini_loop.original_volume_0_to_100 == 100);
+    assert(gemini_loop.directsound_play_flags == directsound_play_looping_flag);
+
     const auto& ordering = audio_cue_definition(AudioCue::OrderingInformation);
     assert(ordering.original_asset == "thunder2.wav");
     assert(ordering.original_volume_0_to_100 == -1);

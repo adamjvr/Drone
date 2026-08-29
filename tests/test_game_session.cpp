@@ -9,6 +9,16 @@
 
 namespace {
 
+bool has_audio_event(
+    const drone::audio::AudioEventQueue& queue,
+    const drone::audio::AudioCue cue,
+    const drone::audio::AudioAction action) {
+    for (const auto event : queue.view()) {
+        if (event == drone::audio::AudioEvent{cue, action}) return true;
+    }
+    return false;
+}
+
 drone::gameplay::TrajectoryPathCatalogView make_session_trajectory_paths(
     std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count>& storage) {
     for (std::size_t family = 0; family < storage.size(); ++family) {
@@ -320,6 +330,10 @@ int main() {
         assert(session.encounter.boss.family == BossFamily::LidTop);
         assert(session.encounter.boss.lid_top.top_activity == boss_activity_active);
         assert(session.encounter.boss.lid_top.lid_activity == lid_top_initial_lid_activity);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::LidTopBossLoop,
+            drone::audio::AudioAction::Play));
 
         // Remaining at/after the boundary cannot reinitialize an owned boss.
         result = step_game_session(session, GameplayInputFrame{}, targets);
@@ -346,6 +360,11 @@ int main() {
         assert(result.boss_destruction_transitions == 1);
         assert(result.lid_top_stinger_core_hit);
         assert(session.encounter.boss.lid_top.lid_destruction_progress == 1);
+        assert(result.audio_events.size >= 1);
+        assert((result.audio_events.view()[result.audio_events.size - 1] ==
+            drone::audio::AudioEvent{
+                drone::audio::AudioCue::LidTopBossLoop,
+                drone::audio::AudioAction::StopAndRewind}));
 
         for (int i = 0; i < 24; ++i) {
             result = step_game_session(session, GameplayInputFrame{}, targets);
@@ -373,6 +392,10 @@ int main() {
         assert(result.boss_activated);
         assert(result.boss_activated_family == BossFamily::Gemini);
         assert(session.encounter.boss.gemini.runtime_initialized);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::GeminiBossLoop,
+            drone::audio::AudioAction::Play));
 
         auto& gemini = session.encounter.boss.gemini;
         gemini.root_fixed_x = 0;
@@ -409,6 +432,10 @@ int main() {
         assert(result.boss_destruction_transitions == 1);
         assert(result.boss_score_delta == 100);
         assert(gemini.side_a.body_activity == boss_activity_destruction);
+        assert(!has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::GeminiBossLoop,
+            drone::audio::AudioAction::StopAndRewind));
 
         session.encounter.player.x = 250; // only active Gemini side B qualifies
         session.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
@@ -422,6 +449,11 @@ int main() {
         assert(session.campaign.score.total == 200);
         assert(session.campaign.score.extra_life_progress == 200);
         assert(gemini.side_b.body_activity == boss_activity_destruction);
+        assert(result.audio_events.size >= 3);
+        assert((result.audio_events.view()[result.audio_events.size - 1] ==
+            drone::audio::AudioEvent{
+                drone::audio::AudioCue::GeminiBossLoop,
+                drone::audio::AudioAction::StopAndRewind}));
 
         // The canonical shareware stop never initializes dispatch slot 2.
         reset_game_session(session, GameplaySessionResetScope::EncounterOnly);

@@ -515,10 +515,20 @@ GameSessionTickResult step_game_session(
                     encounter.boss.lid_top,
                     session.runtime.difficulty,
                     session.runtime.demo_playback_mode);
+                // Win32 0x004172EC..0x00417323 starts retro1.wav with
+                // DSBPLAY_LOOPING as part of the encounter initializer.
+                (void)result.audio_events.push({
+                    drone::audio::AudioCue::LidTopBossLoop,
+                    drone::audio::AudioAction::Play});
             } else if (encounter.boss.family == BossFamily::Gemini) {
                 initialize_gemini_boss_runtime(
                     encounter.boss.gemini,
                     session.runtime.difficulty);
+                // Win32 0x00405F92..0x00405FA1 starts gemini.wav looping
+                // after the paired Gemini state has been initialized.
+                (void)result.audio_events.push({
+                    drone::audio::AudioCue::GeminiBossLoop,
+                    drone::audio::AudioAction::Play});
             }
         }
     }
@@ -770,6 +780,16 @@ GameSessionTickResult step_game_session(
         append_original_explosion_variants(
             result.audio_events, session.original_audio,
             lid_top_result.explosion_sfx_variant_calls);
+        if (lid_top_result.destruction_transitions != 0) {
+            // The exposed-core Stinger collision stops retro1.wav immediately
+            // at Win32 0x00416C1E..0x00416C2A, before lid activity becomes 2.
+            // Unlike the closed-top impact branches, this exposed-core kill has
+            // no 0x00402900 explosion-variant call; the append above is therefore
+            // empty for this transition and the loop stop remains the exact event.
+            (void)result.audio_events.push({
+                drone::audio::AudioCue::LidTopBossLoop,
+                drone::audio::AudioAction::StopAndRewind});
+        }
     } else if (encounter.boss.family == BossFamily::Gemini) {
         const auto gemini_result = step_gemini_boss(
             encounter.boss.gemini,
@@ -806,6 +826,18 @@ GameSessionTickResult step_game_session(
         append_original_explosion_variants(
             result.audio_events, session.original_audio,
             gemini_result.explosion_sfx_variant_calls);
+        if (gemini_result.destruction_transitions != 0 &&
+            encounter.boss.gemini.side_a.body_activity != boss_activity_active &&
+            encounter.boss.gemini.side_b.body_activity != boss_activity_active) {
+            // Each Gemini damage branch stops gemini.wav only when the *other*
+            // body is no longer activity 1 (0x00405773..0x00405789 and the
+            // mirrored 0x00405C4A..0x00405C6B path). Thus the first destroyed
+            // side leaves the loop running and the second transition stops it.
+            // As above, the impact explosion calls precede this stop.
+            (void)result.audio_events.push({
+                drone::audio::AudioCue::GeminiBossLoop,
+                drone::audio::AudioAction::StopAndRewind});
+        }
     }
 
     // The original late bomb loop is per-slot, not two independent global

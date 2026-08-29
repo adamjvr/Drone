@@ -86,6 +86,8 @@ The clean core uses semantic `AudioCue` values and metadata-only `AudioCueDefini
 | Trajectory flight 1..14 | `squad1.wav` .. `squad14.wav` | 20-voice pools | not yet cataloged | source/default | native from exact `rand()%14` result |
 | Mission disarm interstitial | `deepness.wav` | single buffer | 90 | source/default | native transition site |
 | Mission detonation interstitial | `detonate.wav` | single buffer | 90 | source/default | native transition site |
+| Lid/Top encounter loop | `retro1.wav` | single buffer | 70 | source/default | native start at boss activation; stop on exposed-core Stinger destruction transition |
+| Gemini encounter loop | `gemini.wav` | single buffer | 100 | source/default | native start at boss activation; stop only when the last activity-1 side enters destruction |
 
 The late enemy-bomb collision subsystem still returns historical compatibility booleans for existing callers, but audio order no longer depends on them. The collision pass itself now carries an authoritative event queue, preserving slot order and same-slot fallthrough: special stop/impact precedes the same bomb's later player-hit sound, and an earlier slot may auto-launch `probe3.wav` before a later slot stops it. Shield absorption has no DirectSound call in that recovered late-bomb branch.
 
@@ -162,6 +164,24 @@ The Results path is a useful counterexample to a generic “music loops” rule.
 
 `run_main_menu` loads `lowbees.wav` when the restart byte requests it, explicitly sets volume 0, starts flags-1 playback at `0x00418B14`, and increments the volume toward 80 in the menu loop (`0x004190F9..0x00419110`). On the established exit states it stop/resets and releases the slot (`0x00419DC6..0x00419DDB`) and arms the restart byte again. This lifecycle is cataloged but is not yet injected into the clean menu host.
 
+## Native shareware boss loop ownership
+
+The two boss families normally reachable in the canonical shareware campaign now own their encounter-loop start/stop events inside `GameSession`, at the same gameplay transitions that already own their mutable combat state.
+
+### Lid/Top — `retro1.wav`
+
+`initialize_lid_top_boss` reads the dedicated `retro1.wav` slot and calls `Play(..., flags=1)` at `0x004172EC..0x00417323`. The resource loader sets that slot to game volume 70. The clean `LidTopBossLoop` cue therefore starts when the Y=-200 processed-count dispatch activates the native Lid/Top runtime.
+
+The active updater does **not** wait for the later 25-count lid retirement or asset release to stop the loop. A valid exposed-core red-Stinger hit calls `directsound_stop_reset(retro1)` at `0x00416C1E..0x00416C2A` and only then writes lid activity 2. That collision is also the already-established exception that does not call the process-global `0x00402900` explosion-SFX selector. The clean event queue therefore emits the loop stop directly on `destruction_transitions != 0`, with no fabricated explosion cue.
+
+### Gemini — `gemini.wav`
+
+`initialize_gemini_boss` starts the dedicated `gemini.wav` slot looping at `0x00405F92..0x00405FA1`; the loader sets game volume 100. Gemini's two destruction branches then preserve an important asymmetry: when one body crosses its damage threshold, the updater checks the *other* body's activity. If the other body is still activity 1, music continues. Only the transition that leaves neither body at activity 1 calls stop/reset on `gemini.wav` (`0x00405773..0x00405789`, mirrored at `0x00405C4A..0x00405C6B`).
+
+Probe/Stinger impact SFX execute earlier in each damage branch than this threshold/loop-stop decision. `GameSession` therefore appends the existing exact explosion-variant calls first and the `GeminiBossLoop` stop afterward when the second surviving side crosses threshold. This preserves both multiplicity and order.
+
+Resource release remains a different lifetime: `release_lid_top_boss_assets` and `release_gemini_boss_assets` eventually release their audio slots, but the semantic encounter loops have already stopped in combat. The portable layer does not conflate release with playback stop.
+
 ## Native post-game audio ownership
 
 Phase 5 now connects the already-native `GameSession` post-game modal sequence to the semantic audio queue:
@@ -183,6 +203,7 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
   - exact volume conversion;
   - established frequency constants;
   - metadata-only 13-site flags-1 call catalog with literal/register proof classification.
+  - native semantic ownership for the shareware Lid/Top and Gemini loop starts/stops.
 - `include/drone/audio/audio_event.hpp`
   - semantic cue/action types;
   - metadata-only cue definitions, including the four one-shot Results tracks and looping Ordering/Credits cues;
@@ -192,8 +213,8 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 
 ## Next audio work
 
-1. integrate the already-classified menu/air/Drone/boss loop lifetimes where their owning clean state machines exist;
-2. finish exact initialization settings for Squad1..14 and still-unidentified pools;
-3. implement credits/menu fade envelopes and any pan behavior at the portable mixer boundary;
+1. integrate the already-classified menu/air/Drone loop lifetimes together with the volume-control semantics their clean owners require;
+2. recover the repeating `level1.wav` / `level2.wav` boss cadence and finish exact initialization settings for Squad1..14 and still-unidentified pools;
+3. implement credits/menu/approach fade envelopes and any pan behavior at the portable mixer boundary;
 4. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
-5. add a portable mixer/backend interface only after the remaining original voice semantics are specified.
+5. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.

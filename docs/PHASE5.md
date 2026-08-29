@@ -44,6 +44,18 @@ The third Phase-5 slice closes the first long-form/loop ownership gap:
 
 The portable backend still deliberately waits: this slice specifies ownership and flags first, so a future mixer does not bake in the false assumption that every music-like asset loops.
 
+## Native shareware boss loop ownership
+
+The fourth Phase-5 slice moves the two shareware-reachable boss loops from catalog-only evidence into the native session boundary:
+
+- Lid/Top activation at the already-native Y=-200 dispatch starts `retro1.wav` with volume 70 and DirectSound loop flag 1, matching `0x004172EC..0x00417323`;
+- the exposed-core Stinger transition stops/rewinds `retro1.wav` immediately at `0x00416C1E..0x00416C2A`, before lid activity is written to destruction state 2; this exact hit still emits no `0x00402900` explosion-variant SFX;
+- Gemini activation starts `gemini.wav` at volume 100 with loop flag 1, matching `0x00405F92..0x00405FA1`;
+- destroying the first Gemini side leaves that loop running; only the threshold transition of the last activity-1 body stops/rewinds it, matching the paired `0x00405773..0x00405789` / `0x00405C4A..0x00405C6B` branches;
+- boss impact explosion variants retain their original earlier call order, so the final Gemini loop stop follows the second side's Probe/Stinger impact SFX rather than preceding it.
+
+Registered-only boss loops remain metadata-only, and menu/air/Drone loops remain separate because their runtime volume/fade semantics need a richer mixer-control event than simple Play/Stop.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

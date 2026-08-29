@@ -7,7 +7,7 @@ namespace {
 
 using Policy = AudioVoicePolicy;
 
-constexpr std::array<AudioCueDefinition, 33> definitions{{
+constexpr std::array<AudioCueDefinition, 35> definitions{{
     // RapidMissileFire
     {"missile.wav", Policy::ReusablePool20, 50, original_missile_frequency_hz, 0},
     // ShieldPulse
@@ -47,6 +47,11 @@ constexpr std::array<AudioCueDefinition, 33> definitions{{
     // Mission interstitials
     {"deepness.wav", Policy::SingleBuffer, 90, 0, 0},
     {"detonate.wav", Policy::SingleBuffer, 90, 0, 0},
+    // Shareware-reachable boss encounter loops. The original starts these in
+    // the dedicated encounter initializers and stops them from the boss update
+    // at the proven destruction transition, before resource release.
+    {"retro1.wav", Policy::SingleBuffer, 70, 0, directsound_play_looping_flag},
+    {"gemini.wav", Policy::SingleBuffer, 100, 0, directsound_play_looping_flag},
     // Results chooses exactly one of these at Win32 0x00411726..0x0041176C.
     // These are deliberately one-shot Play(flags=0), unlike the loop-owned
     // presentation/encounter sounds cataloged by original_directsound.cpp.
