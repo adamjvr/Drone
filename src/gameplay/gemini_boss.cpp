@@ -11,7 +11,8 @@ namespace {
 
 constexpr std::int32_t fixed_one = 1 << 16;
 constexpr std::int32_t live_horizontal_acceleration = 0x44c;
-constexpr std::int32_t retreat_velocity_y = -100 * fixed_one;
+constexpr std::int32_t traversal_reset_fixed_y = -100 * fixed_one;
+constexpr std::uint8_t traversal_sound_period = 8;
 constexpr std::int32_t side_b_body_x_offset = 170;
 constexpr std::int32_t head_x_offset = 6;
 constexpr std::int32_t head_y_offset = 41;
@@ -127,10 +128,16 @@ void advance_root_motion(
     }
 
     if (state.side_a.body_y >= 240) {
-        state.root_velocity_y = retreat_velocity_y;
-        ++state.retreat_sound_counter;
-        if (state.retreat_sound_counter == 8) state.retreat_sound_counter = 0;
-        result.vertical_retreat_started = true;
+        // Win32 0x004050BA..0x004050F9 mirrors Lid/Top: increment the shared
+        // eight-pass sound byte, emit level2.wav on the eighth crossing, then
+        // reset fixed Y at 0x00467544 to -100<<16 without changing velocity.
+        ++state.traversal_sound_counter;
+        if (state.traversal_sound_counter == traversal_sound_period) {
+            state.traversal_sound_counter = 0;
+            result.level2_cadence_sound_requested = true;
+        }
+        state.root_fixed_y = traversal_reset_fixed_y;
+        result.vertical_traversal_wrapped = true;
     }
 }
 

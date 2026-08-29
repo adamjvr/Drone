@@ -44,9 +44,15 @@ head A = body A + (6, 41)
 head B = body B + (6, 41)
 ```
 
-The update compares the midpoint of the two **head X origins** against player-left X. It accelerates the shared X velocity by `+/-0x44C` and clamps it to the difficulty-scaled cap. Once body Y reaches 240, vertical velocity becomes `-100<<16`. The accompanying eight-count sound cadence is presentation/audio state.
+The update compares the midpoint of the two **head X origins** against player-left X. It accelerates the shared X velocity by `+/-0x44C` and clamps it to the difficulty-scaled cap. Once integer body-A/root Y reaches 240, `0x004050BA..0x004050F9` increments shared byte `0x00454B04`, optionally plays `level2.wav` when the byte reaches 8, then writes `0xFF9C0000` to fixed-Y field `0x00467544`. The vertical velocity at `0x0046754C` is untouched, so Gemini wraps to Y=-100 and continues descending rather than entering an upward retreat. The initializer clears the shared cadence byte at `0x00405F87`. `level2.wav` is a one-shot (`Play` flags 0) every eighth completed traversal.
 
 On gameplay phase 2, body A's current frame increments and wraps 30→0 while body B runs in the opposite direction, decrementing 0→29.
+
+## Traversal audio cadence
+
+The normally reachable shareware bosses reuse one process/global cadence byte at `0x00454B04`, but their initializers clear it before each encounter, so the counter does not leak between Lid/Top and Gemini. For Gemini, body A's shared fixed Y is `0x00467544`; each bottom crossing increments the byte, plays handle `0x00466B0C` on count 8, resets the byte to zero, and then wraps fixed Y to `-100<<16`. `0x00405FB0` loads that handle from `level2.wav` and applies volume 100.
+
+The clean boss lifecycle owns the cadence counter because it is driven by exact traversal state, while the emitted sound remains an allocation-free semantic `AudioEvent`. This correction supersedes the earlier Phase-4 interpretation that Y>=240 changed vertical velocity to `-100<<16`.
 
 ## Native bomb attack
 

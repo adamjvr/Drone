@@ -235,7 +235,8 @@ struct GameSessionTickResult {
     std::int32_t boss_score_delta = 0;
     bool lid_top_motion_stop_requested = false;
     bool lid_top_root_moved = false;
-    bool lid_top_vertical_retreat_started = false;
+    bool lid_top_vertical_traversal_wrapped = false;
+    bool lid_top_level1_cadence_sound_requested = false;
     bool lid_top_enemy_bomb_spawned = false;
     std::optional<std::size_t> lid_top_enemy_bomb_spawn_index{};
     std::size_t lid_top_rapid_missiles_consumed = 0;
@@ -246,7 +247,8 @@ struct GameSessionTickResult {
     bool lid_top_special_closed_top_impact = false;
     bool lid_top_stinger_core_hit = false;
     bool gemini_root_moved = false;
-    bool gemini_vertical_retreat_started = false;
+    bool gemini_vertical_traversal_wrapped = false;
+    bool gemini_level2_cadence_sound_requested = false;
     bool gemini_enemy_bomb_spawned = false;
     std::optional<std::size_t> gemini_enemy_bomb_spawn_index{};
     bool gemini_special_hit_side_a = false;

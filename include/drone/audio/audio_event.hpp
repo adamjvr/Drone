@@ -43,6 +43,8 @@ enum class AudioCue : std::uint8_t {
     DroneApproachLoop,
     LidTopBossLoop,
     GeminiBossLoop,
+    LidTopLevel1Cadence,
+    GeminiLevel2Cadence,
     ResultsChoral,
     ResultsSuspense,
     ResultsMoon,

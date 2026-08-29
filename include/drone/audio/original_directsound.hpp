@@ -100,4 +100,11 @@ inline constexpr std::int32_t original_drone_loop_approach_volume_cap = 80;
 inline constexpr std::int32_t original_drone_loop_phase2_decode_volume = 60;
 inline constexpr std::int32_t original_drone_loop_interrupted_decode_volume = 80;
 
+// Both shareware boss traversal routines reuse byte 0x00454B04 as an
+// eight-crossing cadence counter, resetting it in their initializer. The
+// dedicated one-shot buffers are loaded once per boss resource family.
+inline constexpr std::uint8_t original_boss_traversal_sound_period = 8;
+inline constexpr std::int32_t original_lid_top_level1_volume = 90;
+inline constexpr std::int32_t original_gemini_level2_volume = 100;
+
 } // namespace drone::audio

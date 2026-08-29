@@ -35,7 +35,8 @@ struct LidTopBossSpriteMaskView {
 
 struct LidTopBossStepResult {
     bool root_moved = false;
-    bool vertical_retreat_started = false;
+    bool vertical_traversal_wrapped = false;
+    bool level1_cadence_sound_requested = false;
     bool enemy_bomb_spawned = false;
     std::optional<std::size_t> enemy_bomb_spawn_index{};
     std::size_t rapid_missiles_consumed = 0;
@@ -61,10 +62,11 @@ void initialize_lid_top_boss_runtime(
     bool demo_playback_mode) noexcept;
 
 // Reconstruct the shareware-reachable gameplay portion of Win32 0x00416700:
-// root movement/tracking, boss bomb spawn, launched-special collision gates,
-// 25-update lid destruction, rapid-missile top/weak-point ordering, and phase-2
-// lid opening/closing animation. Randomized debris/audio remain presentation
-// events. `sprite_mask` is immutable original-asset data used only by the
+// root movement/tracking, Y>=240 traversal wrap plus every-eighth-pass level1.wav
+// cadence, boss bomb spawn, launched-special collision gates, 25-update lid
+// destruction, rapid-missile top/weak-point ordering, and phase-2 lid
+// opening/closing animation. Randomized debris remain presentation events.
+// `sprite_mask` is immutable original-asset data used only by the
 // top.jba opaque-pixel rapid-missile shield test.
 [[nodiscard]] LidTopBossStepResult step_lid_top_boss(
     LidTopBossLifecycleState& state,

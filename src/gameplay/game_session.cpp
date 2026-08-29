@@ -858,11 +858,18 @@ GameSessionTickResult step_game_session(
         result.boss_score_delta += lid_top_result.score_delta;
         result.lid_top_motion_stop_requested = lid_top_result.top_motion_stopped;
         result.lid_top_root_moved = lid_top_result.root_moved;
-        result.lid_top_vertical_retreat_started =
-            lid_top_result.vertical_retreat_started;
+        result.lid_top_vertical_traversal_wrapped =
+            lid_top_result.vertical_traversal_wrapped;
+        result.lid_top_level1_cadence_sound_requested =
+            lid_top_result.level1_cadence_sound_requested;
         result.lid_top_enemy_bomb_spawned = lid_top_result.enemy_bomb_spawned;
         result.lid_top_enemy_bomb_spawn_index =
             lid_top_result.enemy_bomb_spawn_index;
+        if (lid_top_result.level1_cadence_sound_requested) {
+            (void)result.audio_events.push({
+                drone::audio::AudioCue::LidTopLevel1Cadence,
+                drone::audio::AudioAction::Play});
+        }
         if (lid_top_result.enemy_bomb_spawned) {
             (void)result.audio_events.push({
                 drone::audio::AudioCue::EnemyBombFire,
@@ -909,10 +916,17 @@ GameSessionTickResult step_game_session(
         result.boss_components_retired += gemini_result.components_retired;
         result.boss_score_delta += gemini_result.score_delta;
         result.gemini_root_moved = gemini_result.root_moved;
-        result.gemini_vertical_retreat_started =
-            gemini_result.vertical_retreat_started;
+        result.gemini_vertical_traversal_wrapped =
+            gemini_result.vertical_traversal_wrapped;
+        result.gemini_level2_cadence_sound_requested =
+            gemini_result.level2_cadence_sound_requested;
         result.gemini_enemy_bomb_spawned = gemini_result.enemy_bomb_spawned;
         result.gemini_enemy_bomb_spawn_index = gemini_result.enemy_bomb_spawn_index;
+        if (gemini_result.level2_cadence_sound_requested) {
+            (void)result.audio_events.push({
+                drone::audio::AudioCue::GeminiLevel2Cadence,
+                drone::audio::AudioAction::Play});
+        }
         if (gemini_result.enemy_bomb_spawned) {
             (void)result.audio_events.push({
                 drone::audio::AudioCue::EnemyBombFire,

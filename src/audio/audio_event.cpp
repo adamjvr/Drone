@@ -7,7 +7,7 @@ namespace {
 
 using Policy = AudioVoicePolicy;
 
-constexpr std::array<AudioCueDefinition, 38> definitions{{
+constexpr std::array<AudioCueDefinition, 40> definitions{{
     // RapidMissileFire
     {"missile.wav", Policy::ReusablePool20, 50, original_missile_frequency_hz, 0},
     // ShieldPulse
@@ -64,6 +64,11 @@ constexpr std::array<AudioCueDefinition, 38> definitions{{
     // at the proven destruction transition, before resource release.
     {"retro1.wav", Policy::SingleBuffer, 70, 0, directsound_play_looping_flag},
     {"gemini.wav", Policy::SingleBuffer, 100, 0, directsound_play_looping_flag},
+    // Bottom-of-screen traversal cadences are dedicated one-shot buffers, not
+    // loop voices: Lid/Top uses level1.wav at volume 90 and Gemini uses
+    // level2.wav at volume 100, both with Play flags=0 on every eighth pass.
+    {"level1.wav", Policy::SingleBuffer, 90, 0, 0},
+    {"level2.wav", Policy::SingleBuffer, 100, 0, 0},
     // Results chooses exactly one of these at Win32 0x00411726..0x0041176C.
     // These are deliberately one-shot Play(flags=0), unlike the loop-owned
     // presentation/encounter sounds cataloged by original_directsound.cpp.

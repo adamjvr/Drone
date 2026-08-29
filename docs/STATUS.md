@@ -79,7 +79,7 @@
 | enemy bomb gameplay slice | CONFIRMED core lifecycle | 10-slot 1x9 pool; live steering magnitude rand()%3, replay steering forced 0, Y+=2 update, 3-frame animation, visibility/lifetime, ordered Probe/Stinger→player late collision loop, shield/lethal consequences, and shared spawn-gate/death quiet-period counter reconstructed |
 | scoring / extra lives | CONFIRMED core semantics | total score and rolling extra-life progress separated; signed awards/penalties, one 500-point life conversion per update, Drone special penalty, negative floor and 9999 HUD quirk recovered; clean-tested |
 | high scores / post-game results | CONFIRMED core semantics | lives<=0 results entry, six numeric result statistics, 58-present confirmation lock, Ordering Information handoff, 10-entry qualification/insertion, slot-0 no-save quirk, demo/L-cheat gates, final state1/state4 behavior and perfect-run credits are clean-tested |
-| Lid/Top boss family | CONFIRMED core encounter slice | `lid.jba`/`top.jba` resource pair, 9+1 frames, init/update/release routines, bomb/weapon interaction, 25-count destruction progression and exact +100 boss reward established |
+| Lid/Top boss family | CONFIRMED core encounter slice | `lid.jba`/`top.jba` resource pair, 9+1 frames, repeated Y>=240 fixed-position wrap to -100 with preserved descent velocity, shared eight-traversal `level1.wav` cadence, bomb/weapon interaction, 25-count destruction progression and exact +100 boss reward established |
 | world/scenery progression | CONFIRMED shareware + compiled transition semantics / PARTIAL retail parity | three stacked 320×200 scenery screens; cyclic phase-2 scroll; Drone Y=-200 gates boss dispatch; full-vs-encounter reset split recovered; objective 2 is canonical shareware stop; dormant branches 3–5 map isle/house/night and branch 6 proves zero detonations -> river/Mothership, otherwise results |
 
 ## Evidence/tooling baseline
@@ -122,7 +122,7 @@ Phase 4 is complete for the canonical shareware simulation. The remaining non-na
 
 Phase 5 priorities are now:
 
-1. Recover the complete sound-event/asset map and DirectSound voice-pool semantics.
-2. Build a portable audio-event/mixer contract driven from native `GameSession` events.
+1. Finish the remaining sound-event/asset map: the two unresolved Drone one-shots and residual cue/pool initialization are the main shareware gaps; the `level1.wav` / `level2.wav` every-eighth-traversal cadence is now native.
+2. Complete the portable audio-event/mixer contract from the established semantic events without erasing original priority/overlap/control behavior.
 3. Preserve Windows-vs-DOS backend differences rather than normalizing them prematurely.
 4. Keep deterministic trace comparison in Phase 6 and end-to-end shareware discrepancy closure in Phase 7.

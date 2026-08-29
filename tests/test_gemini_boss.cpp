@@ -58,6 +58,7 @@ int main() {
         assert(state.root_velocity_x == 10923);
         assert(state.root_velocity_y == 0x5556);
         assert(state.horizontal_speed_cap == 0xc000);
+        assert(state.traversal_sound_counter == 0);
         assert(state.side_a.head_damage_threshold == 20);
         assert(state.side_b.head_damage_threshold == 20);
 
@@ -95,13 +96,30 @@ int main() {
 
         freeze_root(state, 5, 240);
         state.horizontal_speed_cap = 0x10000;
+        state.root_velocity_y = 0x10000;
         result = step_gemini_boss(
             state, 2, 0, DifficultyLevel::Beginner, random,
             bombs, gate, special, display, score);
-        assert(result.vertical_retreat_started);
-        assert(state.root_velocity_y == -100 * 65536);
+        assert(result.vertical_traversal_wrapped);
+        assert(!result.level2_cadence_sound_requested);
+        assert(state.root_fixed_y == -100 * 65536);
+        assert(state.root_velocity_y == 0x10000);
+        assert(state.traversal_sound_counter == 1);
         assert(state.side_a.body_frame == 1);
         assert(state.side_b.body_frame == 29);
+
+        // The shared byte reaches eight only once per completed vertical pass.
+        // Use phase 1 to isolate the traversal/audio cadence from bomb RNG.
+        for (int pass = 2; pass <= 8; ++pass) {
+            state.root_fixed_y = 240 * 65536;
+            state.root_velocity_y = 0;
+            result = step_gemini_boss(
+                state, 1, 0, DifficultyLevel::Beginner, random,
+                bombs, gate, special, display, score);
+            assert(result.vertical_traversal_wrapped);
+            assert(result.level2_cadence_sound_requested == (pass == 8));
+        }
+        assert(state.traversal_sound_counter == 0);
     }
 
     // Phase-2 bomb spawn consumes chance before gates, prefers A/B from rand%10,

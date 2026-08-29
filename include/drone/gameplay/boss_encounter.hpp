@@ -44,6 +44,10 @@ struct LidTopBossLifecycleState {
     std::int32_t root_velocity_x = 0;
     std::int32_t root_velocity_y = 0;
     std::int32_t horizontal_speed_cap = 0;
+    // Win32 shared byte 0x00454B04 is reset by each boss initializer and
+    // increments once whenever this boss reaches integer Y >= 240. The eighth
+    // completed traversal resets it to zero and emits the boss-family one-shot.
+    std::uint8_t traversal_sound_counter = 0;
     bool runtime_initialized = false;
 };
 
@@ -75,7 +79,9 @@ struct GeminiBossLifecycleState {
     std::int32_t root_velocity_x = 0;
     std::int32_t root_velocity_y = 0;
     std::int32_t horizontal_speed_cap = 0;
-    std::uint8_t retreat_sound_counter = 0;
+    // Same shared Win32 byte 0x00454B04 as Lid/Top, independently reset by
+    // Gemini initialization and consumed only while this family is active.
+    std::uint8_t traversal_sound_counter = 0;
     bool runtime_initialized = false;
 };
 

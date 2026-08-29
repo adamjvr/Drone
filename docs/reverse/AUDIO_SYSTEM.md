@@ -228,6 +228,38 @@ Because `0x00440278` is process-global rather than encounter-owned, `GameSession
 
 This slice deliberately does not name the Y=-40 one-shot or the decode-completion one-shot until their slot-to-asset identities are proven. It also leaves `air.wav` separate: air has multiple start/restart sites plus bidirectional state-dependent fades, so its ownership requires its own control-state integration rather than piggybacking on Drone semantics.
 
+## Shareware boss traversal one-shot cadence
+
+The normally reachable Lid/Top and Gemini encounters each pair their continuous boss loop with a second **one-shot traversal cue**. These are not timers detached from movement: both are driven by the same shared byte `0x00454B04`, incremented exactly when the boss root reaches the bottom boundary and its fixed Y position is wrapped back to -100. Each boss initializer clears the byte, so the sequential encounters reuse rather than accumulate one cadence state.
+
+Lid/Top (`0x00416885..0x004168C5`):
+
+```text
+if integer_root_y >= 240:
+    0x00454B04 += 1
+    if 0x00454B04 == 8:
+        Play(level1.wav handle 0x0042EFEC, flags=0)
+        0x00454B04 = 0
+    fixed_root_y 0x00446E0C = -100 << 16
+    # vertical velocity is preserved
+```
+
+`0x00417220` clears the byte at `0x00417304`; `0x00417350` loads `level1.wav` into `0x0042EFEC` and applies game volume 90.
+
+Gemini (`0x004050BA..0x004050F9`) is structurally parallel but independently proven:
+
+```text
+if integer_body_a_y >= 240:
+    0x00454B04 += 1
+    if 0x00454B04 == 8:
+        Play(level2.wav handle 0x00466B0C, flags=0)
+        0x00454B04 = 0
+    fixed_body_a_y 0x00467544 = -100 << 16
+    # vertical velocity 0x0046754C is preserved
+```
+
+`0x00405EF0` clears the byte at `0x00405F87`; `0x00405FB0` loads `level2.wav` into `0x00466B0C` and applies volume 100. The write targets prove an important gameplay correction: the original resets **fixed Y position**, not vertical velocity. The clean bosses therefore perform repeated downward traversals, and `GameSession` emits `LidTopLevel1Cadence` / `GeminiLevel2Cadence` only on every eighth wrap. Both cues use DirectSound Play flags 0.
+
 ## Native `air.wav` state-2 envelope
 
 The canonical gameplay ambience slot `0x0043F5F4` is not a constant-volume background track. Its process-global game-scale scalar is `0x004729A0`, and the state-2 monolith treats that scalar as a bidirectional envelope tied to Drone settlement state.
@@ -312,16 +344,16 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 - `include/drone/audio/original_directsound.hpp`
   - exact 20-voice capacity and selector;
   - exact volume conversion;
-  - established frequency plus `drone.wav`, `air.wav`, and main-menu `lowbees.wav` control constants;
+  - established frequency plus `drone.wav`, `air.wav`, main-menu `lowbees.wav`, and eight-traversal shareware-boss cadence constants;
   - metadata-only 13-site flags-1 call catalog with literal/register proof classification;
   - native semantic ownership for the shareware Lid/Top and Gemini loop starts/stops.
 - `include/drone/audio/audio_event.hpp`
   - semantic cue/action types, including parameterized `SetVolume` and `SetFrequency`;
-  - metadata-only cue definitions, including `drone.wav`, `air.wav`, `lowbees.wav`, the two native boss loops, four one-shot Results tracks and looping Ordering/Credits cues;
+  - metadata-only cue definitions, including `drone.wav`, `air.wav`, `lowbees.wav`, the two native boss loops, one-shot `level1.wav`/`level2.wav` traversal cues, four one-shot Results tracks and looping Ordering/Credits cues;
   - process-lifetime original-audio control state for the explosion selector, `0x00440278` Drone volume scalar and `0x004729A0` air volume scalar;
   - fixed-capacity allocation-free `AudioEventQueue`.
 - `GameSessionTickResult::audio_events` and `PostGameRuntimeStepResult::audio_events`
-  - exact gameplay event ordering plus native Drone approach/decode volume control, state-2 air envelope/restart control, boss-loop ownership, and Results/Ordering/Credits ownership transitions.
+  - exact gameplay event ordering plus native Drone approach/decode volume control, state-2 air envelope/restart control, boss-loop and every-eighth-traversal one-shot ownership, and Results/Ordering/Credits ownership transitions.
 - `include/drone/audio/presentation_audio.hpp`
   - host-side main-menu `lowbees.wav` restart/fade/cleanup ownership;
   - main-menu tail `air.wav` zero-volume 11025-Hz restart;
@@ -329,7 +361,7 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 
 ## Next audio work
 
-1. execute the recovered completion-credits fade envelope and finish any remaining long-form volume/pan semantics;
-2. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot, then recover the repeating `level1.wav` / `level2.wav` boss cadence and remaining Squad/pool initialization settings;
+1. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot and finish remaining Squad/pool initialization settings;
+2. finish any still-unmapped long-form volume/pan semantics;
 3. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
 4. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.

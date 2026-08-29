@@ -95,6 +95,17 @@ This Phase-5 slice moves the non-`GameSession` ambience controls into a clean pr
 
 These controls live in `audio/presentation_audio` rather than `GameSession`, preserving the original ownership split between deterministic gameplay and synchronous menu/overlay presentation.
 
+## Shareware boss traversal audio cadence
+
+This Phase-5 slice closes the repeating `level1.wav` / `level2.wav` ownership and corrects the movement interpretation that makes those sounds repeat:
+
+- Lid/Top `0x00416885..0x004168C5` and Gemini `0x004050BA..0x004050F9` each increment shared byte `0x00454B04` only when the active root reaches integer Y>=240; each encounter initializer resets the byte (`0x00417304` / `0x00405F87`);
+- count 8 performs a flags-0 one-shot and resets the byte: Lid/Top uses `level1.wav` handle `0x0042EFEC` at volume 90, Gemini uses `level2.wav` handle `0x00466B0C` at volume 100;
+- after the cadence branch, the executable writes `-100<<16` to the **fixed Y position** (`0x00446E0C` / `0x00467544`), not the vertical-velocity field. Positive descent velocity is preserved, so each boss repeatedly traverses downward and the cue fires once per eight completed passes;
+- the clean boss lifecycle now owns the exact traversal counter/wrap and `GameSession` emits `LidTopLevel1Cadence` / `GeminiLevel2Cadence` in the original bottom-crossing order before later boss-bomb attack work.
+
+This supersedes the earlier Phase-4 documentation shorthand that described Y>=240 as an upward retreat.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

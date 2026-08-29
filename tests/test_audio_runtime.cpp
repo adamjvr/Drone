@@ -101,6 +101,19 @@ int main() {
     assert(gemini_loop.original_volume_0_to_100 == 100);
     assert(gemini_loop.directsound_play_flags == directsound_play_looping_flag);
 
+    const auto& level1 = audio_cue_definition(AudioCue::LidTopLevel1Cadence);
+    assert(level1.original_asset == "level1.wav");
+    assert(level1.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(level1.original_volume_0_to_100 == original_lid_top_level1_volume);
+    assert(level1.directsound_play_flags == 0);
+
+    const auto& level2 = audio_cue_definition(AudioCue::GeminiLevel2Cadence);
+    assert(level2.original_asset == "level2.wav");
+    assert(level2.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(level2.original_volume_0_to_100 == original_gemini_level2_volume);
+    assert(level2.directsound_play_flags == 0);
+    static_assert(original_boss_traversal_sound_period == 8);
+
     const auto& ordering = audio_cue_definition(AudioCue::OrderingInformation);
     assert(ordering.original_asset == "thunder2.wav");
     assert(ordering.original_volume_0_to_100 == -1);

@@ -352,10 +352,26 @@ int main() {
         result = step_game_session(session, GameplayInputFrame{}, targets);
         assert(!result.boss_activated);
 
+        // The original wraps fixed Y from the bottom back to -100 without
+        // reversing velocity. On the eighth completed traversal it plays the
+        // dedicated level1.wav one-shot before later boss attack/collision audio.
+        auto& lid_top = session.encounter.boss.lid_top;
+        lid_top.root_fixed_y = 240 << 16;
+        lid_top.root_velocity_y = 0;
+        lid_top.traversal_sound_counter = 7;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.lid_top_vertical_traversal_wrapped);
+        assert(result.lid_top_level1_cadence_sound_requested);
+        assert(lid_top.root_fixed_y == -100 * 65536);
+        assert(lid_top.traversal_sound_counter == 0);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::LidTopLevel1Cadence,
+            drone::audio::AudioAction::Play));
+
         // Lid/Top destruction is no longer a semantic host trigger. Expose the
         // native Stinger core and let the boss-local collision producer enter
         // the same-update count-1 destruction tail.
-        auto& lid_top = session.encounter.boss.lid_top;
         lid_top.root_x = 40;
         lid_top.root_y = 10;
         lid_top.root_fixed_x = 40 << 16;
@@ -411,6 +427,19 @@ int main() {
             drone::audio::AudioAction::Play));
 
         auto& gemini = session.encounter.boss.gemini;
+        gemini.root_fixed_y = 240 << 16;
+        gemini.root_velocity_y = 0;
+        gemini.traversal_sound_counter = 7;
+        result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.gemini_vertical_traversal_wrapped);
+        assert(result.gemini_level2_cadence_sound_requested);
+        assert(gemini.root_fixed_y == -100 * 65536);
+        assert(gemini.traversal_sound_counter == 0);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::GeminiLevel2Cadence,
+            drone::audio::AudioAction::Play));
+
         gemini.root_fixed_x = 0;
         gemini.root_fixed_y = 20 << 16;
         gemini.root_velocity_x = 0;

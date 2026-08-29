@@ -29,7 +29,8 @@ struct GeminiBossSpriteMaskView {
 
 struct GeminiBossStepResult {
     bool root_moved = false;
-    bool vertical_retreat_started = false;
+    bool vertical_traversal_wrapped = false;
+    bool level2_cadence_sound_requested = false;
     bool enemy_bomb_spawned = false;
     std::optional<std::size_t> enemy_bomb_spawn_index{};
     bool special_hit_side_a = false;
@@ -52,7 +53,8 @@ void initialize_gemini_boss_runtime(
     DifficultyLevel difficulty) noexcept;
 
 // Native shareware Gemini gameplay from Win32 0x00405000: shared-root motion,
-// opposing body animation, phase-2 bomb emission, independent 20-tick body
+// Y>=240 traversal wrap plus every-eighth-pass level2.wav cadence, opposing body
+// animation, phase-2 bomb emission, independent 20-tick body
 // destruction tails, and launched Probe/Stinger opaque-pixel damage against the
 // head-first/body-second sprite pair. Procedural point-particle/debris rendering
 // remains presentation-side; immutable body/head frame pixels are the only

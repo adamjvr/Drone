@@ -52,6 +52,7 @@ int main() {
         assert(state.root_velocity_x == 10923);
         assert(state.root_velocity_y == 0x5556);
         assert(state.horizontal_speed_cap == 0xc000);
+        assert(state.traversal_sound_counter == 0);
 
         initialize_lid_top_boss_runtime(state, DifficultyLevel::Advanced, false);
         assert(state.root_velocity_x == 32769);
@@ -65,7 +66,8 @@ int main() {
     }
 
     // Root movement uses 16.16 state and compares boss center against the
-    // player's left X. Reaching Y >= 240 reverses vertical motion to -100 px.
+    // player's left X. Reaching integer Y >= 240 resets fixed Y to -100 while
+    // preserving descent velocity; every eighth completed traversal requests level1.wav.
     {
         LidTopBossLifecycleState state{};
         initialize_lid_top_boss_runtime(state, DifficultyLevel::Beginner, false);
@@ -88,11 +90,28 @@ int main() {
 
         freeze_root(state, 5, 240);
         state.horizontal_speed_cap = 0x10000;
-        const auto retreat = step_lid_top_boss(
+        state.root_velocity_y = 0x10000;
+        const auto wrap = step_lid_top_boss(
             state, 1, 0, DifficultyLevel::Beginner, true, random,
             bombs, gate, missiles, special, score);
-        assert(retreat.vertical_retreat_started);
-        assert(state.root_velocity_y == -100 * 65536);
+        assert(wrap.vertical_traversal_wrapped);
+        assert(!wrap.level1_cadence_sound_requested);
+        assert(state.root_fixed_y == -100 * 65536);
+        assert(state.root_velocity_y == 0x10000);
+        assert(state.traversal_sound_counter == 1);
+
+        // Force seven more bottom crossings. The eighth crossing emits the
+        // dedicated level1.wav one-shot and resets the shared cadence byte.
+        for (int pass = 2; pass <= 8; ++pass) {
+            state.root_fixed_y = 240 * 65536;
+            state.root_velocity_y = 0;
+            const auto cadence = step_lid_top_boss(
+                state, 1, 0, DifficultyLevel::Beginner, true, random,
+                bombs, gate, missiles, special, score);
+            assert(cadence.vertical_traversal_wrapped);
+            assert(cadence.level1_cadence_sound_requested == (pass == 8));
+        }
+        assert(state.traversal_sound_counter == 0);
     }
 
     // Boss bomb chance is drawn before the gate/capacity tests. A successful

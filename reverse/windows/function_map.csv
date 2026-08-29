@@ -35,7 +35,7 @@ address,provisional_name,confidence,notes
 0x00404D60,ddraw_shutdown,high,called on WM_QUIT exit path
 0x00404DC0,window_proc,high,registered as WNDCLASSEX callback
 0x00404E30,winmain_like,high,"window creation, message pump, surface lock/present, calls game_dispatch_update"
-0x00405000,update_gemini_boss,high,paired Gemini body/head combat and symmetric destruction branches
+0x00405000,update_gemini_boss,high,paired Gemini combat; Y>=240 fixed-Y wrap; shared 8-traversal level2 cadence; symmetric destruction
 0x00405EF0,initialize_gemini_boss,high,boss dispatch slot1; activates Gemini encounter
 0x00405FB0,load_gemini_boss_assets,high,Gemini1/2 30-frame body bank + Gemhead + Gemini.wav + Level2.wav
 0x00406190,release_gemini_boss_assets,high,guarded Gemini frame/audio cleanup; corrects old Phase-1 generic audio-shutdown candidate
@@ -66,7 +66,7 @@ address,provisional_name,confidence,notes
 0x00415C80,load_spidey_boss_assets,high,Spidey JBA family + Spidey.wav + Level4.wav; assets absent from shareware install
 0x00415F40,release_spidey_boss_assets,high,guarded Spidey cleanup
 0x00415FA0,update_trajectory_groups,high,"17-group lifecycle/path updater: modes 0/1/2/10, stagger activation, path wrap retirement, X/Y/AUX following, random accelerated breakaway"
-0x00416700,update_lid_top_boss,high,combat/movement/bombs/special collisions; lid state2 counter25 awards +100 and top state2
+0x00416700,update_lid_top_boss,high,combat/movement/bombs/special collisions; Y>=240 fixed-Y wrap and 8-traversal level1 cadence; lid counter25 awards +100
 0x00417220,initialize_lid_top_boss,high,top active at X0/Y-100; live/demo difficulty-sensitive motion; lid starts state6
 0x00417350,load_lid_top_boss_assets,high,lid.jba 9x36x40; top.jba 68x56; retro1.wav; level1.wav
 0x00417450,release_lid_top_boss_assets,high,paired guarded resource cleanup

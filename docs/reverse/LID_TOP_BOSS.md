@@ -102,7 +102,7 @@ if boss_center_x < player.x: velocity_x += 0x44C
 else:                        velocity_x -= 0x44C
 ```
 
-The result is clamped to the initializer's horizontal speed cap. When root Y reaches 240 or below-screen, vertical velocity is replaced with `-100 << 16`, beginning the upward retreat.
+The result is clamped to the initializer's horizontal speed cap. When integer root Y reaches 240, `0x00416885..0x004168C5` does **not** reverse vertical velocity. It increments shared byte `0x00454B04`, optionally plays `level1.wav` when that byte reaches 8, then writes `0xFF9C0000` to fixed-position field `0x00446E0C`. That field is the 16.16 root Y position, so the boss wraps to Y=-100 while retaining its positive descent velocity and begins another downward traversal. The initializer clears the shared cadence byte at `0x00417304`. `level1.wav` is therefore a one-shot (`Play` flags 0) every eighth completed traversal, not an eight-update timer or an upward-retreat sound.
 
 Boss bomb emission is live-only and phase-2-only. The updater consumes `rand()%100` **before** the shared bomb-gate/capacity checks and succeeds when the result is below `2*difficulty`. It then requires the shared gate to equal 5 and an available slot, chooses the first inactive bomb, consumes `rand()%10`, and spawns at either `(root.x+30, root.y+53)` or `(root.x+41, root.y+53)`. The reused bomb's horizontal step and animation frame are intentionally not reset. The shared gate is reset to zero after a successful spawn.
 
@@ -203,7 +203,8 @@ This means resource availability alone must not be used to infer normal campaign
 - load/release pair is `0x00417350` / `0x00417450`;
 - encounter initializer is `0x00417220`;
 - active update is `0x00416700`;
-- root 16.16 movement, player-X tracking, horizontal acceleration/cap and Y>=240 retreat are exact;
+- root 16.16 movement, player-X tracking and horizontal acceleration/cap are exact; Y>=240 resets fixed Y to -100 without changing vertical velocity, producing repeated downward traversals;
+- shared byte `0x00454B04` advances once per completed traversal, resets at 8, and requests one-shot `level1.wav` (volume 90) on every eighth wrap;
 - live phase-2 boss bomb chance/gate/slot/position behavior is exact;
 - rapid missiles open a frame-0 closed lid through the recovered weakpoint and `top.jba` opaque pixels shield the separate top lane;
 - activity 1 opens toward frame 8 and activity 6 closes toward frame 0 with the recovered difficulty-scaled close chance;

@@ -166,3 +166,5 @@ address,provisional_name,confidence,notes
 0x00464D71,gemini_side_a_damage_threshold,high,20 Beginner; 35 Intermediate/Advanced; strict damage>threshold
 0x00464EC8,gemini_side_b_damage,high,side-B Probe/Stinger damage accumulator; +3/+15; init clears
 0x00464EC9,gemini_side_b_damage_threshold,high,20 Beginner; 30 Intermediate/Advanced; strict damage>threshold
+0x00454B04,shareware_boss_traversal_sound_counter,high,"shared Lid/Top+Gemini traversal counter; both initializers clear; bottom crossing increments; count8 plays level1/level2 then resets"
+0x00466B0C,gemini_boss_level2_sound,high,DirectSound buffer loaded from level2.wav volume100; flags-0 Play every eighth Gemini bottom wrap

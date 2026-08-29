@@ -13,7 +13,8 @@ constexpr std::int32_t fixed_one = 1 << 16;
 constexpr std::int32_t live_horizontal_acceleration = 0x44c;
 constexpr std::int32_t demo_initial_velocity = 0x8000;
 constexpr std::int32_t demo_horizontal_speed_cap = 0x12000;
-constexpr std::int32_t retreat_velocity_y = -100 * fixed_one;
+constexpr std::int32_t traversal_reset_fixed_y = -100 * fixed_one;
+constexpr std::uint8_t traversal_sound_period = 8;
 constexpr std::uint8_t lid_frame_count = 9;
 
 std::int32_t arithmetic_fixed_to_int(const std::int32_t fixed) noexcept {
@@ -114,8 +115,16 @@ void advance_root_motion(
     }
 
     if (state.root_y >= 240) {
-        state.root_velocity_y = retreat_velocity_y;
-        result.vertical_retreat_started = true;
+        // Win32 0x00416885..0x004168C5 increments shared byte 0x00454B04,
+        // plays level1.wav when it reaches eight, then resets the *fixed Y
+        // position* at 0x00446E0C to -100<<16. It does not reverse velocity.
+        ++state.traversal_sound_counter;
+        if (state.traversal_sound_counter == traversal_sound_period) {
+            state.traversal_sound_counter = 0;
+            result.level1_cadence_sound_requested = true;
+        }
+        state.root_fixed_y = traversal_reset_fixed_y;
+        result.vertical_traversal_wrapped = true;
     }
 }
 
