@@ -141,6 +141,18 @@ This slice establishes the DOS middleware boundary without pretending that an SD
 
 This is intentionally a foundation rather than the final DOS implementation. The portable mixer/backend remains deferred until those Drone-specific HMI call sites are recovered; otherwise the clean engine would risk copying Win32 overlap policy onto DOS or mistaking the HMI SDK ceiling for the game's chosen configuration.
 
+## Canonical DOS HMI runtime voice semantics
+
+The canonical `DRONE_SW.EXE` now upgrades the prior middleware-only HMI foundation into an executable-level runtime contract:
+
+- `sosDIGIInitDriver` at `0x0008D4AF` allocates `0x1E00` bytes and writes voice count `0x20` at `0x0008D78A`, proving **32 configured digital voices** (`32 * 0xF0` records);
+- `sosDIGIStartSample` at `0x0008AC82` selects the first inactive voice index; if all 32 are active it returns `-1`. Descriptor priority is not consulted and no voice is stolen;
+- `sosDIGISetSampleVolume` at `0x0008AFC1` stores caller-supplied HMI packed channel levels directly. Canonical Drone uses native values rather than a universal Win32-style 0..100 conversion;
+- sustained samples set `wLoopCount = 0xFFFFFFFF` before start, while ordinary one-shots retain zero/default loop count;
+- controlled loops retain the StartSample return value and later use exact StopSample / SampleDone / SetSampleVolume / SetSampleRate routines with that voice handle.
+
+This closes `Q-AUDIO-003` through `Q-AUDIO-006`. `Q-AUDIO-007` remains intentionally open only for complete state-by-state menu/modal stop/restart classification. The important backend distinction is now established: Win32 has game-owned 20-buffer transient pools with slot-0 steal on saturation; DOS has 32 dynamic HMI voices and **returns failure instead of stealing**.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

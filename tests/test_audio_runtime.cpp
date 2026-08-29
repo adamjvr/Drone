@@ -259,6 +259,38 @@ int main() {
     assert(!hmi.api_requires_preduplicated_sample_pool);
     assert(hmi.max_voice_capability != original_sfx_voice_pool_capacity);
 
+    // Canonical DRONE_SW.EXE embeds the HMI mixer and explicitly configures
+    // 32 x 0xF0-byte voice records (0x1E00 bytes). StartSample scans from
+    // voice zero for the first inactive record and returns -1 when saturated;
+    // it does not perform the Win32 slot-0 steal fallback.
+    const auto& dos_hmi = original_drone_dos_hmi_runtime_contract();
+    static_assert(original_drone_dos_hmi_voice_count == 32);
+    static_assert(original_drone_dos_hmi_voice_record_size == 0xF0);
+    static_assert(original_drone_dos_hmi_voice_storage_bytes == 32 * 0xF0);
+    static_assert(original_drone_dos_hmi_infinite_loop_count == 0xFFFFFFFFu);
+    static_assert(original_hmi_pack_equal_channel_volume(0x5200) == 0x52005200u);
+    assert(dos_hmi.configured_voice_count == 32);
+    assert(dos_hmi.voice_record_size == 0xF0);
+    assert(dos_hmi.voice_storage_bytes == 0x1E00);
+    assert(dos_hmi.first_inactive_voice_wins);
+    assert(dos_hmi.saturation_policy == OriginalDroneDosVoiceSaturationPolicy::ReturnFailure);
+    assert(!dos_hmi.priority_used_for_voice_selection);
+    assert(dos_hmi.start_copies_full_sample_descriptor);
+    assert(dos_hmi.start_returns_voice_index);
+    assert(dos_hmi.packed_left_right_16_volume);
+    assert(!dos_hmi.universal_normalized_volume_mapping);
+    assert(dos_hmi.one_shot_loop_count == 0);
+    assert(dos_hmi.infinite_loop_count == 0xFFFFFFFFu);
+    assert(dos_hmi.infinite_loop_uses_loop_count_field);
+    assert(dos_hmi.retained_voice_handles_for_runtime_control);
+    assert(original_drone_dos_hmi_start_sample_va == 0x0008AC82u);
+    assert(original_drone_dos_hmi_stop_sample_va == 0x0008AE02u);
+    assert(original_drone_dos_hmi_set_sample_volume_va == 0x0008AFC1u);
+    assert(original_drone_dos_hmi_set_sample_rate_va == 0x0008B2A7u);
+    assert(original_drone_dos_hmi_sample_done_va == 0x0008B549u);
+    assert(original_drone_dos_hmi_init_driver_va == 0x0008D4AFu);
+    assert(original_drone_dos_hmi_voice_count_write_va == 0x0008D78Au);
+
     AudioEventQueue queue{};
     assert(queue.push({AudioCue::RapidMissileFire, AudioAction::Play}));
     assert(queue.push({AudioCue::SpecialLaunch, AudioAction::StopAndRewind}));

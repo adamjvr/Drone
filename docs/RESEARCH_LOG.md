@@ -422,3 +422,14 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Recorded the cross-backend distinction that Win32 Drone's exact preduplicated 20-buffer pools are game/DirectSound behavior, not an HMI API requirement.
 - Added `Q-AUDIO-003` through `Q-AUDIO-007` for the five executable-level DOS questions that must be resolved before the portable mixer/backend is finalized.
 - Preserved `CORR-AUD-001` as behavioral/candidate pending a fresh canonical DOS call-site trace.
+
+## 2026-08-29 — Canonical DOS HMI runtime voice semantics
+
+- Reacquired the canonical DOS shareware archive and re-extracted `DRONE_SW.EXE` privately; original binary/audio payloads remain evidence-only and are excluded from public milestone packages.
+- Identified linked HMI routines in the canonical LE code: `sosDIGIStartSample` `0x0008AC82`, `StopSample` `0x0008AE02`, `StopAllSamples` `0x0008AE74`, `SetSampleVolume` `0x0008AFC1`, `SetSampleRate` `0x0008B2A7`, `SampleDone` `0x0008B549`, and `sosDIGIInitDriver` `0x0008D4AF`.
+- Proved Drone DOS explicitly configures 32 digital voices: init allocates `0x1E00 = 32 * 0xF0` bytes and writes driver voice count `0x20` at `0x0008D78A`.
+- Proved voice arbitration: StartSample scans from voice 0 for the first inactive record; saturation returns `-1`; no priority comparison and no voice-steal fallback occur.
+- Proved native HMI volume control: caller packed 16-bit channel levels are written directly, so Win32's normalized 0..100 DirectSound attenuation conversion is not universal.
+- Proved sustained-loop encoding: matched sustained descriptors use `wLoopCount=0xFFFFFFFF`; ordinary one-shots retain zero/default.
+- Proved retained-handle control for Air, Drone and Lowbees plus global SampleDone-before-Stop cleanup; left only the complete menu/modal raw-state lifecycle catalog open as `Q-AUDIO-007`.
+- Added `DOS-AUD-001..004`, `CROSS-AUD-003`, exact HMI function ledger entries, and upgraded `CORR-AUD-001` from candidate to established behavioral/data correspondence without claiming function equivalence.

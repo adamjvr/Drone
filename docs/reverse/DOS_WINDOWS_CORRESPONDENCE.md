@@ -45,13 +45,15 @@ Examples include DirectDraw surface management, DirectInput object creation, DOS
 
 ## Audio backend contract boundary
 
-`CORR-AUD-001` remains a **behavioral candidate**, not a one-to-one function mapping. The public Human Machine Interfaces S.O.S. 4.x SDK headers establish the middleware API used by the DOS audio family: caller-owned `_SOS_SAMPLE` descriptors carry volume, loop count, sample rate, pan, priority and callbacks; `sosDIGIStartSample` starts a descriptor and the API exposes explicit stop/status plus volume/rate/pan controls. The library constants expose a default 32-channel mixer and 32-voice capability ceiling.
+`CORR-AUD-001` is now an **established behavioral/data correspondence**, while still explicitly rejecting one-to-one loader/function equivalence. The canonical DOS executable and Win32 executable own the same recognizable sound families behind different platform runtimes.
 
-Those facts do not prove that Drone configured 32 voices, nor do they prove a particular game-level allocation or steal policy. The canonical DOS function map still places `hmi_sample_loader` at `0x0007ECB4`, but the exact start/stop/control callers must be re-read before upgrading the relationship.
+DOS `0x0007ECB4` builds HMI `_SOS_SAMPLE` descriptors. The linked `sosDIGIInitDriver` at `0x0008D4AF` configures exactly 32 `0xF0` voices, and `sosDIGIStartSample` at `0x0008AC82` scans for the first inactive voice. Full saturation returns `-1`; descriptor priority is not compared and no active voice is stolen. Volume controls use native packed HMI channel levels directly, and sustained sounds set `wLoopCount=0xFFFFFFFF` before start.
 
-The Win32 side is already stronger and importantly different: Drone explicitly preduplicates selected high-overlap sounds into 20-buffer DirectSound pools and implements its own first-raw-status-not-1 / else-slot-0 selector. Because an HMI descriptor start does not require such a pool at the middleware boundary, the future portable audio layer must not treat the Win32 20-voice policy as universal. Shared semantic cue/control events are appropriate; backend voice arbitration remains platform evidence.
+Win32 remains intentionally different: selected high-overlap sounds are preduplicated into exact 20-buffer DirectSound pools, and `0x00420020` selects the first raw status not equal to 1 but falls back to **slot 0** when every pool member reports playing. The DOS backend therefore has **32 dynamic return-failure voices**, while the Win32 transient path has **20 preallocated steal-on-saturation voices**.
 
-The unresolved DOS specifics are tracked as `Q-AUDIO-003` through `Q-AUDIO-007`.
+Both builds can share semantic cue/control intent, but voice arbitration, volume representation and loop encoding belong behind platform backend adapters. This is the established `CROSS-AUD-003` architectural constraint.
+
+`Q-AUDIO-003` through `Q-AUDIO-006` are resolved from canonical DOS code. `Q-AUDIO-007` remains open only for complete state-by-state menu/modal lifecycle ownership; retained-handle control itself is established.
 
 ## Procedure for adding a mapping
 

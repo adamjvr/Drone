@@ -24,4 +24,24 @@ const OriginalHmiSosApiContract& original_hmi_sos_api_contract() noexcept {
     return contract;
 }
 
+const OriginalDroneDosHmiRuntimeContract& original_drone_dos_hmi_runtime_contract() noexcept {
+    static constexpr OriginalDroneDosHmiRuntimeContract contract{
+        .configured_voice_count = original_drone_dos_hmi_voice_count,
+        .voice_record_size = original_drone_dos_hmi_voice_record_size,
+        .voice_storage_bytes = original_drone_dos_hmi_voice_storage_bytes,
+        .first_inactive_voice_wins = true,
+        .saturation_policy = OriginalDroneDosVoiceSaturationPolicy::ReturnFailure,
+        .priority_used_for_voice_selection = false,
+        .start_copies_full_sample_descriptor = true,
+        .start_returns_voice_index = true,
+        .packed_left_right_16_volume = true,
+        .universal_normalized_volume_mapping = false,
+        .one_shot_loop_count = original_drone_dos_hmi_one_shot_loop_count,
+        .infinite_loop_count = original_drone_dos_hmi_infinite_loop_count,
+        .infinite_loop_uses_loop_count_field = true,
+        .retained_voice_handles_for_runtime_control = true,
+    };
+    return contract;
+}
+
 } // namespace drone::audio

@@ -167,6 +167,55 @@ Public API provenance used only as middleware documentation:
 
 No HMI source/header payload is copied into this repository.
 
+## Canonical DOS HMI runtime voice semantics
+
+The canonical DOS executable now closes the central HMI-runtime questions that the middleware-only foundation deliberately left open.
+
+`0x0008D4AF` is the linked `sosDIGIInitDriver`. Its setup allocates `0x1E00` bytes for voice records and explicitly writes `0x20` to driver `+0x14` at `0x0008D78A`. Each voice record is `0xF0` bytes, matching the recovered/public `_SOS_SAMPLE` layout, so Drone DOS configures exactly **32 digital voices**.
+
+`0x0008AC82` is `sosDIGIStartSample`. Its allocator is straightforward and materially different from Win32 Drone's reusable DirectSound pools:
+
+```text
+for voice = 0 .. configured_voice_count-1:
+    if (voice.flags & _SACTIVE) == 0:
+        copy caller's 0xF0 sample descriptor into voice
+        voice.hSample = voice
+        mark voice active
+        link voice into active list
+        return voice
+return -1
+```
+
+There is no priority comparison and no saturation steal. The clean DOS contract therefore records **first inactive voice wins / saturated start fails**, while the Win32 contract retains its historically separate 20-buffer first-free / otherwise-slot-0 policy.
+
+The exact linked control routines are also identified:
+
+| DOS VA | HMI routine | recovered behavior |
+|---|---|---|
+| `0x0008AC82` | `sosDIGIStartSample` | first inactive voice; copy descriptor; return voice index; `-1` on saturation |
+| `0x0008AE02` | `sosDIGIStopSample` | mark selected active voice processed/stopping |
+| `0x0008AE74` | `sosDIGIStopAllSamples` | stop/mark all configured voices |
+| `0x0008AFC1` | `sosDIGISetSampleVolume` | direct write of caller packed volume to active voice `+0x2C` |
+| `0x0008B2A7` | `sosDIGISetSampleRate` | runtime rate write through retained voice handle |
+| `0x0008B549` | `sosDIGISampleDone` | returns zero while selected voice remains active, one otherwise |
+| `0x0008D4AF` | `sosDIGIInitDriver` | canonical driver setup; 32-voice configuration |
+
+### Native DOS volume contract
+
+HMI volume is not a normalized `0..100` scalar at this boundary. Drone writes native HMI packed 16-bit channel levels. `sosDIGISetSampleVolume` accepts the packed value directly; there is no equivalent of the Win32 DirectSound `30 * (value - 100)` conversion in the HMI control routine.
+
+Examples from the canonical executable include `drone.clv` descriptor volume `0x41004100`, `retro1.clv` `0x52005200`, gameplay `air.clv` start volume `0x00003000`, and menu `lowbees.clv` starting at zero. The Lowbees fade increments its native level by `0x7D` per menu iteration toward `0x7000`, packs equal left/right channels, and calls `sosDIGISetSampleVolume` with the retained handle.
+
+### Native DOS loop contract
+
+Sustained sounds explicitly write `_SOS_SAMPLE.wLoopCount = 0xFFFFFFFF` before `sosDIGIStartSample`; ordinary one-shots leave the loop count at zero/default. Proven sustained descriptors include Gemini, Air, Retro1, Lowbees, Drone and local Thunder2 presentation audio. This is the executable-level DOS loop mechanism represented by the clean contract; `_SASR_LOOP` capability alone is not substituted for game evidence.
+
+### Retained-handle lifecycle boundary
+
+Controlled sounds save the voice index returned by StartSample and use it for later status/stop/volume/rate operations. Proven examples include gameplay Air (`StartSample 0x00077737`, handle global `0x004CCC8`), Drone (`0x0007A60D`, handle `0x004CB90`) and main-menu Lowbees (`0x00081709`, handle `0x004CBF0`). The broad cleanup region at `0x0007DE88..0x0007E165` performs SampleDone checks before stopping active tracked handles.
+
+This is enough to close configured voices, arbitration, volume representation and loop encoding. `Q-AUDIO-007` deliberately remains open only for the **complete state-by-state menu/modal lifecycle catalog**; the portable mixer must not wait on already-established low-level voice semantics, but exact DOS presentation parity still requires that final classification.
+
 ## Current clean API
 
 - `include/drone/audio/original_directsound.hpp`
@@ -421,7 +470,7 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 
 ## Next audio work
 
-1. reacquire/re-read the canonical DOS executable at the HMI start/stop/control call sites and resolve `Q-AUDIO-003` through `Q-AUDIO-007`;
-2. establish Drone DOS configured voice count, sample arbitration/steal policy, game-volume mapping, loop encoding and transition lifecycle instead of substituting middleware defaults;
-3. compare those executable-level DOS policies directly with the established Win32 DirectSound ownership model;
-4. only then finalize the portable mixer/backend so semantic cue/control events remain shared while backend overlap/voice policy can stay historically platform-specific.
+1. finish the remaining state-by-state DOS menu/modal lifecycle classification tracked by `Q-AUDIO-007`, using the now-identified Start/Stop/Done/Volume/Rate primitives and retained handles;
+2. capture the resulting Windows-vs-DOS backend differences as executable regression fixtures, especially saturation behavior (Win32 steal-slot-0 versus DOS return-failure) and native volume/loop control;
+3. finalize the portable mixer/backend around shared semantic `AudioEvent`s while keeping historically distinct voice arbitration, volume representation and loop encoding behind backend adapters;
+4. leave later exact audio-trace parity and device/host latency validation to deterministic/fidelity phases rather than collapsing those concerns into the event contract.

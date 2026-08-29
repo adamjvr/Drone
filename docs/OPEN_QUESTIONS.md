@@ -69,27 +69,25 @@ The relationship is exact over compared common sample regions for nearly all mat
 
 ## Phase 5 — DOS audio runtime
 
-The HMI S.O.S. 4.x middleware API is now documented, but its defaults/capabilities must not be promoted into Drone behavior without executable evidence. The remaining DOS-audio questions are:
+### Resolved — Q-AUDIO-003 canonical DOS digital voice count
 
-### Q-AUDIO-003 — What voice/channel count does Drone DOS actually configure?
+The canonical DOS executable does not merely inherit the S.O.S. SDK default. `sosDIGIInitDriver` at `0x0008D4AF` allocates `0x1E00` bytes for voice records and explicitly writes `0x20` to driver `+0x14` at `0x0008D78A`. With the recovered `0xF0` voice-record size, this is exactly **32 digital voices**.
 
-The SDK exposes a default 32-channel mixer and 32-voice capability ceiling. Recover Drone's `sosDIGIInitSystem` / driver setup and any game-owned slot arrays before choosing a DOS backend limit.
+### Resolved — Q-AUDIO-004 allocation / priority / saturation policy
 
-### Q-AUDIO-004 — What allocation, priority and steal policy does Drone DOS use?
+`sosDIGIStartSample` at `0x0008AC82` scans voice indices from zero upward and selects the first record without `_SACTIVE`. The caller's full `0xF0` descriptor is copied into that voice and the returned handle is the voice index. If all configured voices are active, start returns `0xFFFFFFFF`; there is **no priority comparison and no voice-steal fallback** in this allocation path. This is intentionally different from Win32 Drone's 20-buffer first-free/else-slot-0 pool selector.
 
-Trace starts/done checks/stops around `hmi_sample_loader` (`0x0007ECB4`). HMI supports descriptor priorities, but neither a particular priority scheme nor Win32's 20-buffer first-free/slot-0-steal behavior may be assumed.
+### Resolved — Q-AUDIO-005 native HMI volume representation
 
-### Q-AUDIO-005 — How are Drone's game volumes represented in HMI?
+Drone DOS writes HMI-native packed channel values directly. `sosDIGISetSampleVolume` at `0x0008AFC1` stores the caller's packed value into active voice `wVolume` without a universal conversion stage. Canonical producers use values such as `0x41004100`, `0x32003200`, `0x70007000`, `0x7FFF7FFF`, and low-word mono levels such as `0x3000`. The main-menu `lowbees.clv` fade advances a native level by `0x7D` per iteration and packs the equal-channel value before the control call. Therefore the Win32 `0..100 -> DirectSound attenuation` helper is not a cross-platform game-volume law.
 
-Recover `_SOS_SAMPLE.wVolume` / `sosDIGISetSampleVolume` producers and compare common assets against the established Win32 0..100 game values. The HMI `MK_VOLUME` representation is API capability, not yet Drone's conversion rule.
+### Resolved — Q-AUDIO-006 sustained-loop encoding
 
-### Q-AUDIO-006 — What loop encoding does Drone DOS use?
+Matched sustained DOS descriptors write `wLoopCount = 0xFFFFFFFF` before `sosDIGIStartSample`. This is independently present for Gemini, `air.clv`, `retro1.clv`, `lowbees.clv`, `drone.clv`, and a local `thunder2.clv` presentation descriptor. Ordinary one-shots retain zero/default loop count. The clean backend contract therefore records zero as one-shot and `UINT32_MAX` as indefinite repetition rather than translating DirectSound Play flags.
 
-Recover `wLoopCount` / loop-state setup for matched sustained sounds such as AIR, DRONE, GEMINI and RETRO1 rather than translating DirectSound `Play(flags=1)` mechanically.
+### Q-AUDIO-007 — What exact stop/pause/restart lifecycle does Drone DOS use across all states?
 
-### Q-AUDIO-007 — What stop/pause/restart lifecycle does Drone DOS use across states?
-
-Map `sosDIGIStopSample`, `sosDIGIStopAllSamples`, sample-done queries and restart sites across gameplay/menu/modal transitions, then compare with the already-established Win32 ownership model.
+The low-level ownership contract is now established: controlled samples retain the voice index returned by `sosDIGIStartSample`, and later use `sosDIGISampleDone`, `sosDIGIStopSample`, `sosDIGISetSampleVolume`, or `sosDIGISetSampleRate` with that handle. Air, Drone and Lowbees all have proven retained handles, and global teardown performs SampleDone-before-Stop on tracked voices. Remaining work is narrower: finish classifying every menu/modal raw-state branch and exact stop/restart ordering before declaring complete DOS presentation lifecycle parity.
 
 ## Evidence acquisition
 
