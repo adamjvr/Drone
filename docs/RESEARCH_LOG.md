@@ -463,3 +463,13 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Added sample-data-free DOS master-volume execution initialized to `0x7FFF`; master attenuation leaves Air voice ownership unchanged.
 - Added regression coverage for overlap, per-cue vs global capacity, saturation, slot reuse, stale handles, looping, dedicated/retained controls, stop/rewind divergence, master volume, and backend mismatch rejection.
 - Added `CROSS-AUD-006` to lock the executable policy differences into the portable runtime implementation boundary.
+
+## 2026-08-29 — Host-independent PCM mixer/render core
+
+- Added canonical signed-16-bit mono/stereo `PortablePcmSample` storage with source rate plus explicit backend-specific load-time default gain/rate; live sample identity cannot change under an active voice generation.
+- Added `PortableAudioSampleMixer` above the existing original-policy voice runtime. Successful Play attaches a zeroed render cursor to the generation-safe runtime handle; missing PCM rejects before voice allocation.
+- Implemented Q32.32 source-frame cursors and integer linear interpolation with explicit live/default playback-rate selection.
+- Implemented full-sample indefinite loop wrap for the established DirectSound flag-1 and HMI `wLoopCount=0xFFFFFFFF` contracts; one-shots naturally retire through `complete_voice()` at end-of-sample.
+- Added deterministic fixed-point gain lowering: an exact 101-entry Q30 DirectSound attenuation table for Drone's 0..100 game-volume family, packed HMI left/right channel gain, and independent DOS 15-bit digital-master gain.
+- Added overlap summing and signed-16-bit stereo saturation, plus regression coverage for sample absence, replacement safety, resampling, loops, control overrides, DOS master/sample gain composition, clipping and natural completion.
+- Added `CROSS-AUD-007` to record the implementation boundary: original policy remains in lowering/voice state while the new renderer owns only PCM cursor/rate/gain/summing behavior.

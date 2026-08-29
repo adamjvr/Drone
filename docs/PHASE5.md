@@ -203,3 +203,17 @@ This Phase-5 slice establishes the first host-independent backend lowering bound
 - backend cue availability is explicit: the checked-in cross-build census has no DOS counterpart for Win32 `hiphop.wav` or `credits.wav`, so the DOS-faithful lowering rejects those cues instead of fabricating assets.
 
 The contract remains sample-data-free and host-API-free. It is the seam required before implementing an actual modern mixer: `GameSession` and presentation owners emit semantic events; an original-policy lowering converts them into platform-faithful backend commands; a later host mixer will execute those commands against imported/replacement sample data.
+
+## Host-independent PCM mixer/render core
+
+This slice completes the first portable sample-render layer above the already-frozen original-policy voice runtime while deliberately remaining independent of Linux/macOS/Windows/iPadOS device APIs:
+
+- `PortablePcmSample` is a canonical signed-16-bit mono/stereo sample representation with source sample rate plus backend-specific load-time default gain and playback rate; replacing a sample while that cue has an active generation is rejected;
+- `PortableAudioSampleMixer` executes the same lowered backend commands through `PortableAudioVoiceRuntime`, attaches a zeroed Q32.32 render cursor to every successful Play handle, and retires one-shots back through generation-checked `complete_voice()` when their PCM reaches end-of-sample;
+- playback-rate conversion uses integer Q32.32 stepping and integer linear interpolation. Explicit `SetFrequency` overrides the sample's default playback rate; zero playback rates are rejected rather than treated as an implicit host default;
+- sustained DirectSound/HMI loops wrap over the complete registered sample without natural completion. The renderer accepts only the already-established loop encodings (`flags=0/1` or `wLoopCount=0/0xFFFFFFFF`) rather than inventing finite-loop behavior;
+- Win32 DirectSound attenuation uses a fixed Q30 lookup for the exact Drone game-volume family `30 * (v - 100)`, avoiding host `libm` variance; DOS packed HMI left/right sample volume and 15-bit digital-master volume lower to separate linear fixed-point gain stages;
+- mono input is duplicated to stereo, stereo input preserves channels, all active voices sum in signed integer space, and the final interleaved output saturates to signed 16-bit;
+- missing PCM data rejects Play before voice allocation, and sample identity cannot change under an active runtime generation.
+
+The mixer intentionally contains no WAV/CLV decoder, OS audio stream, device callback, thread, wall clock or latency policy. Those remain the next Phase-5 boundary after the render arithmetic and original voice semantics are frozen.

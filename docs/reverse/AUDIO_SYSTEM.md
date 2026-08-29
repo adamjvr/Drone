@@ -497,10 +497,10 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 
 ## Next audio work
 
-1. define the portable mixer/backend boundary around shared semantic `AudioEvent`s now that DOS `Q-AUDIO-003..007` are resolved;
-2. add executable regression fixtures for the platform policies that must remain distinct: Win32 steal-slot-0 saturation versus DOS return-failure, DirectSound normalized attenuation versus HMI packed levels, loop flags versus HMI loop counts, and direct-Air overlay fades versus DOS HMI-master attenuation;
-3. bind those backend contracts to host audio APIs without moving presentation cadence or device latency into deterministic `GameSession`;
-4. leave later exact audio-trace parity and device/host latency validation to deterministic/fidelity phases rather than collapsing those concerns into the event contract.
+1. import/decode original or replacement WAV/CLV assets into the canonical signed-16-bit PCM representation without placing proprietary bytes in the source tree;
+2. bind the validated lowering + voice-policy + PCM-render stack to Linux/macOS/Windows/iPadOS audio devices while keeping device callbacks/latency outside deterministic `GameSession`;
+3. add backend/device regression traces for underrun-free delivery and buffer scheduling without changing established original overlap, gain, loop or presentation ownership;
+4. leave exact original audio-trace parity and host-latency comparison to deterministic/fidelity phases rather than collapsing those concerns into the event contract.
 
 ## Portable original-backend lowering contract
 
@@ -557,3 +557,23 @@ The checked-in 63-row audio crosswalk establishes DOS counterparts for the curre
 - DOS master volume is global state and does not alter Air ownership. Win32 Stop records its explicit rewind semantic; DOS Stop does not invent one.
 
 Natural one-shot completion is a host input to this layer through `complete_voice()`. PCM cursor advancement, resampling, sample decoding and OS-device scheduling remain deliberately outside this runtime.
+
+## Host-independent PCM mixer/render core
+
+`include/drone/audio/sample_mixer.hpp` and `src/audio/sample_mixer.cpp` are the first layer that actually turns active abstract voices into PCM frames. The renderer remains host-independent and sample-format-normalized: imported assets are represented as signed-16-bit interleaved mono or stereo frames with a source rate and explicit backend-specific load-time defaults. No original sample payload is checked into this repository.
+
+### Cursor and rate semantics
+
+Every successful Play generation starts at cursor zero, matching the established original restart semantics. The render cursor is unsigned Q32.32 source-frame position. Effective source rate is the live runtime `SetFrequency`/HMI sample-rate value when present, otherwise the registered sample's default playback rate, otherwise its source rate. Each output frame advances by `effective_rate / output_rate` in Q32.32. Source values are integer-linearly interpolated between adjacent frames; at a non-looping terminal frame the final source value is held only for the fractional tail before natural completion.
+
+### Loop and completion semantics
+
+The PCM layer does not reinterpret backend loop metadata. DirectSound Play flag `1` and HMI `wLoopCount=0xFFFFFFFF` both mean full-sample indefinite wrap; flag/count zero means one-shot. Other loop encodings are rejected as out-of-contract because no finite-loop Drone behavior has been established here. A one-shot reaching the sample end calls the generation-safe voice runtime completion path, so a stale render cursor cannot retire a slot after Win32 steal/reuse or DOS reuse.
+
+### Gain and summing
+
+Win32 live sample-volume controls arrive as DirectSound attenuation. Because Drone's wrapper produces only `30 * (volume_0_to_100 - 100)`, the renderer uses a precomputed Q30 amplitude table for the exact 101 values instead of a platform-dependent floating `pow()` call. DOS packed HMI volume is split into the established low-word left/high-word right 15-bit channels and converted linearly to Q30; the DOS digital master is a second independent linear Q30 stage. Registered sample defaults represent load-time properties when no live control has overridden them.
+
+Mono samples feed both output channels; stereo samples retain channel identity. Active voices sum in signed integer space and the final interleaved stereo frame saturates to signed 16-bit. Missing sample data rejects Play before the policy runtime allocates a voice, and a registered sample cannot be replaced while any voice of that cue is active.
+
+This establishes the deterministic render arithmetic needed before asset importers and host audio-device adapters are added.
