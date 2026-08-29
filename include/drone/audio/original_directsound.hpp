@@ -77,6 +77,12 @@ inline constexpr std::int32_t original_air_loop_restart_volume = 0;
 inline constexpr std::int32_t original_air_loop_fade_boundary = 60;
 inline constexpr std::uint32_t original_air_loop_menu_frequency_hz = 11025;
 
+// lowbees.wav is the independently owned main-menu ambience. run_main_menu
+// explicitly starts it at zero and raises the local volume by one per menu
+// loop until the original cap of 80.
+inline constexpr std::int32_t original_main_menu_lowbees_start_volume = 0;
+inline constexpr std::int32_t original_main_menu_lowbees_volume_cap = 80;
+
 // drone.wav is loaded at volume 90. The live approach path starts it looping
 // at Y=-117, immediately writes volume 0, ramps toward 80 on eligible phase-2
 // updates, switches to 60 when Probe decoding enters phase 2, and restores 80

@@ -82,6 +82,19 @@ The sixth Phase-5 slice integrates the gameplay-owned portion of `air.wav` witho
 
 `0x004729A0` now lives beside the other process-global reconstructed audio controls in `OriginalAudioRuntimeState`. Regression coverage locks the +1/cap, phase-2 -1 floor, detonation stop, post-encounter restart ordering and reset lifetime.
 
+## Menu/overlay audio host ownership
+
+This Phase-5 slice moves the non-`GameSession` ambience controls into a clean presentation/audio-host boundary:
+
+- `lowbees.wav` is now a semantic looping cue with the exact main-menu lifecycle: restart-armed entry applies volume 0 before Play, the menu loop raises volume by one per iteration to 80, and raw states `0`, `2`, `7`, `13`, and `-1` stop ownership and re-arm the original restart byte;
+- Instructions (`3`) and High Scores (`8`) preserve the owned menu ambience rather than forcing a restart;
+- the main-menu return tail now has an exact asset-free control sequence for every non-zero raw state: `Play(air.wav)` -> `SetVolume(0)` -> `SetFrequency(11025)`;
+- pause, quit-confirmation, and nine-lives overlays share the original `air.wav` -1-per-overlay-iteration fade to zero, followed by stop/rewind on subsequent zero-volume iterations;
+- resuming active state 2 restarts the air loop and restores the canonical gameplay scalar/volume 50;
+- `SetFrequency` joins `SetVolume` as a parameterized semantic audio action, still without introducing a platform mixer or original sample bytes.
+
+These controls live in `audio/presentation_audio` rather than `GameSession`, preserving the original ownership split between deterministic gameplay and synchronous menu/overlay presentation.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

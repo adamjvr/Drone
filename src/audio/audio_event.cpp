@@ -7,7 +7,7 @@ namespace {
 
 using Policy = AudioVoicePolicy;
 
-constexpr std::array<AudioCueDefinition, 37> definitions{{
+constexpr std::array<AudioCueDefinition, 38> definitions{{
     // RapidMissileFire
     {"missile.wav", Policy::ReusablePool20, 50, original_missile_frequency_hz, 0},
     // ShieldPulse
@@ -50,6 +50,10 @@ constexpr std::array<AudioCueDefinition, 37> definitions{{
     // Persistent air ambience. The dedicated slot is loaded at 50 and loops;
     // state-2 transition paths control its live scalar through SetVolume.
     {"air.wav", Policy::SingleBuffer, original_air_loop_loaded_volume, 0,
+     directsound_play_looping_flag},
+    // Main-menu ambience. run_main_menu explicitly writes volume 0 before
+    // starting the dedicated looping buffer, then fades it toward 80.
+    {"lowbees.wav", Policy::SingleBuffer, original_main_menu_lowbees_start_volume, 0,
      directsound_play_looping_flag},
     // Drone approach loop. The slot is loaded at 90, but the live start path
     // immediately overrides it to 0 and then controls it through SetVolume.

@@ -10,6 +10,7 @@ option(DRONE_BUILD_TESTS "Build Drone format/core tests" ON)
 add_library(drone_core
     src/audio/original_directsound.cpp
     src/audio/audio_event.cpp
+    src/audio/presentation_audio.cpp
     src/formats/jba.cpp
     src/formats/clv.cpp
     src/formats/fly.cpp
@@ -117,6 +118,10 @@ if(DRONE_BUILD_TESTS)
     add_executable(drone_audio_runtime_tests tests/test_audio_runtime.cpp)
     target_link_libraries(drone_audio_runtime_tests PRIVATE drone_core)
     add_test(NAME drone_audio_runtime COMMAND drone_audio_runtime_tests)
+
+    add_executable(drone_presentation_audio_tests tests/test_presentation_audio.cpp)
+    target_link_libraries(drone_presentation_audio_tests PRIVATE drone_core)
+    add_test(NAME drone_presentation_audio COMMAND drone_presentation_audio_tests)
 
     add_executable(drone_gameplay_tests tests/test_gameplay.cpp)
     target_link_libraries(drone_gameplay_tests PRIVATE drone_core)

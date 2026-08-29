@@ -70,6 +70,13 @@ int main() {
     static_assert(original_air_loop_restart_volume == 0);
     static_assert(original_air_loop_fade_boundary == 60);
     static_assert(original_air_loop_menu_frequency_hz == 11025);
+    static_assert(original_main_menu_lowbees_start_volume == 0);
+    static_assert(original_main_menu_lowbees_volume_cap == 80);
+
+    const auto& menu_loop = audio_cue_definition(AudioCue::MainMenuLowBees);
+    assert(menu_loop.original_asset == "lowbees.wav");
+    assert(menu_loop.original_volume_0_to_100 == 0);
+    assert(menu_loop.directsound_play_flags == directsound_play_looping_flag);
 
     const auto& drone_loop = audio_cue_definition(AudioCue::DroneApproachLoop);
     assert(drone_loop.original_asset == "drone.wav");
@@ -168,11 +175,13 @@ int main() {
     assert(queue.push({AudioCue::RapidMissileFire, AudioAction::Play}));
     assert(queue.push({AudioCue::SpecialLaunch, AudioAction::StopAndRewind}));
     assert(queue.push({AudioCue::DroneApproachLoop, AudioAction::SetVolume, 60}));
-    assert(queue.size == 3);
+    assert(queue.push({AudioCue::AirLoop, AudioAction::SetFrequency, 11025}));
+    assert(queue.size == 4);
     assert(!queue.overflowed);
     assert((queue.view()[0] == AudioEvent{AudioCue::RapidMissileFire, AudioAction::Play}));
     assert((queue.view()[1] == AudioEvent{AudioCue::SpecialLaunch, AudioAction::StopAndRewind}));
     assert((queue.view()[2] == AudioEvent{AudioCue::DroneApproachLoop, AudioAction::SetVolume, 60}));
+    assert((queue.view()[3] == AudioEvent{AudioCue::AirLoop, AudioAction::SetFrequency, 11025}));
 
     for (std::size_t i = queue.size; i < game_session_audio_event_capacity; ++i) {
         assert(queue.push({AudioCue::ShieldPulse, AudioAction::Play}));

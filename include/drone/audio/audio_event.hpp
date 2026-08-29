@@ -39,6 +39,7 @@ enum class AudioCue : std::uint8_t {
     MissionDeepness,
     MissionDetonate,
     AirLoop,
+    MainMenuLowBees,
     DroneApproachLoop,
     LidTopBossLoop,
     GeminiBossLoop,
@@ -54,6 +55,7 @@ enum class AudioAction : std::uint8_t {
     Play,
     StopAndRewind,
     SetVolume,
+    SetFrequency,
 };
 
 enum class AudioVoicePolicy : std::uint8_t {
@@ -92,7 +94,7 @@ struct OriginalAudioRuntimeState {
 struct AudioEvent {
     AudioCue cue = AudioCue::RapidMissileFire;
     AudioAction action = AudioAction::Play;
-    // Used by parameterized actions such as SetVolume. Ignored for Play/Stop.
+    // Used by parameterized actions such as SetVolume/SetFrequency. Ignored for Play/Stop.
     std::int32_t value = 0;
 
     friend constexpr bool operator==(const AudioEvent&, const AudioEvent&) = default;

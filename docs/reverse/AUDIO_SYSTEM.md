@@ -261,7 +261,37 @@ SetVolume(air.wav, 0)
 
 The clean session now emits that exact semantic sequence after both normal and destructive encounter rebuilds. `OriginalAudioRuntimeState::air_loop_volume_0_to_100` owns `0x004729A0` above campaign/encounter resets.
 
-Two related paths remain deliberately outside this gameplay slice. The main-menu/new-run restart at `0x0041A3EE..0x0041A417` starts at zero and then forces **11025 Hz**; raw states 5/6/99 use a separate overlay fade-to-zero/stop path at `0x0040C521..0x0040C665`. Those are menu/overlay-host responsibilities and will not be approximated inside `GameSession`.
+The gameplay slice still does not own menu/overlay presentation, but those two paths are now reconstructed in a separate clean host runtime described below.
+
+## Main-menu and gameplay-overlay audio host
+
+`run_main_menu` owns `lowbees.wav` independently of the state-2 gameplay session. Bootstrap code arms byte `0x00459F8C = 1`; menu entry consumes that byte only when it actually loads/starts the ambience. The exact startup order at `0x00418ADB..0x00418B1C` is:
+
+```text
+if lowbees_restart_armed == 1:
+    load lowbees.wav
+    local_volume = 0
+    SetVolume(lowbees.wav, 0)
+    Play(lowbees.wav, looping)
+    lowbees_restart_armed = 0
+```
+
+At `0x004190F9..0x00419110` the local volume increases by exactly one per main-menu iteration while below 80. Cleanup at `0x00419DA6..0x00419DE3` is selective: raw states `0`, `2`, `7`, `13`, and `-1` stop/reset and release the slot, then re-arm `0x00459F8C = 1`. Instructions (`3`) and High Scores (`8`) do not take that cleanup branch, so the clean owner preserves the ambience across those synchronous modal paths rather than manufacturing a restart.
+
+The tail after `run_main_menu` returns has separate `air.wav` ownership. At `0x0041A3D6..0x0041A41C`, raw state zero skips the restart; every non-zero state executes:
+
+```text
+Play(air.wav, looping)
+air_volume = 0
+SetVolume(air.wav, 0)
+SetFrequency(air.wav, 11025)
+```
+
+The order matters: frequency is forced only after the loop has been rewound/started and volume zero applied. `AudioAction::SetFrequency` now preserves that parameter without binding the clean core to DirectSound.
+
+Pause (`5`), quit-confirmation (`6`), and the nine-lives notice (`99`) share one overlay path at `0x0040C521..0x0040C665`. Each overlay iteration checks the same process-global `0x004729A0` air scalar: positive values are decremented by one and applied through SetVolume; once the scalar is zero, the path stop/rewinds `air.wav`. When the overlay returns to active state `2`, `0x0040C82C..0x0040C913` takes the active-gameplay restart branch, starts the loop and restores scalar/volume 50.
+
+The clean implementation is intentionally host-side in `include/drone/audio/presentation_audio.hpp` and `src/audio/presentation_audio.cpp`. It shares `OriginalAudioRuntimeState::air_loop_volume_0_to_100` with gameplay but does not inject menu/modal cadence into deterministic `GameSession`.
 
 ## Native post-game audio ownership
 
@@ -282,21 +312,24 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 - `include/drone/audio/original_directsound.hpp`
   - exact 20-voice capacity and selector;
   - exact volume conversion;
-  - established frequency plus `drone.wav` and `air.wav` control constants;
+  - established frequency plus `drone.wav`, `air.wav`, and main-menu `lowbees.wav` control constants;
   - metadata-only 13-site flags-1 call catalog with literal/register proof classification;
   - native semantic ownership for the shareware Lid/Top and Gemini loop starts/stops.
 - `include/drone/audio/audio_event.hpp`
-  - semantic cue/action types, including parameterized `SetVolume`;
-  - metadata-only cue definitions, including `drone.wav`, `air.wav`, the two native boss loops, four one-shot Results tracks and looping Ordering/Credits cues;
+  - semantic cue/action types, including parameterized `SetVolume` and `SetFrequency`;
+  - metadata-only cue definitions, including `drone.wav`, `air.wav`, `lowbees.wav`, the two native boss loops, four one-shot Results tracks and looping Ordering/Credits cues;
   - process-lifetime original-audio control state for the explosion selector, `0x00440278` Drone volume scalar and `0x004729A0` air volume scalar;
   - fixed-capacity allocation-free `AudioEventQueue`.
 - `GameSessionTickResult::audio_events` and `PostGameRuntimeStepResult::audio_events`
   - exact gameplay event ordering plus native Drone approach/decode volume control, state-2 air envelope/restart control, boss-loop ownership, and Results/Ordering/Credits ownership transitions.
+- `include/drone/audio/presentation_audio.hpp`
+  - host-side main-menu `lowbees.wav` restart/fade/cleanup ownership;
+  - main-menu tail `air.wav` zero-volume 11025-Hz restart;
+  - raw-state 5/6/99 overlay fade-to-stop and state-2 resume restart.
 
 ## Next audio work
 
-1. integrate the menu/overlay-owned `air.wav` 11025-Hz restart/fade path together with the `lowbees.wav` menu lifecycle at the proper host boundary;
-2. execute the recovered completion-credits fade envelope and finish any remaining long-form volume/pan semantics;
-3. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot, then recover the repeating `level1.wav` / `level2.wav` boss cadence and remaining Squad/pool initialization settings;
-4. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
-5. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.
+1. execute the recovered completion-credits fade envelope and finish any remaining long-form volume/pan semantics;
+2. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot, then recover the repeating `level1.wav` / `level2.wav` boss cadence and remaining Squad/pool initialization settings;
+3. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
+4. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.
