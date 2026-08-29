@@ -68,9 +68,9 @@ enum class AudioBackendPrimitive : std::uint8_t {
     SetDigitalMasterVolume,
 };
 
-// Platform-facing command produced by lowering one semantic AudioEvent. It is
-// still sample-data-free: AudioCue remains the asset identity and the host
-// resolves/imports the actual original or replacement data separately.
+// Original-policy command produced by lowering one semantic AudioEvent. It is
+// still sample-data-free: PortableAudioVoiceRuntime executes ownership/voice
+// state, while a later host resolves/imports sample data and performs PCM I/O.
 struct AudioBackendCommand {
     OriginalAudioBackend backend{};
     AudioBackendPrimitive primitive{};

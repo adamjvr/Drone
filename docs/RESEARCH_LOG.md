@@ -452,3 +452,14 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Added backend-native sample/master control lowering and hard rejection of incompatible value domains.
 - Added build-specific cue availability: canonical DOS shareware has no counterpart for Win32 `hiphop.wav` or `credits.wav`, so faithful DOS lowering refuses those cues.
 - Added `CROSS-AUD-005` to make the portable-interface invariant part of the evidence/implementation record.
+
+## 2026-08-29 — Host-independent original-policy voice runtime
+
+- Added deterministic execution state below `portable_audio_backend` and above any sample decoder/device API.
+- Win32 reusable cues now execute as independent 20-slot first-inactive pools with exact slot-0 reuse on saturation; pool capacity is per cue, not a global 20-voice mixer limit.
+- DOS now executes as one global 32-voice first-inactive array with explicit failure on saturation and no stealing.
+- Added generation-tagged runtime handles so natural-completion callbacks for a stolen/reused slot cannot terminate its new occupant.
+- Preserved control ownership differences: Win32 dedicated volume/rate can exist before Play and persist with the buffer; DOS volume/rate/stop target the retained active HMI voice and slot reuse clears prior occupant control state.
+- Added sample-data-free DOS master-volume execution initialized to `0x7FFF`; master attenuation leaves Air voice ownership unchanged.
+- Added regression coverage for overlap, per-cue vs global capacity, saturation, slot reuse, stale handles, looping, dedicated/retained controls, stop/rewind divergence, master volume, and backend mismatch rejection.
+- Added `CROSS-AUD-006` to lock the executable policy differences into the portable runtime implementation boundary.

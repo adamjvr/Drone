@@ -161,6 +161,21 @@ Pause (`5`), quit confirmation (`6`) and nine-lives (`99`) do not directly manip
 
 This establishes `DOS-AUD-005..007` and `CROSS-AUD-004`. All five DOS audio-runtime questions (`Q-AUDIO-003..007`) are now resolved, so the next Phase-5 engineering step can define the portable mixer/backend contract while keeping the original platform policies distinct.
 
+## Host-independent original-policy voice runtime
+
+This Phase-5 slice moves the portable original-backend contract from command lowering into deterministic execution state without binding an operating-system audio API:
+
+- `PortableAudioVoiceRuntime` executes already-lowered backend commands against sample-data-free abstract voice state; hosts remain responsible for decoding/rendering samples and report natural one-shot completion through generation-checked `complete_voice()` handles;
+- Win32 reusable cues own independent 20-slot pools. Play chooses the first inactive slot and, only when all 20 are active, reuses/steals slot 0 exactly as the established DirectSound selector does; saturation is therefore per cue rather than a hidden global 20-voice limit;
+- DOS owns one global 32-slot HMI voice array. Play chooses the first inactive global voice and returns `VoiceUnavailable` when all 32 are active; no active voice is stolen;
+- runtime voice handles include a generation, so a host completion callback from a previously stolen/reused slot cannot retire the new occupant;
+- Win32 dedicated-buffer volume/rate properties may be applied before Play and persist across Play calls, matching resource-owned DirectSound controls; pooled controls without an explicit slot are rejected as ambiguous rather than guessed;
+- DOS StartSample-style reuse clears prior occupant control state, retains the most recent voice handle by semantic cue for stop/volume/rate control, and rejects those controls when no retained active voice exists;
+- Win32 Stop preserves the explicit rewind-after-stop fact, while DOS retained-voice Stop has no DirectSound-style rewind state;
+- DOS digital-master volume is global runtime state initialized to established full level `0x7FFF`; changing it never changes Air voice ownership, preserving the recovered overlay model.
+
+This runtime still performs no PCM mixing, resampling, cursor advancement or device I/O. Its purpose is to freeze overlap/saturation/control ownership before the next slice adds a modern sample mixer and OS-device bindings.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

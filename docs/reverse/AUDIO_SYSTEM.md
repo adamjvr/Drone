@@ -545,3 +545,15 @@ This means `CROSS-AUD-003` and `CROSS-AUD-004` are enforced by code rather than 
 ### Build-specific cue availability
 
 The checked-in 63-row audio crosswalk establishes DOS counterparts for the current semantic cue catalog except Win32 `hiphop.wav` and `credits.wav`. `audio_cue_available_on_original_backend()` therefore rejects `ResultsHiphop` and `CompletionCredits` on the DOS-faithful backend. This is a hard evidence boundary: a future remaster may provide replacement content, but original-DOS fidelity mode must not invent assets absent from the canonical DOS shareware set.
+### Host-independent original-policy voice execution
+
+`include/drone/audio/voice_runtime.hpp` and `src/audio/voice_runtime.cpp` execute the already-lowered original-backend commands without importing audio bytes or binding a modern device API. The runtime deliberately models the original ownership/arbitration facts rather than a universal voice pool:
+
+- Win32 reusable cues each have their own 20 abstract DirectSound slots. First inactive wins; saturation steals/reuses slot 0. Dedicated cues use slot 0 as a resource-owned buffer.
+- DOS uses one global 32-voice array. First inactive wins; saturation returns `VoiceUnavailable` and does not alter an active voice.
+- Returned runtime handles carry a generation so a late completion callback cannot terminate a slot after it was stolen/reused.
+- Win32 dedicated buffer controls exist even while inactive and survive Play; ambiguous pooled controls are rejected without an explicit slot.
+- DOS sample controls follow the retained active voice for that cue; slot reuse clears the previous HMI occupant's runtime control state.
+- DOS master volume is global state and does not alter Air ownership. Win32 Stop records its explicit rewind semantic; DOS Stop does not invent one.
+
+Natural one-shot completion is a host input to this layer through `complete_voice()`. PCM cursor advancement, resampling, sample decoding and OS-device scheduling remain deliberately outside this runtime.
