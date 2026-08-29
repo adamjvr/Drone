@@ -128,6 +128,19 @@ This Phase-5 slice closes the last unknown initialization value in the native se
 
 With this change, all currently native shareware semantic cues that are statically volume-initialized have explicit initialization metadata. Stack-local Results/Ordering/Credits entries remain source/default where the original issues no initial `SetVolume`; that is evidence, not an unresolved static-loader gap. The next Phase-5 work is Windows-vs-DOS HMI behavior and the portable mixer/backend contract.
 
+## DOS HMI platform-contract foundation
+
+This slice establishes the DOS middleware boundary without pretending that an SDK constant is a Drone gameplay fact:
+
+- surviving public Human Machine Interfaces S.O.S. 4.x headers expose `_SOS_SAMPLE` as a descriptor carrying volume, loop count, rate, pan, priority and completion callbacks;
+- HMI exports descriptor-backed `sosDIGIStartSample`, explicit sample/all-sample stop, sample-done/status queries, and runtime volume/rate/pan controls;
+- the SDK defines a default 32-channel mixer and a 32-voice capability ceiling, now represented in `original_hmi.hpp` **only as middleware capability**;
+- HMI's public start contract does not require a DirectSound-style preduplicated pool, so Win32 Drone's exact 20-buffer first-free/slot-0-steal policy remains a Win32 game/backend behavior rather than a portable invariant;
+- the existing DOS `0x0007ECB4` `hmi_sample_loader` ↔ Win32 `0x00406200` loader relationship remains `CORR-AUD-001` behavioral/candidate rather than being promoted without fresh DOS call-site evidence;
+- five explicit questions now gate the executable-level DOS backend: configured voices, allocation/priority/steal policy, game-volume conversion, loop encoding, and menu/game/modal stop/restart lifecycle.
+
+This is intentionally a foundation rather than the final DOS implementation. The portable mixer/backend remains deferred until those Drone-specific HMI call sites are recovered; otherwise the clean engine would risk copying Win32 overlap policy onto DOS or mistaking the HMI SDK ceiling for the game's chosen configuration.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

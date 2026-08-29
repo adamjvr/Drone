@@ -67,6 +67,30 @@ At least several Windows-only small `.JBA` files contain embedded 128×128 8-bit
 
 The relationship is exact over compared common sample regions for nearly all matching assets examined in Phase 0/1. Build a corpus report that records length/tail exceptions explicitly.
 
+## Phase 5 — DOS audio runtime
+
+The HMI S.O.S. 4.x middleware API is now documented, but its defaults/capabilities must not be promoted into Drone behavior without executable evidence. The remaining DOS-audio questions are:
+
+### Q-AUDIO-003 — What voice/channel count does Drone DOS actually configure?
+
+The SDK exposes a default 32-channel mixer and 32-voice capability ceiling. Recover Drone's `sosDIGIInitSystem` / driver setup and any game-owned slot arrays before choosing a DOS backend limit.
+
+### Q-AUDIO-004 — What allocation, priority and steal policy does Drone DOS use?
+
+Trace starts/done checks/stops around `hmi_sample_loader` (`0x0007ECB4`). HMI supports descriptor priorities, but neither a particular priority scheme nor Win32's 20-buffer first-free/slot-0-steal behavior may be assumed.
+
+### Q-AUDIO-005 — How are Drone's game volumes represented in HMI?
+
+Recover `_SOS_SAMPLE.wVolume` / `sosDIGISetSampleVolume` producers and compare common assets against the established Win32 0..100 game values. The HMI `MK_VOLUME` representation is API capability, not yet Drone's conversion rule.
+
+### Q-AUDIO-006 — What loop encoding does Drone DOS use?
+
+Recover `wLoopCount` / loop-state setup for matched sustained sounds such as AIR, DRONE, GEMINI and RETRO1 rather than translating DirectSound `Play(flags=1)` mechanically.
+
+### Q-AUDIO-007 — What stop/pause/restart lifecycle does Drone DOS use across states?
+
+Map `sosDIGIStopSample`, `sosDIGIStopAllSamples`, sample-done queries and restart sites across gameplay/menu/modal transitions, then compare with the already-established Win32 ownership model.
+
 ## Evidence acquisition
 
 ### Q-FULL-001 — Which exact full/registered release should become the canonical retail reference?

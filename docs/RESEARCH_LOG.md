@@ -413,3 +413,12 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Recovered all fourteen `squad1.wav`..`squad14.wav` blocks from static audio loader `0x0041F4F0`. Every family loads one WAV, applies game volume 80 to the base, duplicates it nineteen times, and applies the same volume to each duplicate; no family calls the DirectSound frequency wrapper during initialization.
 - Mapped the exact 20-DWORD pool storage ranges from `0x0042F1A8..0x0042F1F7` (`squad1.wav`) through `0x00441770..0x004417BF` (`squad14.wav`). The `rand()%14` playback jump tables at `0x0040D294..0x0040D388` and `0x0040D596..0x0040D5F6` pass those same bases to `0x00420020`; cleanup releases them with `0x00420070` at `0x0040B932..0x0040B9E5`.
 - Replaced the last `-1` static volume values in the native trajectory cue metadata with proven volume 80 and added a regression-tested `original_trajectory_pool_initializations()` evidence catalog. Stack-local presentation cues that receive no initial `SetVolume` remain explicitly source/default rather than being assigned synthetic values.
+
+## 2026-08-29 — DOS HMI platform-contract foundation
+
+- Verified the Phase-5 branch base at `f8cab5161383401049d10ecfcdf358c84969016b` before this slice.
+- Added metadata-only `original_hmi` support from public Human Machine Interfaces S.O.S. 4.x SDK headers: descriptor-backed starts; sample volume, loop-count, rate, pan, priority and callbacks; explicit stop/status; and the SDK's 32-channel/32-voice capability ceiling.
+- Kept the evidence boundary explicit: those values describe HMI capability and do **not** establish Drone DOS configured voice count or allocation/steal policy.
+- Recorded the cross-backend distinction that Win32 Drone's exact preduplicated 20-buffer pools are game/DirectSound behavior, not an HMI API requirement.
+- Added `Q-AUDIO-003` through `Q-AUDIO-007` for the five executable-level DOS questions that must be resolved before the portable mixer/backend is finalized.
+- Preserved `CORR-AUD-001` as behavioral/candidate pending a fresh canonical DOS call-site trace.

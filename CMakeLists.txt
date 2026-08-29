@@ -9,6 +9,7 @@ option(DRONE_BUILD_TESTS "Build Drone format/core tests" ON)
 
 add_library(drone_core
     src/audio/original_directsound.cpp
+    src/audio/original_hmi.cpp
     src/audio/audio_event.cpp
     src/audio/presentation_audio.cpp
     src/formats/jba.cpp

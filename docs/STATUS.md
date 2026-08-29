@@ -38,7 +38,7 @@
 | reusable SFX voices | CONFIRMED | exact 20-voice scan from slot 0; first raw status != 1 wins; if all 20 are exactly 1, slot 0 is stolen/restarted |
 | portable audio-event boundary | ESTABLISHED parameterized contract | allocation-free semantic event queue emitted natively for rapid missile, shield cadence, special load/cycle/ordinary launch, transient Squad flight selection and mission interstitial cues; `SetVolume` and `SetFrequency` now carry original control values |
 | long-form/loop ownership | CONFIRMED expanding integration | 13 effective Win32 flags-1 Play sites cataloged (8 literal + 5 register-proven); Results is flags-0 one-shot; Ordering/Credits plus native Lid/Top/Gemini lifetimes emit start/stop events; `drone.wav` has exact gameplay control; native state-2 `air.wav` owns its bidirectional envelope/detonation/restart; and the separate presentation host owns `lowbees.wav`, the 11025-Hz air restart, overlay fade-to-stop/state-2 resume restart, plus the exact post-scroll credits 99..0 volume envelope |
-| remaining audio semantics | PARTIAL | credits fade execution, two still-unidentified Drone one-shots, repeating boss `level1`/`level2` cadence, complete Squad/pool init settings, DOS HMI behavior and portable mixer/backend remain Phase-5 work |
+| DOS HMI / remaining audio semantics | PARTIAL with middleware contract established | Windows shareware cue/control/static-pool reconstruction is closed for the current native set; HMI S.O.S. descriptor/control capability is now represented separately, while Drone DOS configured voices, allocation/steal policy, volume mapping, loop encoding, transition lifecycle and the final portable mixer/backend remain Phase-5 work |
 
 ## Status legend
 
@@ -124,7 +124,7 @@ Phase 4 is complete for the canonical shareware simulation. The remaining non-na
 
 Phase 5 priorities are now:
 
-1. Recover the DOS HMI runtime contract and compare it directly with the established Win32 DirectSound semantics instead of assuming backend equivalence.
+1. Re-read the canonical DOS HMI call sites to resolve configured voices, allocation/steal/priority policy, volume mapping, loop encoding and transition lifecycle; the middleware capability contract is now established but is not a substitute for game behavior.
 2. Complete the portable audio-event/mixer contract from the established semantic events without erasing original priority/overlap/control behavior.
-3. Preserve Windows-vs-DOS backend differences rather than normalizing them prematurely.
+3. Preserve Windows-vs-DOS backend differences rather than normalizing them prematurely; Win32 Drone's 20-buffer pool is not an HMI API invariant.
 4. Keep deterministic trace comparison in Phase 6 and end-to-end shareware discrepancy closure in Phase 7.

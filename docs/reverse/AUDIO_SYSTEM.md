@@ -135,6 +135,38 @@ The selector has process lifetime, not encounter/campaign lifetime. `GameSession
 
 This preserves both sound multiplicity and the global `explode2, explode2, explode3, explode4` phase seen by later impacts.
 
+## DOS HMI S.O.S. middleware contract
+
+The canonical DOS executable is already classified as an HMI S.O.S.-based audio build, with `0x0007ECB4` tracked as the DOS-side HMI sample-loader candidate. The current Phase-5 evidence set does **not** contain a fresh executable-level trace of Drone's HMI start/stop callers, so this slice deliberately separates two evidence levels:
+
+1. **HMI middleware capability**, established from surviving public S.O.S. 4.x SDK headers;
+2. **Drone DOS policy**, which remains open until the canonical DOS call sites can be re-read.
+
+The public HMI headers establish the following library-level contract:
+
+| HMI S.O.S. capability | established middleware behavior | Drone-specific conclusion |
+|---|---|---|
+| mixer/voice ceiling | `_SOS_MIXER_CHANNELS = 32`, `_SOS_MAX_VOICES = 32` | **do not infer Drone configured 32** |
+| sample start | `sosDIGIStartSample(driver, PSOSSAMPLE)` starts a caller-provided `_SOS_SAMPLE` descriptor | descriptor-backed API, not a required preduplicated pool |
+| sample state | descriptor flags include active/processed/done/loop state | exact Drone polling policy still open |
+| volume | descriptor `wVolume`; `sosDIGISetSampleVolume` / getter exported | exact Drone game-volume conversion still open |
+| looping | descriptor `wLoopCount` plus loop state/callback support | exact Drone sustained-loop encoding still open |
+| rate | descriptor `wRate`; `sosDIGISetSampleRate` / getter exported | exact Drone frequency overrides still need DOS call-site proof |
+| pan | descriptor `wPanPosition`; setter/getter exported | no Drone panning claim yet |
+| priority | descriptor `wPriority` | exact Drone priority/arbitration policy still open |
+| lifecycle | explicit `StartSample`, `StopSample`, `StopAllSamples`, `SampleDone` plus completion callbacks | exact menu/game/modal lifecycle still open |
+
+The clean metadata representation lives in `include/drone/audio/original_hmi.hpp`. It records the middleware facts above but intentionally has **no field asserting Drone's DOS configured voice count or steal policy**. The 32 values are capability/default constants from HMI, not reconstructed game configuration.
+
+This creates an important cross-build distinction. Win32 Drone itself constructs selected high-overlap sounds as 20 duplicated DirectSound buffers and owns an exact first-status-not-1 / otherwise-slot-0 reuse policy. HMI S.O.S. instead accepts sample descriptors at its public start boundary; a DirectSound-style twenty-copy pool is not required by the middleware API. Drone DOS may still maintain its own game-level slot table, priority scheme or reuse rule, but that must be recovered from the executable rather than normalized from either backend.
+
+Public API provenance used only as middleware documentation:
+
+- `https://github.com/Wohlstand/SOSPLAY/blob/master/sos/include/sos.h`
+- `https://github.com/Wohlstand/SOSPLAY/blob/master/sos/include/sosfnct.h`
+
+No HMI source/header payload is copied into this repository.
+
 ## Current clean API
 
 - `include/drone/audio/original_directsound.hpp`
@@ -142,6 +174,10 @@ This preserves both sound multiplicity and the global `explode2, explode2, explo
   - exact volume conversion;
   - established frequency constants;
   - exact 14-family Squad static-loader/pool initialization catalog.
+- `include/drone/audio/original_hmi.hpp`
+  - middleware-level HMI S.O.S. descriptor/control capability metadata;
+  - 32-channel/voice library ceiling recorded explicitly as capability rather than Drone configuration;
+  - explicit separation from Win32 Drone's game-owned 20-buffer pool policy.
 - `include/drone/audio/audio_event.hpp`
   - semantic cue/action types, including parameterized `SetVolume` in original game-scale units;
   - metadata-only cue definitions;
@@ -385,7 +421,7 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 
 ## Next audio work
 
-1. finish remaining Squad/pool initialization settings and any residual shareware cue ownership not yet represented semantically;
-2. finish any still-unmapped long-form volume/pan semantics;
-3. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
-4. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.
+1. reacquire/re-read the canonical DOS executable at the HMI start/stop/control call sites and resolve `Q-AUDIO-003` through `Q-AUDIO-007`;
+2. establish Drone DOS configured voice count, sample arbitration/steal policy, game-volume mapping, loop encoding and transition lifecycle instead of substituting middleware defaults;
+3. compare those executable-level DOS policies directly with the established Win32 DirectSound ownership model;
+4. only then finalize the portable mixer/backend so semantic cue/control events remain shared while backend overlap/voice policy can stay historically platform-specific.

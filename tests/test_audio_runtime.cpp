@@ -1,5 +1,6 @@
 #include <drone/audio/audio_event.hpp>
 #include <drone/audio/original_directsound.hpp>
+#include <drone/audio/original_hmi.hpp>
 #include <drone/gameplay/game_session.hpp>
 
 #include <algorithm>
@@ -224,6 +225,39 @@ int main() {
     assert(trajectory_pools.back().filename_literal_va == 0x0042BE58u);
     assert(trajectory_pools.back().pool_storage_begin_va == 0x00441770u);
     assert(trajectory_pools.back().pool_storage_end_va == 0x004417C0u);
+
+    // HMI S.O.S. middleware capability is intentionally modeled separately
+    // from Drone's Win32 DirectSound pool construction. The public SOS 4.x
+    // headers expose descriptor-backed samples, 32-voice library capacity and
+    // independent volume/rate/pan/loop controls, but do not prove which voice
+    // count or allocation/steal policy Drone selected in its DOS executable.
+    const auto& hmi = original_hmi_sos_api_contract();
+    static_assert(original_hmi_default_mixer_channels == 32);
+    static_assert(original_hmi_max_voice_capability == 32);
+    static_assert(original_hmi_sample_flag_active == 0x8000);
+    static_assert(original_hmi_sample_flag_processed == 0x4000);
+    static_assert(original_hmi_sample_flag_done == 0x2000);
+    static_assert(original_hmi_sample_flag_loop == 0x1000);
+    static_assert(original_hmi_pan_left == 0);
+    static_assert(original_hmi_pan_center == 0x8000);
+    static_assert(original_hmi_pan_right == 0xFFFF);
+    assert(hmi.default_mixer_channels == 32);
+    assert(hmi.max_voice_capability == 32);
+    assert(hmi.descriptor_backed_start);
+    assert(hmi.explicit_stop_by_handle);
+    assert(hmi.explicit_stop_all_samples);
+    assert(hmi.sample_done_query);
+    assert(hmi.descriptor_has_volume);
+    assert(hmi.descriptor_has_loop_count);
+    assert(hmi.descriptor_has_sample_rate);
+    assert(hmi.descriptor_has_pan);
+    assert(hmi.descriptor_has_priority);
+    assert(hmi.descriptor_has_completion_callbacks);
+    assert(hmi.runtime_set_volume);
+    assert(hmi.runtime_set_sample_rate);
+    assert(hmi.runtime_set_pan);
+    assert(!hmi.api_requires_preduplicated_sample_pool);
+    assert(hmi.max_voice_capability != original_sfx_voice_pool_capacity);
 
     AudioEventQueue queue{};
     assert(queue.push({AudioCue::RapidMissileFire, AudioAction::Play}));
