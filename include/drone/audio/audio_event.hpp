@@ -38,6 +38,12 @@ enum class AudioCue : std::uint8_t {
     TrajectoryFlight14,
     MissionDeepness,
     MissionDetonate,
+    ResultsChoral,
+    ResultsSuspense,
+    ResultsMoon,
+    ResultsHiphop,
+    OrderingInformation,
+    CompletionCredits,
 };
 
 enum class AudioAction : std::uint8_t {

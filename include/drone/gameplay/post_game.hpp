@@ -1,5 +1,6 @@
 #pragma once
 
+#include <drone/audio/audio_event.hpp>
 #include <drone/gameplay/game_state.hpp>
 #include <drone/gameplay/mission_outcome.hpp>
 #include <drone/high_score.hpp>
@@ -104,6 +105,9 @@ struct PostGameModalInput {
 };
 
 struct PostGameRuntimeStepResult {
+    // GameSession fills this queue at semantic modal ownership boundaries.
+    // The lower-level step_post_game_runtime() remains presentation/audio agnostic.
+    drone::audio::AudioEventQueue audio_events{};
     bool advanced = false;
     bool results_presentation_counted = false;
     bool results_lock_expired = false;

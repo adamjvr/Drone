@@ -26,6 +26,67 @@ void append_original_explosion_variants(
     }
 }
 
+drone::audio::AudioCue post_game_results_audio_cue(
+    const MissionResultsMusic music) noexcept {
+    using drone::audio::AudioCue;
+    switch (music) {
+    case MissionResultsMusic::Choral: return AudioCue::ResultsChoral;
+    case MissionResultsMusic::Suspense: return AudioCue::ResultsSuspense;
+    case MissionResultsMusic::Moon: return AudioCue::ResultsMoon;
+    case MissionResultsMusic::Hiphop: return AudioCue::ResultsHiphop;
+    }
+    return AudioCue::ResultsSuspense;
+}
+
+void append_post_game_phase_start_audio(
+    drone::audio::AudioEventQueue& queue,
+    const PostGameModalPhase phase,
+    const Win32PostGamePlan& plan) noexcept {
+    using drone::audio::AudioAction;
+    using drone::audio::AudioCue;
+    switch (phase) {
+    case PostGameModalPhase::ResultsConfirmLock:
+        (void)queue.push({post_game_results_audio_cue(plan.outcome_summary.music), AudioAction::Play});
+        break;
+    case PostGameModalPhase::OrderingInformation:
+        (void)queue.push({AudioCue::OrderingInformation, AudioAction::Play});
+        break;
+    case PostGameModalPhase::CompletionCredits:
+        (void)queue.push({AudioCue::CompletionCredits, AudioAction::Play});
+        break;
+    case PostGameModalPhase::Inactive:
+    case PostGameModalPhase::ResultsAwaitConfirmation:
+    case PostGameModalPhase::HighScoreTable:
+    case PostGameModalPhase::Complete:
+        break;
+    }
+}
+
+void append_post_game_phase_stop_audio(
+    drone::audio::AudioEventQueue& queue,
+    const PostGameModalPhase phase,
+    const Win32PostGamePlan& plan) noexcept {
+    using drone::audio::AudioAction;
+    using drone::audio::AudioCue;
+    switch (phase) {
+    case PostGameModalPhase::ResultsAwaitConfirmation:
+        (void)queue.push({post_game_results_audio_cue(plan.outcome_summary.music),
+                          AudioAction::StopAndRewind});
+        break;
+    case PostGameModalPhase::OrderingInformation:
+        (void)queue.push({AudioCue::OrderingInformation, AudioAction::StopAndRewind});
+        break;
+    case PostGameModalPhase::CompletionCredits:
+        (void)queue.push({AudioCue::CompletionCredits, AudioAction::StopAndRewind});
+        break;
+    case PostGameModalPhase::Inactive:
+    case PostGameModalPhase::ResultsConfirmLock:
+    case PostGameModalPhase::HighScoreTable:
+    case PostGameModalPhase::Complete:
+        break;
+    }
+}
+
 void synchronize_post_game_raw_state(GameSession& session) noexcept {
     if (!session.post_game.plan) {
         return;
@@ -123,6 +184,8 @@ GameSessionTickResult step_game_session(
         }
 
         (void)begin_post_game_runtime(session.post_game, *plan);
+        append_post_game_phase_start_audio(
+            result.audio_events, session.post_game.phase, *session.post_game.plan);
         synchronize_post_game_raw_state(session);
         result.post_game_started = true;
         result.post_game_phase = session.post_game.phase;
@@ -897,7 +960,14 @@ GameSessionTickResult step_game_session(
 PostGameRuntimeStepResult step_game_session_post_game(
     GameSession& session,
     const PostGameModalInput& input) {
+    const auto previous_phase = session.post_game.phase;
     auto result = step_post_game_runtime(session.post_game, input);
+    if (session.post_game.plan && result.advanced && result.phase != previous_phase) {
+        append_post_game_phase_stop_audio(
+            result.audio_events, previous_phase, *session.post_game.plan);
+        append_post_game_phase_start_audio(
+            result.audio_events, result.phase, *session.post_game.plan);
+    }
     synchronize_post_game_raw_state(session);
     return result;
 }

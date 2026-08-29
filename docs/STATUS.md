@@ -31,7 +31,8 @@
 | Win32 DirectSound primitives | CONFIRMED | WAV slot loader, buffer duplication, play/rewind, exact volume conversion, frequency, stop/reset, release and raw status helpers mapped |
 | reusable SFX voices | CONFIRMED | exact 20-voice scan from slot 0; first raw status != 1 wins; if all 20 are exactly 1, slot 0 is stolen/restarted |
 | portable audio-event boundary | ESTABLISHED first contract | allocation-free semantic event queue emitted natively for rapid missile, shield cadence, special load/cycle/ordinary launch, transient Squad flight selection and mission interstitial cues |
-| remaining audio semantics | PARTIAL | ordered late-bomb impact events, all loop-flag callers, complete cue init settings, Results/credits playback, DOS HMI behavior and platform mixer/backend remain Phase-5 work |
+| long-form/loop ownership | CONFIRMED first integration | 13 effective Win32 flags-1 Play sites cataloged (8 literal + 5 register-proven); Results is flags-0 one-shot; Ordering/Credits lifetimes are native post-game events; menu `lowbees` and credits fade lifecycles documented |
+| remaining audio semantics | PARTIAL | clean menu/air/Drone/remaining boss loop integration, credits/menu fade execution, complete Squad/pool init settings, DOS HMI behavior and portable mixer/backend remain Phase-5 work |
 
 ## Status legend
 

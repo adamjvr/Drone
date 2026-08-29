@@ -3,12 +3,53 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <span>
+#include <string_view>
 
 namespace drone::audio {
 
 // Win32 0x00420020 operates on exactly twenty reusable DirectSound buffers.
 inline constexpr std::size_t original_sfx_voice_pool_capacity = 20;
 inline constexpr std::uint32_t directsound_status_playing = 1;
+inline constexpr std::uint32_t directsound_play_looping_flag = 1;
+
+enum class OriginalLoopPlaybackOwner : std::uint8_t {
+    BomberBoss,
+    CompletionCredits,
+    GeminiBoss,
+    RegisteredBossSlot2Unresolved,
+    State2AirStart,
+    State2DroneLoop,
+    SpideyBoss,
+    LidTopBoss,
+    MainMenuLowBees,
+    MainMenuAirRestart,
+    OrderingInformation,
+    PostEncounterThunderStart,
+    PostEncounterAirRestart,
+};
+
+enum class OriginalLoopFlagProof : std::uint8_t {
+    LiteralOne,
+    RegisterProvenOne,
+};
+
+struct OriginalLoopCallSite {
+    std::uint32_t call_site_va = 0;
+    // Address of the global integer that stores the DirectSound slot index.
+    // Zero denotes a stack-local slot owned by a synchronous modal routine.
+    std::uint32_t slot_storage_va = 0;
+    std::string_view original_asset{}; // empty when the canonical binary never loads the slot
+    OriginalLoopPlaybackOwner owner = OriginalLoopPlaybackOwner::BomberBoss;
+    OriginalLoopFlagProof flag_proof = OriginalLoopFlagProof::LiteralOne;
+};
+
+// Canonical Win32 shareware Play(..., flags=1) sites. Eight callers push a
+// literal 1; five more propagate a register that is proven to equal 1 on the
+// path reaching the call. The unresolved registered boss slot is retained as
+// evidence rather than assigned an invented asset.
+[[nodiscard]] std::span<const OriginalLoopCallSite>
+original_directsound_loop_call_sites() noexcept;
 
 // The original pool helper restarts the first voice whose raw GetStatus value
 // is not exactly DSBSTATUS_PLAYING (1). If every entry is exactly 1, voice 0 is

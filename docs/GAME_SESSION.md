@@ -126,9 +126,11 @@ modal sequence without inventing a nonexistent Results `GameState`:
 - the outer tail lands in the established state 1/state 4 result.
 
 `step_game_session_post_game()` accepts only modal completion/input facts from
-the host. It does not render original assets, edit names or write the legacy
-`scores` file. Those remain presentation/persistence boundaries rather than
-gameplay control-flow inputs.
+the host. It now also returns semantic audio start/stop events for the recovered
+Results -> Ordering -> Credits ownership transitions. It does not render original
+assets, execute the credits fade envelope, edit names or write the legacy `scores`
+file. Those remain presentation/mixer/persistence boundaries rather than gameplay
+control-flow inputs.
 
 ## Headless state oracle
 
@@ -160,7 +162,7 @@ Not yet session-integrated:
 - remaining non-Drone special-weapon collision consequences and non-owned hostile actor geometry/AI feeding the now-native Stinger selector;
 - render-time Drone detonation radial-noise/direct-framebuffer presentation; update-side explosion request geometry and its 17-draw RNG stream are already native;
 - reconstruction of the player-death randomized debris/audio/pixel presentation around the now-native singleton explosion actor;
-- post-game pixel/audio presentation, interactive high-score name editing and score-file persistence; the Results/Ordering/high-score/credits control flow itself is session-owned;
+- post-game pixel presentation, exact credits fade execution, interactive high-score name editing and score-file persistence; the Results/Ordering/credits semantic audio lifetime and modal control flow are session-owned;
 - construction of complete Phase-3 presentation inputs from the session.
 
 Those are intentional post-Phase-4 boundaries: audio/presentation integration and shared-RNG trace parity continue through Phases 5–7, while registered-only hostile actors and bosses remain Phase-8 reconstruction work. They are not missing canonical-shareware gameplay semantics hidden inside the `GameSession` API.
@@ -168,4 +170,4 @@ Those are intentional post-Phase-4 boundaries: audio/presentation integration an
 
 ## Audio
 
-Phase 5 emits allocation-free semantic audio events from exact gameplay call sites. Ordered late-bomb special/player-hit calls are produced inside the per-slot collision loop; exact trajectory/Gemini/Lid-Top impact sites advance the process-global `0x0042EFD8` `explode2/explode2/explode3/explode4` cycle. `GameSession::original_audio` survives campaign/encounter resets, matching the original process-global lifetime.
+Phase 5 emits allocation-free semantic audio events from exact gameplay and post-game ownership boundaries. Ordered late-bomb special/player-hit calls are produced inside the per-slot collision loop; exact trajectory/Gemini/Lid-Top impact sites advance the process-global `0x0042EFD8` `explode2/explode2/explode3/explode4` cycle. Results emits the exact selected one-shot cue; Ordering Information and completion credits emit loop-owned start/stop events. The DirectSound reverse layer also catalogs 13 proven flags-1 call sites (8 literal + 5 register-proven). `GameSession::original_audio` survives campaign/encounter resets, matching the original process-global lifetime.

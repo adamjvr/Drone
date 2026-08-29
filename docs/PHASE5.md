@@ -30,6 +30,20 @@ The second Phase-5 slice removes the first lossy presentation bridges and preser
 
 The per-update queue is fixed at 256 entries: still allocation-free, but deliberately large enough to preserve same-tick multi-actor Stinger/trajectory sound fanout rather than collapsing valid calls.
 
+## Long-form playback ownership
+
+The third Phase-5 slice closes the first long-form/loop ownership gap:
+
+- all 13 currently proven Win32 `Play(..., flags=1)` call sites are cataloged, including five register-propagated flag values that are easy to miss in a literal-only scan;
+- the registered boss slot-2 loop remains explicitly unresolved because the canonical shareware binary does not establish an asset load for its slot;
+- Results playback is proven **one-shot** (`flags=0`) across `choral.wav`, `suspense.wav`, `moon.wav`, and `hiphop.wav`;
+- Ordering Information owns a stack-local looping `thunder2.wav` buffer and stop/release lifetime;
+- completion credits own a stack-local looping `credits.wav` buffer, including the recovered 100->0 fade-before-stop behavior;
+- main-menu `lowbees.wav` ownership is documented as volume-0 loop start, fade-in toward 80, and stop/release on the established exit states;
+- `GameSession` now emits semantic Results -> Ordering -> Credits start/stop events at the already-native post-game modal boundaries, without embedding samples or moving UI/persistence duties into gameplay.
+
+The portable backend still deliberately waits: this slice specifies ownership and flags first, so a future mixer does not bake in the false assumption that every music-like asset loops.
+
 ## Initial work
 
 - inventory every gameplay/presentation sound event and its source asset;

@@ -354,3 +354,11 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Recovered exact variant-call multiplicity at rapid/Stinger trajectory impacts, Gemini Probe/Stinger impacts, and Lid/Top top/lid lanes; the exposed-core Lid/Top Stinger destruction does not use this helper.
 - Added the native boss-bomb fire cue: successful Gemini and Lid/Top spawns use the same `missile.wav` 20-voice base pool at volume 50 but preserve source/default frequency rather than forcing the player-missile 22050 Hz override.
 - Increased the allocation-free per-update audio-event queue to 256 entries so multi-actor impact fanout preserves original sound-call multiplicity.
+
+## 2026-08-28 — Phase 5 long-form playback ownership
+
+- Exhaustively re-audited the canonical Win32 calls to `0x00406730` for effective DirectSound play flags rather than only literal pushes. Thirteen calls are proven flags-1 starts: eight literal-1 sites plus five register-propagated sites (`0x0040C8F3`, `0x0040E52F`, `0x0041A3EE`, `0x0041E298`, `0x0041E395`).
+- Mapped the flags-1 assets/owners that are established in the canonical shareware executable: Bomber `bomber1.wav`, Credits `credits.wav`, Gemini `gemini.wav`, state-2/menu/interstitial `air.wav`, Drone `drone.wav`, Spidey `spidey.wav`, Lid/Top `retro1.wav`, menu `lowbees.wav`, Ordering/post-encounter `thunder2.wav`. Registered boss slot 2 (`0x0042EFE0`) remains deliberately unnamed because no canonical loader assignment was found.
+- Corrected the tempting broad assumption that long-form music always loops: Results selects `hiphop/moon/suspense/choral` but calls `Play` with flags 0 at `0x0041176C`, then releases the local buffer at `0x00411C5D`.
+- Recovered synchronous lifetime details for Ordering Information (`thunder2.wav`: local load -> flags-1 play -> stop/reset -> release), completion credits (`credits.wav`: local load -> flags-1 play -> 100-to-0 fade -> stop/reset -> release), and main-menu `lowbees.wav` (volume 0 -> flags-1 play -> fade toward 80 -> stop/reset/release on exit).
+- Added a metadata-only loop-call catalog and extended semantic cue definitions for all four Results tracks plus Ordering/Credits. `GameSession` now emits exact start/stop ownership events across Results confirmation, Ordering completion, high-score-to-credits handoff, and credits completion.

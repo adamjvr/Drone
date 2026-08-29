@@ -7,7 +7,7 @@ namespace {
 
 using Policy = AudioVoicePolicy;
 
-constexpr std::array<AudioCueDefinition, 27> definitions{{
+constexpr std::array<AudioCueDefinition, 33> definitions{{
     // RapidMissileFire
     {"missile.wav", Policy::ReusablePool20, 50, original_missile_frequency_hz, 0},
     // ShieldPulse
@@ -47,9 +47,21 @@ constexpr std::array<AudioCueDefinition, 27> definitions{{
     // Mission interstitials
     {"deepness.wav", Policy::SingleBuffer, 90, 0, 0},
     {"detonate.wav", Policy::SingleBuffer, 90, 0, 0},
+    // Results chooses exactly one of these at Win32 0x00411726..0x0041176C.
+    // These are deliberately one-shot Play(flags=0), unlike the loop-owned
+    // presentation/encounter sounds cataloged by original_directsound.cpp.
+    {"choral.wav", Policy::SingleBuffer, -1, 0, 0},
+    {"suspense.wav", Policy::SingleBuffer, -1, 0, 0},
+    {"moon.wav", Policy::SingleBuffer, -1, 0, 0},
+    {"hiphop.wav", Policy::SingleBuffer, -1, 0, 0},
+    // Ordering Information and completion credits each own a stack-local
+    // DirectSound slot and start it with flags=1. Neither writes an initial
+    // volume before Play, so source/default volume remains explicit unknown.
+    {"thunder2.wav", Policy::SingleBuffer, -1, 0, directsound_play_looping_flag},
+    {"credits.wav", Policy::SingleBuffer, -1, 0, directsound_play_looping_flag},
 }};
 
-static_assert(definitions.size() == static_cast<std::size_t>(AudioCue::MissionDetonate) + 1);
+static_assert(definitions.size() == static_cast<std::size_t>(AudioCue::CompletionCredits) + 1);
 
 } // namespace
 

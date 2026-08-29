@@ -2,6 +2,7 @@
 #include <drone/audio/original_directsound.hpp>
 #include <drone/gameplay/game_session.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -53,6 +54,50 @@ int main() {
     assert(bomb.voice_policy == AudioVoicePolicy::ReusablePool20);
     assert(bomb.original_volume_0_to_100 == 50);
     assert(bomb.original_frequency_hz == 0);
+
+    const auto& results = audio_cue_definition(AudioCue::ResultsChoral);
+    assert(results.original_asset == "choral.wav");
+    assert(results.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(results.directsound_play_flags == 0);
+
+    const auto& ordering = audio_cue_definition(AudioCue::OrderingInformation);
+    assert(ordering.original_asset == "thunder2.wav");
+    assert(ordering.original_volume_0_to_100 == -1);
+    assert(ordering.directsound_play_flags == directsound_play_looping_flag);
+
+    const auto& credits = audio_cue_definition(AudioCue::CompletionCredits);
+    assert(credits.original_asset == "credits.wav");
+    assert(credits.directsound_play_flags == directsound_play_looping_flag);
+
+    const auto loop_sites = original_directsound_loop_call_sites();
+    assert(loop_sites.size() == 13);
+    const auto literal_count = std::count_if(
+        loop_sites.begin(), loop_sites.end(), [](const OriginalLoopCallSite& site) {
+            return site.flag_proof == OriginalLoopFlagProof::LiteralOne;
+        });
+    const auto register_count = std::count_if(
+        loop_sites.begin(), loop_sites.end(), [](const OriginalLoopCallSite& site) {
+            return site.flag_proof == OriginalLoopFlagProof::RegisterProvenOne;
+        });
+    assert(literal_count == 8);
+    assert(register_count == 5);
+    const auto has_site = [&](const std::uint32_t va, const std::string_view asset) {
+        return std::any_of(loop_sites.begin(), loop_sites.end(), [&](const auto& site) {
+            return site.call_site_va == va && site.original_asset == asset;
+        });
+    };
+    assert(has_site(0x0040474Du, "credits.wav"));
+    assert(has_site(0x0040C8F3u, "air.wav"));
+    assert(has_site(0x0040E52Fu, "drone.wav"));
+    assert(has_site(0x00418B14u, "lowbees.wav"));
+    assert(has_site(0x0041B75Bu, "thunder2.wav"));
+    const auto unresolved = std::find_if(
+        loop_sites.begin(), loop_sites.end(), [](const OriginalLoopCallSite& site) {
+            return site.owner == OriginalLoopPlaybackOwner::RegisteredBossSlot2Unresolved;
+        });
+    assert(unresolved != loop_sites.end());
+    assert(unresolved->call_site_va == 0x00407AA3u);
+    assert(unresolved->original_asset.empty());
 
     assert(audio_cue_definition(AudioCue::ExplosionVariant2).original_asset == "explode2.wav");
     assert(audio_cue_definition(AudioCue::ExplosionVariant2).original_volume_0_to_100 == 60);

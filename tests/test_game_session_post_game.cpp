@@ -5,6 +5,9 @@
 #include <iostream>
 
 using namespace drone::gameplay;
+using drone::audio::AudioAction;
+using drone::audio::AudioCue;
+using drone::audio::AudioEvent;
 
 namespace {
 
@@ -51,6 +54,9 @@ int main() {
         assert(enter.post_game_plan->statistics.alien_ships_hit == 3);
         assert(enter.post_game_plan->statistics.alien_ships_missed == 7);
         assert(enter.post_game_plan->statistics.percentage_hit == 30);
+        assert(enter.audio_events.size == 1);
+        assert((enter.audio_events.view()[0] ==
+                AudioEvent{AudioCue::ResultsSuspense, AudioAction::Play}));
         assert(session.state == GameState::ActiveGameplay);
         assert(session.post_game.results_presentations_remaining == 58);
         assert(session.original_random.state == random_before);
@@ -96,10 +102,18 @@ int main() {
         assert(confirmed.results_confirmation_accepted);
         assert(confirmed.ordering_information_started);
         assert(confirmed.phase == PostGameModalPhase::OrderingInformation);
+        assert(confirmed.audio_events.size == 2);
+        assert((confirmed.audio_events.view()[0] ==
+                AudioEvent{AudioCue::ResultsSuspense, AudioAction::StopAndRewind}));
+        assert((confirmed.audio_events.view()[1] ==
+                AudioEvent{AudioCue::OrderingInformation, AudioAction::Play}));
         assert(session.state == GameState::OrderingInformation);
 
         const auto ordering_done = step_game_session_post_game(
             session, PostGameModalInput{.ordering_information_finished = true});
+        assert(ordering_done.audio_events.size == 1);
+        assert((ordering_done.audio_events.view()[0] ==
+                AudioEvent{AudioCue::OrderingInformation, AudioAction::StopAndRewind}));
         assert(ordering_done.completed);
         assert(ordering_done.final_state == GameState::MainMenuResetEntry);
         assert(ordering_done.phase == PostGameModalPhase::Complete);
@@ -117,6 +131,7 @@ int main() {
 
         const auto enter = step_game_session(session, GameplayInputFrame{});
         assert(enter.post_game_started && enter.post_game_plan);
+        assert(enter.audio_events.size == 0);
         assert(enter.post_game_phase == PostGameModalPhase::HighScoreTable);
         assert(session.state == GameState::HighScores);
         assert(enter.post_game_plan->high_score.insertion_index == 0);
@@ -141,6 +156,7 @@ int main() {
 
         const auto enter = step_game_session(session, GameplayInputFrame{});
         assert(enter.post_game_started && enter.post_game_plan);
+        assert(enter.audio_events.size == 0);
         assert(enter.post_game_phase == PostGameModalPhase::Complete);
         assert(session.state == GameState::MainMenuResetEntry);
         assert(!enter.post_game_plan->high_score.invoke_high_score_table);
@@ -162,24 +178,58 @@ int main() {
 
         const auto enter = step_game_session(session, GameplayInputFrame{});
         assert(enter.post_game_plan && enter.post_game_plan->show_completion_credits);
+        assert(enter.audio_events.size == 1);
+        assert((enter.audio_events.view()[0] ==
+                AudioEvent{AudioCue::ResultsHiphop, AudioAction::Play}));
 
         for (std::int32_t i = 0; i < win32_results_confirm_lock_presentations; ++i) {
             (void)step_game_session_post_game(
                 session, PostGameModalInput{.results_presentation_advanced = true});
         }
-        (void)step_game_session_post_game(
+        const auto confirmed = step_game_session_post_game(
             session, PostGameModalInput{.confirm_pressed = true});
+        assert(confirmed.audio_events.size == 2);
+        assert((confirmed.audio_events.view()[0] ==
+                AudioEvent{AudioCue::ResultsHiphop, AudioAction::StopAndRewind}));
+        assert((confirmed.audio_events.view()[1] ==
+                AudioEvent{AudioCue::OrderingInformation, AudioAction::Play}));
         const auto ordering_done = step_game_session_post_game(
             session, PostGameModalInput{.ordering_information_finished = true});
+        assert(ordering_done.audio_events.size == 2);
+        assert((ordering_done.audio_events.view()[0] ==
+                AudioEvent{AudioCue::OrderingInformation, AudioAction::StopAndRewind}));
+        assert((ordering_done.audio_events.view()[1] ==
+                AudioEvent{AudioCue::CompletionCredits, AudioAction::Play}));
         assert(ordering_done.completion_credits_started);
         assert(ordering_done.phase == PostGameModalPhase::CompletionCredits);
         assert(session.state == GameState::MainMenuResetEntry);
 
         const auto credits_done = step_game_session_post_game(
             session, PostGameModalInput{.completion_credits_finished = true});
+        assert(credits_done.audio_events.size == 1);
+        assert((credits_done.audio_events.view()[0] ==
+                AudioEvent{AudioCue::CompletionCredits, AudioAction::StopAndRewind}));
         assert(credits_done.completed);
         assert(credits_done.final_state == GameState::MainMenuResetEntry);
         assert(session.state == GameState::MainMenuResetEntry);
+    }
+
+    // Results music remains one-shot and follows the exact four-way selector.
+    {
+        auto moon = make_results_session();
+        moon.campaign.mission.processed_count = 5;
+        moon.campaign.mission.outcomes.fill(DroneOutcome::Detonated);
+        const auto enter = step_game_session(moon, GameplayInputFrame{});
+        assert((enter.audio_events.view()[0] ==
+                AudioEvent{AudioCue::ResultsMoon, AudioAction::Play}));
+    }
+    {
+        auto choral = make_results_session();
+        choral.campaign.mission.processed_count = 4;
+        choral.campaign.mission.outcomes.fill(DroneOutcome::Disarmed);
+        const auto enter = step_game_session(choral, GameplayInputFrame{});
+        assert((enter.audio_events.view()[0] ==
+                AudioEvent{AudioCue::ResultsChoral, AudioAction::Play}));
     }
 
     // Persisted high scores survive a full gameplay-campaign reset, while the

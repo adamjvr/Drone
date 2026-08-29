@@ -140,7 +140,7 @@ Thus the compiled perfect endgame is not merely a special result card/music choi
 
 ## Clean contract
 
-`win32_post_game_plan()` records the established control decisions without bundling original artwork, audio, global addresses, keyboard polling, or framebuffer code. It returns:
+`win32_post_game_plan()` records the established control decisions without bundling original artwork, sample bytes, global addresses, keyboard polling, or framebuffer code. It returns:
 
 - the mission result reduction;
 - all six numeric result statistics;
@@ -150,4 +150,6 @@ Thus the compiled perfect endgame is not merely a special result card/music choi
 - whether completion credits run; and
 - the resulting menu-entry state.
 
-`Q-RESULT-001` is therefore resolved at the gameplay/control-flow level. Phase 4 additionally owns this sequence in `GameSession`: lives<=0 diverts before ordinary gameplay/RNG advancement, `PostGameRuntimeState` enforces the exact locked-presentation/confirmation ordering, and subordinate raw-state handoffs use state 7 for Ordering Information and state 8 for qualifying high-score presentation before the established final state 1/4 result. Pixel-perfect presentation, interactive name entry and actual legacy score-file persistence remain rendering/UI/platform work rather than simulation-control inputs.
+`Q-RESULT-001` is therefore resolved at the gameplay/control-flow level. Phase 4 additionally owns this sequence in `GameSession`: lives<=0 diverts before ordinary gameplay/RNG advancement, `PostGameRuntimeState` enforces the exact locked-presentation/confirmation ordering, and subordinate raw-state handoffs use state 7 for Ordering Information and state 8 for qualifying high-score presentation before the established final state 1/4 result.
+
+Phase 5 now owns the associated **semantic audio lifetime** as well: Results starts its selected one-shot flags-0 cue, confirmation stops/releases that ownership before Ordering starts its flags-1 `thunder2.wav` cue, Ordering completion stops that cue, and perfect-completion credits start/stop their flags-1 `credits.wav` cue at the corresponding modal boundaries. The original credits routine also fades from its local 100 scalar to 0 before stop/release; execution of that envelope remains future mixer/presentation work. Pixel-perfect presentation, interactive name entry and actual legacy score-file persistence remain rendering/UI/platform work rather than simulation-control inputs.

@@ -124,14 +124,76 @@ This preserves both sound multiplicity and the global `explode2, explode2, explo
 
 A fixed-capacity queue is used so the deterministic gameplay core does not depend on allocator behavior or a platform audio API.
 
-## Playback flags and looping
+## Playback flags and long-form ownership
 
-`0x00406730` passes its effective second argument directly to DirectSound `Play` flags. Gameplay one-shot paths reconstructed above use flags 0. Some callers elsewhere pass 1; Phase 5 will classify those call sites before assigning loop behavior to semantic cues. No unproven loop flag is encoded in the first cue table.
+`0x00406730` passes its effective second argument directly to DirectSound `Play` flags after rewinding the selected slot to position zero. The canonical Win32 shareware executable has **13 proven calls whose effective flag is 1**. Eight push literal `1`; five pass a register whose value is established as `1` along the reaching path.
+
+| Play call | asset | slot-index storage | owner/context | proof |
+|---|---|---:|---|---|
+| `0x00404498` | `bomber1.wav` | `0x00466C88` | Bomber boss | literal 1 |
+| `0x0040474D` | `credits.wav` | stack-local | completion credits | literal 1 |
+| `0x00405FA1` | `gemini.wav` | `0x00495CE4` | Gemini boss | literal 1 |
+| `0x00407AA3` | **unresolved** | `0x0042EFE0` | registered boss slot 2 | literal 1 |
+| `0x0040C8F3` | `air.wav` | `0x0043F5F4` | active state-2 air start | register `ESI=1` |
+| `0x0040E52F` | `drone.wav` | `0x0047E280` | active state-2 Drone loop | register `EDI=1` |
+| `0x00415C72` | `spidey.wav` | `0x00454B00` | Spidey boss | literal 1 |
+| `0x00417323` | `retro1.wav` | `0x00438C18` | Lid/Top boss | literal 1 |
+| `0x00418B14` | `lowbees.wav` | `0x0053C4E8` | main-menu ambience | literal 1 |
+| `0x0041A3EE` | `air.wav` | `0x0043F5F4` | main-menu/new-run air restart path | register `EBP=1` |
+| `0x0041B75B` | `thunder2.wav` | stack-local | Ordering Information | literal 1 |
+| `0x0041E298` | `thunder2.wav` | `0x0042EFE8` | post-encounter transition | register `EBX=1` |
+| `0x0041E395` | `air.wav` | `0x0043F5F4` | post-encounter air restart | register `EBX=1` |
+
+The public `original_directsound_loop_call_sites()` catalog records these call sites without embedding any original audio. The registered slot-2 entry is intentionally asset-empty: the canonical shareware executable references the slot but no canonical loader assignment for `0x0042EFE0` has been found, so Phase 5 does not invent a registered-only filename.
+
+### Results is not a loop
+
+The Results path is a useful counterexample to a generic “music loops” rule. `0x00411726..0x00411759` selects one of `hiphop.wav`, `moon.wav`, `suspense.wav`, or `choral.wav`, loads it into a local slot, then `0x0041176C` calls `Play` with **flags 0**. `0x00411C5D` releases that local slot when Results exits. The clean `ResultsHiphop`, `ResultsMoon`, `ResultsSuspense`, and `ResultsChoral` cues therefore retain `directsound_play_flags == 0`.
+
+### Ordering Information owns a local loop
+
+`run_ordering_information` (`0x0041B730`) loads `thunder2.wav` at `0x0041B73C`, starts it with flags 1 at `0x0041B75B`, and owns both stop/reset (`0x0041C348`) and release (`0x0041C351`) before returning. No initial `SetVolume` is issued between load and play, so the clean cue leaves initial volume as source/default rather than manufacturing a number.
+
+### Completion credits owns a local loop and fade
+
+`run_completion_credits` (`0x00404720`) loads `credits.wav` at `0x00404738` and starts it with flags 1 at `0x0040474D`. Its local fade scalar begins at 100 and is stepped down through the DirectSound volume helper to 0 before the routine stops/resets and releases the slot (`0x00404B1A` / `0x00404B3E`). Phase 5 now owns semantic start/stop at the post-game boundary; the exact per-presentation fade envelope remains a mixer/presentation behavior to implement when the portable backend is introduced.
+
+### Main-menu ambience is independently owned
+
+`run_main_menu` loads `lowbees.wav` when the restart byte requests it, explicitly sets volume 0, starts flags-1 playback at `0x00418B14`, and increments the volume toward 80 in the menu loop (`0x004190F9..0x00419110`). On the established exit states it stop/resets and releases the slot (`0x00419DC6..0x00419DDB`) and arms the restart byte again. This lifecycle is cataloged but is not yet injected into the clean menu host.
+
+## Native post-game audio ownership
+
+Phase 5 now connects the already-native `GameSession` post-game modal sequence to the semantic audio queue:
+
+```text
+enter Results              -> Play selected Results cue (flags 0)
+confirm Results             -> StopAndRewind Results, Play Ordering Information
+finish Ordering Information -> StopAndRewind Ordering Information
+                              -> Play Completion Credits when perfect completion follows
+finish Completion Credits   -> StopAndRewind Completion Credits
+```
+
+Suppressed Results/Ordering paths emit neither cue. A high-score modal itself still has no invented sound ownership; when completion credits follow high scores, the credits cue starts exactly at the semantic transition into `CompletionCredits`. This preserves control ownership while leaving UI rendering, the credits fade envelope, and actual sample playback to later platform/mixer work.
+
+## Current clean API
+
+- `include/drone/audio/original_directsound.hpp`
+  - exact 20-voice capacity and selector;
+  - exact volume conversion;
+  - established frequency constants;
+  - metadata-only 13-site flags-1 call catalog with literal/register proof classification.
+- `include/drone/audio/audio_event.hpp`
+  - semantic cue/action types;
+  - metadata-only cue definitions, including the four one-shot Results tracks and looping Ordering/Credits cues;
+  - fixed-capacity allocation-free `AudioEventQueue`.
+- `GameSessionTickResult::audio_events` and `PostGameRuntimeStepResult::audio_events`
+  - exact gameplay event ordering plus native Results/Ordering/Credits ownership transitions.
 
 ## Next audio work
 
-1. finish exact initialization settings for Squad1..14, remaining boss/presentation cues and any still-unidentified pools;
-2. classify every `Play(... flags=1)` caller and stop/restart interaction;
-3. reconstruct Results/credits/long-form playback and DOS HMI differences;
-4. replace remaining compatibility-only sound booleans where exact per-call producers are recovered;
-5. add a portable mixer/backend interface only after original voice semantics are fully specified.
+1. integrate the already-classified menu/air/Drone/boss loop lifetimes where their owning clean state machines exist;
+2. finish exact initialization settings for Squad1..14 and still-unidentified pools;
+3. implement credits/menu fade envelopes and any pan behavior at the portable mixer boundary;
+4. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
+5. add a portable mixer/backend interface only after the remaining original voice semantics are specified.
