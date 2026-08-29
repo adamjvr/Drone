@@ -66,6 +66,7 @@ struct DroneObjectiveState {
 
 struct DroneObjectiveTickResult {
     bool moved = false;
+    bool approach_loop_start_landmark_reached = false;
     bool boss_approach_boundary_reached = false;
     bool disarm_committed = false;
     bool settlement_tick_reset = false;

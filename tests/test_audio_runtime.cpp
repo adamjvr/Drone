@@ -60,6 +60,17 @@ int main() {
     assert(results.voice_policy == AudioVoicePolicy::SingleBuffer);
     assert(results.directsound_play_flags == 0);
 
+    const auto& drone_loop = audio_cue_definition(AudioCue::DroneApproachLoop);
+    assert(drone_loop.original_asset == "drone.wav");
+    assert(drone_loop.voice_policy == AudioVoicePolicy::SingleBuffer);
+    assert(drone_loop.original_volume_0_to_100 == original_drone_loop_loaded_volume);
+    assert(drone_loop.directsound_play_flags == directsound_play_looping_flag);
+    static_assert(original_drone_loop_loaded_volume == 90);
+    static_assert(original_drone_loop_start_volume == 0);
+    static_assert(original_drone_loop_approach_volume_cap == 80);
+    static_assert(original_drone_loop_phase2_decode_volume == 60);
+    static_assert(original_drone_loop_interrupted_decode_volume == 80);
+
     const auto& lid_top_loop = audio_cue_definition(AudioCue::LidTopBossLoop);
     assert(lid_top_loop.original_asset == "retro1.wav");
     assert(lid_top_loop.voice_policy == AudioVoicePolicy::SingleBuffer);
@@ -129,9 +140,13 @@ int main() {
     (void)next_original_explosion_sfx_cue(session.original_audio);
     (void)next_original_explosion_sfx_cue(session.original_audio);
     assert(session.original_audio.explosion_sfx_variant_cycle == 2);
+    session.original_audio.drone_loop_volume_0_to_100 = 60;
     drone::gameplay::reset_game_session(
         session, drone::gameplay::GameplaySessionResetScope::FullCampaign);
     assert(session.original_audio.explosion_sfx_variant_cycle == 2);
+    // Win32 0x00440278 is process-global just like the explosion selector;
+    // campaign/encounter rebuilds do not reconstruct that audio scalar.
+    assert(session.original_audio.drone_loop_volume_0_to_100 == 60);
 
     assert(trajectory_flight_cue(0) == AudioCue::TrajectoryFlight01);
     assert(trajectory_flight_cue(13) == AudioCue::TrajectoryFlight14);
@@ -139,10 +154,12 @@ int main() {
     AudioEventQueue queue{};
     assert(queue.push({AudioCue::RapidMissileFire, AudioAction::Play}));
     assert(queue.push({AudioCue::SpecialLaunch, AudioAction::StopAndRewind}));
-    assert(queue.size == 2);
+    assert(queue.push({AudioCue::DroneApproachLoop, AudioAction::SetVolume, 60}));
+    assert(queue.size == 3);
     assert(!queue.overflowed);
     assert((queue.view()[0] == AudioEvent{AudioCue::RapidMissileFire, AudioAction::Play}));
     assert((queue.view()[1] == AudioEvent{AudioCue::SpecialLaunch, AudioAction::StopAndRewind}));
+    assert((queue.view()[2] == AudioEvent{AudioCue::DroneApproachLoop, AudioAction::SetVolume, 60}));
 
     for (std::size_t i = queue.size; i < game_session_audio_event_capacity; ++i) {
         assert(queue.push({AudioCue::ShieldPulse, AudioAction::Play}));

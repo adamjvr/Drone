@@ -34,7 +34,7 @@ Reconstruct player/enemy/projectile simulation, AI, collision, damage, scoring, 
 
 Recover sound-event mapping, playback priority, voice/channel behavior, panning, volume, loops, music if applicable, and DOS HMI versus Windows DirectSound behavioral differences behind a portable audio interface.
 
-**Current progress:** the asset-free audio runtime now owns exact DirectSound primitives, the original 20-voice reuse/steal policy, ordered impact-event multiplicity, process-global explosion-SFX phase, Results/Ordering/Credits ownership, all 13 proven flags-1 start sites as metadata, and native Lid/Top/Gemini encounter-loop start/stop events. Remaining work is menu/air/Drone volume-aware loop integration, repeating boss cadence and remaining cue initialization, fade/pan control, DOS HMI comparison, then the portable mixer/backend.
+**Current progress:** the asset-free audio runtime now owns exact DirectSound primitives, the original 20-voice reuse/steal policy, ordered impact-event multiplicity, process-global explosion-SFX phase, Results/Ordering/Credits ownership, all 13 proven flags-1 start sites as metadata, native Lid/Top/Gemini encounter-loop start/stop events, and a parameterized `SetVolume` contract driving the exact `drone.wav` Y=-117 start, 0->80 approach ramp, Probe-decode 60/80 controls and destructive/completion stop sites. Remaining work is `air.wav` ownership/fades, menu/credits fades, unresolved Drone one-shots, repeating boss cadence and remaining cue initialization, DOS HMI comparison, then the portable mixer/backend.
 
 ## Phase 6 — Deterministic Replay & Validation
 

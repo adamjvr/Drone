@@ -10,12 +10,15 @@ namespace {
 // Two approach coordinates are immediately replaced by their following value
 // after the original audio/effect trigger. They are therefore not persistent
 // state at the end of a normal unresolved phase-2 update.
-void apply_approach_landmark_skip(DroneObjectiveState& state) noexcept {
+bool apply_approach_landmark_skip(DroneObjectiveState& state) noexcept {
     if (state.y == -117) {
         state.y = -116;
-    } else if (state.y == -40) {
+        return true;
+    }
+    if (state.y == -40) {
         state.y = -39;
     }
+    return false;
 }
 
 } // namespace
@@ -155,7 +158,8 @@ DroneObjectiveTickResult step_drone_objective_normal(
     if (!state.disarm_completed && state.y < canonical_drone_hover_y) {
         ++state.y;
         result.moved = true;
-        apply_approach_landmark_skip(state);
+        result.approach_loop_start_landmark_reached =
+            apply_approach_landmark_skip(state);
     }
 
     // These comparisons happen after the unresolved approach movement but

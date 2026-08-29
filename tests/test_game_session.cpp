@@ -19,6 +19,17 @@ bool has_audio_event(
     return false;
 }
 
+bool has_audio_control_event(
+    const drone::audio::AudioEventQueue& queue,
+    const drone::audio::AudioCue cue,
+    const drone::audio::AudioAction action,
+    const std::int32_t value) {
+    for (const auto event : queue.view()) {
+        if (event == drone::audio::AudioEvent{cue, action, value}) return true;
+    }
+    return false;
+}
+
 drone::gameplay::TrajectoryPathCatalogView make_session_trajectory_paths(
     std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count>& storage) {
     for (std::size_t family = 0; family < storage.size(); ++family) {
@@ -466,6 +477,108 @@ int main() {
         assert(!session.encounter.boss.family.has_value());
     }
 
+    // drone.wav is a parameterized loop, not a generic music cue. The exact
+    // Y=-117 landmark starts it at volume zero; later phase-2 approach updates
+    // raise the persistent scalar by one until the canonical cap of 80.
+    {
+        GameSession session{};
+        session.encounter.drone.y = -118;
+        session.encounter.gameplay_substep_phase = 1;
+
+        auto result = step_game_session(session, GameplayInputFrame{});
+        assert(session.encounter.drone.y == -116);
+        assert(session.original_audio.drone_loop_volume_0_to_100 == 0);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::Play));
+        assert(has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            0));
+
+        // A phase-2 update begins at Y=-115, so the pre-movement control path
+        // raises the scalar 0->1 before normal movement advances Y to -114.
+        session.encounter.drone.y = -115;
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(session.encounter.drone.y == -114);
+        assert(session.original_audio.drone_loop_volume_0_to_100 == 1);
+        assert(has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            1));
+
+        // The original scalar saturates at 80.
+        session.original_audio.drone_loop_volume_0_to_100 = 79;
+        session.encounter.drone.y = -20;
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(session.original_audio.drone_loop_volume_0_to_100 == 80);
+        assert(has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            80));
+
+        session.encounter.gameplay_substep_phase = 1;
+        result = step_game_session(session, GameplayInputFrame{});
+        assert(session.original_audio.drone_loop_volume_0_to_100 == 80);
+        assert(!has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            81));
+    }
+
+    // Destructive Drone transitions stop the live approach loop at their exact
+    // producers. Timeout, rapid missile and Stinger all share StopAndRewind.
+    {
+        GameSession session{};
+        session.encounter.drone.y = canonical_drone_hover_y;
+        session.encounter.drone.hover_phase2_ticks =
+            canonical_drone_hover_timeout_phase2_ticks - 1;
+        session.encounter.gameplay_substep_phase = 1;
+        auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.drone_destruction_countdown_started);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind));
+
+        GameSession rapid{};
+        rapid.encounter.drone.x = 100;
+        rapid.encounter.drone.y = 45;
+        rapid.encounter.gameplay_substep_phase = 0;
+        rapid.encounter.rapid_missiles.missiles[0].active = true;
+        rapid.encounter.rapid_missiles.missiles[0].x = 100;
+        rapid.encounter.rapid_missiles.missiles[0].y = 48;
+        rapid.encounter.rapid_missiles.active_count = 1;
+        result = step_game_session(rapid, GameplayInputFrame{});
+        assert(result.rapid_missile_hit_drone);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind));
+
+        GameSession stinger{};
+        stinger.encounter.drone.x = 100;
+        stinger.encounter.drone.y = 45;
+        stinger.encounter.gameplay_substep_phase = 0;
+        stinger.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
+        stinger.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
+        stinger.encounter.special_weapon.x = 100;
+        stinger.encounter.special_weapon.y = 47;
+        result = step_game_session(stinger, GameplayInputFrame{});
+        assert(result.stinger_hit_drone);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind));
+    }
+
     // The normal disarm route is now a continuous GameSession transition: a
     // completed Probe release commits at Y=201, resets settlement at Y=230,
     // waits at Y=231 for tick 60, then performs the encounter-only transition.
@@ -553,6 +666,12 @@ int main() {
         assert(session.encounter.special_weapon.probe_decode.status ==
                ProbeDecodeStatus::Phase2Disarming);
         assert(session.encounter.special_weapon.probe_decode.phase2_elapsed == 1);
+        assert(session.original_audio.drone_loop_volume_0_to_100 == 60);
+        assert(has_audio_control_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            60));
 
         session.encounter.special_weapon.probe_decode.phase2_elapsed = 149;
         session.encounter.gameplay_substep_phase = 1;
@@ -572,6 +691,10 @@ int main() {
         assert(session.campaign.player_lifecycle.lives == canonical_starting_lives + 1);
         assert(session.campaign.score.extra_life_progress == 10);
         assert(session.original_random.draws == 1);
+        assert(has_audio_event(
+            result.audio_events,
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind));
     }
 
     // Objective 2 is the compiled shareware termination branch. It zeroes lives
@@ -793,9 +916,15 @@ int main() {
         assert(result.enemy_bomb_probe_impact_effect_requested);
         assert(result.enemy_bomb_probe_impact_sound_requested);
         assert(!result.enemy_bomb_stinger_impact_effect_requested);
-        assert(result.audio_events.size == 1);
-        assert(result.audio_events.view()[0].cue == drone::audio::AudioCue::ProbeImpact);
-        assert(result.audio_events.view()[0].action == drone::audio::AudioAction::Play);
+        assert(result.audio_events.size == 2);
+        assert((result.audio_events.view()[0] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            80}));
+        assert((result.audio_events.view()[1] == drone::audio::AudioEvent{
+            drone::audio::AudioCue::ProbeImpact,
+            drone::audio::AudioAction::Play}));
+        assert(session.original_audio.drone_loop_volume_0_to_100 == 80);
         assert(session.encounter.enemy_bombs.active_count == 0);
         assert(!session.encounter.enemy_bombs.bombs[0].active);
         assert(session.encounter.special_weapon.activity ==

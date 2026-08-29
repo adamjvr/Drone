@@ -68,4 +68,14 @@ inline constexpr std::uint32_t original_missile_frequency_hz = 22050;
 inline constexpr std::uint32_t original_shield_frequency_hz = 11025;
 inline constexpr std::uint32_t original_bigexp3_frequency_hz = 15000;
 
+// drone.wav is loaded at volume 90. The live approach path starts it looping
+// at Y=-117, immediately writes volume 0, ramps toward 80 on eligible phase-2
+// updates, switches to 60 when Probe decoding enters phase 2, and restores 80
+// if that phase is interrupted by an enemy bomb.
+inline constexpr std::int32_t original_drone_loop_loaded_volume = 90;
+inline constexpr std::int32_t original_drone_loop_start_volume = 0;
+inline constexpr std::int32_t original_drone_loop_approach_volume_cap = 80;
+inline constexpr std::int32_t original_drone_loop_phase2_decode_volume = 60;
+inline constexpr std::int32_t original_drone_loop_interrupted_decode_volume = 80;
+
 } // namespace drone::audio

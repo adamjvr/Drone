@@ -298,6 +298,14 @@ EnemyBombLateCollisionPassResult process_enemy_bomb_late_collision_pass(
                         drone::audio::AudioCue::SpecialLaunch,
                         drone::audio::AudioAction::StopAndRewind});
                 }
+                if (impact.probe_phase2_interrupt_signal_requested) {
+                    // Win32 0x0040F3C8 restores drone.wav to volume 80 before
+                    // clearing decoder status/counters and before Probe impact SFX.
+                    (void)result.audio_events.push({
+                        drone::audio::AudioCue::DroneApproachLoop,
+                        drone::audio::AudioAction::SetVolume,
+                        drone::audio::original_drone_loop_interrupted_decode_volume});
+                }
                 (void)result.audio_events.push({
                     impact.kind == SpecialWeaponKind::Stinger
                         ? drone::audio::AudioCue::StingerImpact

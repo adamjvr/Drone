@@ -38,6 +38,7 @@ enum class AudioCue : std::uint8_t {
     TrajectoryFlight14,
     MissionDeepness,
     MissionDetonate,
+    DroneApproachLoop,
     LidTopBossLoop,
     GeminiBossLoop,
     ResultsChoral,
@@ -51,6 +52,7 @@ enum class AudioCue : std::uint8_t {
 enum class AudioAction : std::uint8_t {
     Play,
     StopAndRewind,
+    SetVolume,
 };
 
 enum class AudioVoicePolicy : std::uint8_t {
@@ -71,11 +73,19 @@ struct OriginalAudioRuntimeState {
     // increments this byte and wraps 5 back to 1, yielding assets 2,2,3,4.
     // It is intentionally session-level and survives gameplay campaign resets.
     std::uint8_t explosion_sfx_variant_cycle = 0;
+
+    // Win32 0x00440278 is the process-global game-scale volume control for
+    // the dedicated drone.wav slot and survives gameplay campaign rebuilds.
+    // The exact Y=-117 start path writes zero before this scalar can drive the
+    // live loop, so the clean process initial value is neutral at zero.
+    std::int32_t drone_loop_volume_0_to_100 = 0;
 };
 
 struct AudioEvent {
     AudioCue cue = AudioCue::RapidMissileFire;
     AudioAction action = AudioAction::Play;
+    // Used by parameterized actions such as SetVolume. Ignored for Play/Stop.
+    std::int32_t value = 0;
 
     friend constexpr bool operator==(const AudioEvent&, const AudioEvent&) = default;
 };

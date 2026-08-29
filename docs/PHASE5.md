@@ -54,7 +54,20 @@ The fourth Phase-5 slice moves the two shareware-reachable boss loops from catal
 - destroying the first Gemini side leaves that loop running; only the threshold transition of the last activity-1 body stops/rewinds it, matching the paired `0x00405773..0x00405789` / `0x00405C4A..0x00405C6B` branches;
 - boss impact explosion variants retain their original earlier call order, so the final Gemini loop stop follows the second side's Probe/Stinger impact SFX rather than preceding it.
 
-Registered-only boss loops remain metadata-only, and menu/air/Drone loops remain separate because their runtime volume/fade semantics need a richer mixer-control event than simple Play/Stop.
+At the fourth slice boundary, registered-only boss loops remained metadata-only and menu/air/Drone loops still needed a richer mixer-control event than simple Play/Stop; the next slice closes the Drone portion of that gap.
+
+## Parameterized Drone loop control
+
+The fifth Phase-5 slice adds that richer control boundary and fully integrates the shareware `drone.wav` approach/decode lifetime that is already owned by native `GameSession` state:
+
+- `AudioEvent` now carries a parameter value and supports `SetVolume` without introducing a platform mixer or sample data; values remain in the original 0..100 game scale and are translated to DirectSound attenuation only by the backend contract;
+- the dedicated `drone.wav` slot is loaded at game volume 90, but the live approach start at Y=-117 explicitly starts looping playback and immediately applies volume 0 (`0x0040E529..0x0040E544`);
+- eligible phase-2 approach updates with `-116 < Y < 45` increment process-global volume scalar `0x00440278` by exactly one until 80, before normal Drone movement (`0x0040E4C9..0x0040E4E5`);
+- Probe decode phase 1 -> phase 2 forces volume 60 before status changes (`0x0040CE00..0x0040CE0B`), while an enemy-bomb interruption of an attached phase-2 Probe restores volume 80 before the impact SFX (`0x0040F3C8..0x0040F3D7`);
+- successful phase-2 decode completion stops/rewinds `drone.wav` at `0x0040CEB5..0x0040CEBE`; the currently unmapped completion one-shot that precedes that stop remains deliberately unresolved;
+- the exact Y=45/4200-tick timeout, rapid-missile Drone hit, and Stinger Drone hit each stop/rewind the loop at their proven producer sites; ordinary Probe attachment does not stop it.
+
+`0x00440278` is kept in `OriginalAudioRuntimeState` above encounter/campaign rebuilds, matching its process-global lifetime. Tests cover start/ramp/cap, both decode volume changes, interruption-before-impact ordering, completion/timeout stops, and both destructive weapon stops. `air.wav`, menu/credits fades, and the second Y=-40 Drone one-shot remain separate evidence-backed work rather than being guessed into this slice.
 
 ## Initial work
 

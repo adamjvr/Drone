@@ -315,7 +315,22 @@ GameSessionTickResult step_game_session(
     result.probe_decode_score_delta = probe_decode_result.score_delta;
     result.probe_decode_completion_effect_random =
         probe_decode_result.completion_effect_random;
+    if (probe_decode_result.phase1_completed) {
+        // Win32 0x0040CE00 sets drone.wav to 60 immediately before status
+        // changes 0 -> 3 and the same-update phase-2 decoder tick begins.
+        session.original_audio.drone_loop_volume_0_to_100 =
+            drone::audio::original_drone_loop_phase2_decode_volume;
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            drone::audio::original_drone_loop_phase2_decode_volume});
+    }
     if (probe_decode_result.disarm_completed) {
+        // The completion branch stops/rewinds drone.wav at 0x0040CEB5..BE
+        // after its completion one-shot and before normal Drone movement.
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind});
         (void)mark_drone_disarm_completed(encounter.drone);
     }
 
@@ -448,7 +463,20 @@ GameSessionTickResult step_game_session(
         detonation_effect_result.settlement_advanced;
 
     // Canonical ordering places normal Drone objective motion/settlement after
-    // trajectory and detonation-effect updates and before boss dispatch.
+    // trajectory and detonation-effect updates and before boss dispatch. The
+    // drone.wav approach ramp is evaluated before the phase-2 movement itself.
+    if (is_win32_phase2(encounter.gameplay_substep_phase) &&
+        encounter.drone.activity == canonical_drone_active_activity &&
+        encounter.drone.y > -116 && encounter.drone.y < canonical_drone_hover_y &&
+        session.original_audio.drone_loop_volume_0_to_100 <
+            drone::audio::original_drone_loop_approach_volume_cap) {
+        ++session.original_audio.drone_loop_volume_0_to_100;
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            session.original_audio.drone_loop_volume_0_to_100});
+    }
+
     const auto drone_result = step_drone_objective_normal(
         encounter.drone,
         encounter.gameplay_substep_phase,
@@ -460,6 +488,26 @@ GameSessionTickResult step_game_session(
     result.drone_hover_timeout_reached = drone_result.hover_timeout_reached;
     result.drone_destruction_countdown_started =
         drone_result.destruction_countdown_started;
+    if (drone_result.approach_loop_start_landmark_reached) {
+        // At Y=-117 the original stores volume scalar 0, starts drone.wav with
+        // DSBPLAY_LOOPING, applies SetVolume(0), then advances Y to -116.
+        session.original_audio.drone_loop_volume_0_to_100 =
+            drone::audio::original_drone_loop_start_volume;
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::Play});
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::SetVolume,
+            drone::audio::original_drone_loop_start_volume});
+    }
+    if (drone_result.destruction_countdown_started) {
+        // The unresolved Y=45 timeout stops drone.wav immediately when the
+        // exact 4200th hold tick starts the destruction countdown.
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind});
+    }
     if (drone_result.disarm_completion_cleared) {
         result.probe_decode_cleared = clear_completed_probe_decode(
             encounter.special_weapon);
@@ -854,6 +902,10 @@ GameSessionTickResult step_game_session(
         encounter.enemy_bomb_spawn_gate);
     const auto& bomb_special_hit = bomb_collision.special_impact;
     drone::audio::append_audio_events(result.audio_events, bomb_collision.audio_events);
+    if (bomb_special_hit.probe_phase2_interrupt_signal_requested) {
+        session.original_audio.drone_loop_volume_0_to_100 =
+            drone::audio::original_drone_loop_interrupted_decode_volume;
+    }
     result.enemy_bomb_hit_special_weapon = bomb_special_hit.hit;
     result.enemy_bomb_special_hit_index = bomb_special_hit.bomb_index;
     result.enemy_bomb_probe_decode_reset = bomb_special_hit.probe_decode_reset;
@@ -923,6 +975,13 @@ GameSessionTickResult step_game_session(
         rapid_drone_hit.destruction_countdown_started;
     result.drone_weapon_hit_explosion_spawns_requested =
         rapid_drone_hit.explosion_spawns_requested;
+    if (rapid_drone_hit.hit) {
+        // Win32 0x0040F249 stops/rewinds drone.wav before the missile-hit
+        // explosion path starts the shared destruction countdown.
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind});
+    }
 
     const auto special_drone_hit = collide_special_weapon_with_drone(
         encounter.special_weapon,
@@ -941,6 +1000,13 @@ GameSessionTickResult step_game_session(
     result.drone_weapon_hit_explosion_spawns_requested = static_cast<std::uint8_t>(
         result.drone_weapon_hit_explosion_spawns_requested +
         special_drone_hit.explosion_spawns_requested);
+    if (special_drone_hit.stinger_hit) {
+        // Win32 0x0040F69E stops/rewinds drone.wav on the destructive Stinger
+        // collision; a blue Probe attachment deliberately leaves it running.
+        (void)result.audio_events.push({
+            drone::audio::AudioCue::DroneApproachLoop,
+            drone::audio::AudioAction::StopAndRewind});
+    }
 
     // The launched Probe/Stinger trajectory scan is distinct from both rapid
     // sprite-mask hits and the Stinger-display AoE. It uses point-vs-0.85

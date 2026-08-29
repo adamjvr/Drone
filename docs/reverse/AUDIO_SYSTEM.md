@@ -86,6 +86,7 @@ The clean core uses semantic `AudioCue` values and metadata-only `AudioCueDefini
 | Trajectory flight 1..14 | `squad1.wav` .. `squad14.wav` | 20-voice pools | not yet cataloged | source/default | native from exact `rand()%14` result |
 | Mission disarm interstitial | `deepness.wav` | single buffer | 90 | source/default | native transition site |
 | Mission detonation interstitial | `detonate.wav` | single buffer | 90 | source/default | native transition site |
+| Drone approach/decode loop | `drone.wav` | single buffer | 90 at load; runtime-controlled | source/default | native Y=-117 loop start, 0..80 approach control, Probe decode 60/80 changes and exact stop producers |
 | Lid/Top encounter loop | `retro1.wav` | single buffer | 70 | source/default | native start at boss activation; stop on exposed-core Stinger destruction transition |
 | Gemini encounter loop | `gemini.wav` | single buffer | 100 | source/default | native start at boss activation; stop only when the last activity-1 side enters destruction |
 
@@ -118,7 +119,7 @@ This preserves both sound multiplicity and the global `explode2, explode2, explo
   - exact volume conversion;
   - established frequency constants.
 - `include/drone/audio/audio_event.hpp`
-  - semantic cue/action types;
+  - semantic cue/action types, including parameterized `SetVolume` in original game-scale units;
   - metadata-only cue definitions;
   - fixed-capacity allocation-free `AudioEventQueue` for one session update (256 entries to retain worst-case multi-impact fanout).
 - `GameSessionTickResult::audio_events`
@@ -182,6 +183,51 @@ Probe/Stinger impact SFX execute earlier in each damage branch than this thresho
 
 Resource release remains a different lifetime: `release_lid_top_boss_assets` and `release_gemini_boss_assets` eventually release their audio slots, but the semantic encounter loops have already stopped in combat. The portable layer does not conflate release with playback stop.
 
+## Parameterized `drone.wav` ownership and volume control
+
+`drone.wav` demonstrates why long-form playback cannot be represented by Play/Stop alone. The resource setup loads the dedicated slot and applies game volume 90. The active objective path later owns a separate process-global volume scalar at `0x00440278`, and the clean core now exposes its writes as parameterized `SetVolume` events while leaving actual attenuation/mixing to a future backend.
+
+The recovered active sequence is:
+
+```text
+Drone reaches Y=-117 on phase 2
+  -> volume scalar = 0
+  -> Play drone.wav with flags 1
+  -> SetVolume(0)
+  -> landmark skip leaves Y=-116
+
+subsequent eligible phase-2 updates, while -116 < Y < 45
+  -> if scalar < 80: scalar += 1; SetVolume(scalar)
+  -> then normal Drone movement executes
+
+Probe decode phase 1 completes
+  -> SetVolume(60)
+  -> decoder enters phase 2
+
+attached phase-2 Probe is knocked off by enemy bomb
+  -> SetVolume(80)
+  -> clear decoder state
+  -> emit Probe impact sound
+
+Probe decode completes
+  -> completion one-shot (asset mapping still unresolved in this slice)
+  -> StopAndRewind drone.wav
+
+Y=45 hold reaches exactly 4200 phase-2 ticks
+  -> StopAndRewind drone.wav
+  -> begin shared destructive countdown
+
+rapid missile or red Stinger hits active Drone
+  -> StopAndRewind drone.wav
+  -> begin shared destructive countdown
+```
+
+The key call sites are `0x0040E529..0x0040E544` for start-at-zero, `0x0040E4C9..0x0040E4E5` for the 0->80 approach ramp, `0x0040CE00..0x0040CE0B` for decode-phase volume 60, `0x0040F3C8..0x0040F3D7` for interruption restore to 80, and `0x0040CEB5`, `0x0040E5B8`, `0x0040F249`, `0x0040F69E` for established stop producers. A blue Probe attachment itself leaves the loop running.
+
+Because `0x00440278` is process-global rather than encounter-owned, `GameSession::original_audio` retains the scalar across campaign/encounter resets just like the established explosion-SFX selector. The Y=-117 start writes zero before the live ramp consumes it, so a new objective does not require a fabricated reset.
+
+This slice deliberately does not name the Y=-40 one-shot or the decode-completion one-shot until their slot-to-asset identities are proven. It also leaves `air.wav` separate: air has multiple start/restart sites plus bidirectional state-dependent fades, so its ownership requires its own control-state integration rather than piggybacking on Drone semantics.
+
 ## Native post-game audio ownership
 
 Phase 5 now connects the already-native `GameSession` post-game modal sequence to the semantic audio queue:
@@ -201,20 +247,21 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 - `include/drone/audio/original_directsound.hpp`
   - exact 20-voice capacity and selector;
   - exact volume conversion;
-  - established frequency constants;
-  - metadata-only 13-site flags-1 call catalog with literal/register proof classification.
+  - established frequency and `drone.wav` control constants;
+  - metadata-only 13-site flags-1 call catalog with literal/register proof classification;
   - native semantic ownership for the shareware Lid/Top and Gemini loop starts/stops.
 - `include/drone/audio/audio_event.hpp`
-  - semantic cue/action types;
-  - metadata-only cue definitions, including the four one-shot Results tracks and looping Ordering/Credits cues;
+  - semantic cue/action types, including parameterized `SetVolume`;
+  - metadata-only cue definitions, including `drone.wav`, the two native boss loops, four one-shot Results tracks and looping Ordering/Credits cues;
+  - process-lifetime original-audio control state for the explosion selector and `0x00440278` Drone volume scalar;
   - fixed-capacity allocation-free `AudioEventQueue`.
 - `GameSessionTickResult::audio_events` and `PostGameRuntimeStepResult::audio_events`
-  - exact gameplay event ordering plus native Results/Ordering/Credits ownership transitions.
+  - exact gameplay event ordering plus native Drone approach/decode volume control, boss-loop ownership, and Results/Ordering/Credits ownership transitions.
 
 ## Next audio work
 
-1. integrate the already-classified menu/air/Drone loop lifetimes together with the volume-control semantics their clean owners require;
-2. recover the repeating `level1.wav` / `level2.wav` boss cadence and finish exact initialization settings for Squad1..14 and still-unidentified pools;
-3. implement credits/menu/approach fade envelopes and any pan behavior at the portable mixer boundary;
+1. integrate `air.wav` start/restart/stop and its state-dependent volume ramps without collapsing its several ownership paths;
+2. map the still-unidentified Y=-40 Drone one-shot and decode-completion one-shot, then recover the repeating `level1.wav` / `level2.wav` boss cadence and remaining Squad/pool initialization settings;
+3. execute the credits and main-menu `lowbees.wav` fade envelopes and recover any remaining pan behavior;
 4. reconstruct DOS HMI behavior and compare it with the Win32 DirectSound ownership model;
 5. add the portable mixer/backend only after those remaining original voice-control semantics are explicit.
