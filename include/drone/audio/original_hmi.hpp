@@ -1,6 +1,9 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace drone::audio {
 
@@ -41,6 +44,9 @@ inline constexpr std::uint16_t original_drone_dos_hmi_master_volume_mask = 0x7FF
     return static_cast<std::uint32_t>(level) |
            (static_cast<std::uint32_t>(level) << 16u);
 }
+
+[[nodiscard]] std::optional<std::size_t> select_original_drone_dos_hmi_voice(
+    const std::array<std::uint32_t, original_drone_dos_hmi_voice_count>& voice_flags) noexcept;
 
 struct OriginalHmiSosApiContract {
     std::uint32_t default_mixer_channels = 0;

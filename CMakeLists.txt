@@ -12,6 +12,7 @@ add_library(drone_core
     src/audio/original_hmi.cpp
     src/audio/audio_event.cpp
     src/audio/presentation_audio.cpp
+    src/audio/portable_backend.cpp
     src/formats/jba.cpp
     src/formats/clv.cpp
     src/formats/fly.cpp

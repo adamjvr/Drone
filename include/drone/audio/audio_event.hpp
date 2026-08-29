@@ -60,7 +60,31 @@ enum class AudioAction : std::uint8_t {
     StopAndRewind,
     SetVolume,
     SetFrequency,
+    SetMasterVolume,
 };
+
+enum class AudioValueDomain : std::uint8_t {
+    None,
+    Win32GameVolume0To100,
+    FrequencyHz,
+    DosHmiPackedChannelVolume,
+    DosHmiMasterVolume15Bit,
+};
+
+[[nodiscard]] constexpr AudioValueDomain default_audio_value_domain(
+    const AudioAction action) noexcept {
+    switch (action) {
+    case AudioAction::SetVolume:
+        return AudioValueDomain::Win32GameVolume0To100;
+    case AudioAction::SetFrequency:
+        return AudioValueDomain::FrequencyHz;
+    case AudioAction::Play:
+    case AudioAction::StopAndRewind:
+    case AudioAction::SetMasterVolume:
+        return AudioValueDomain::None;
+    }
+    return AudioValueDomain::None;
+}
 
 enum class AudioVoicePolicy : std::uint8_t {
     SingleBuffer,
@@ -98,8 +122,23 @@ struct OriginalAudioRuntimeState {
 struct AudioEvent {
     AudioCue cue = AudioCue::RapidMissileFire;
     AudioAction action = AudioAction::Play;
-    // Used by parameterized actions such as SetVolume/SetFrequency. Ignored for Play/Stop.
+    // Raw semantic value plus an explicit provenance/domain. Existing Win32-derived
+    // producers keep their exact 0..100 volume scalars and Hz rate values; DOS HMI
+    // faithful producers can instead carry native packed channel or master levels.
     std::int32_t value = 0;
+    AudioValueDomain value_domain = AudioValueDomain::None;
+
+    constexpr AudioEvent() noexcept = default;
+
+    constexpr AudioEvent(const AudioCue cue_value, const AudioAction action_value,
+                         const std::int32_t parameter = 0) noexcept
+        : cue(cue_value), action(action_value), value(parameter),
+          value_domain(default_audio_value_domain(action_value)) {}
+
+    constexpr AudioEvent(const AudioCue cue_value, const AudioAction action_value,
+                         const std::int32_t parameter,
+                         const AudioValueDomain domain) noexcept
+        : cue(cue_value), action(action_value), value(parameter), value_domain(domain) {}
 
     friend constexpr bool operator==(const AudioEvent&, const AudioEvent&) = default;
 };

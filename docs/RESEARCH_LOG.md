@@ -441,3 +441,14 @@ A durable `scripts/check_phase2_exit.py` gate checks this boundary in CTest. Pha
 - Proved DOS overlays leave the retained Air voice running. From full master `0x7FFF`, overlay attenuation settles at remainder `0x00D9`; resume state `2` restores `0x7FFF` without an Air restart.
 - Proved gameplay teardown separately performs Air `SampleDone` then conditional `StopSample`, so Air does not survive the gameplay-to-menu boundary; the master is restored before Lowbees menu ownership resumes.
 - Added `DOS-AUD-005..007`, `CROSS-AUD-004`, `DOS-FN-041`, the static DOS presentation-lifecycle contract/tests, and resolved `Q-AUDIO-007`. All five executable-level DOS audio-runtime questions are now closed, unblocking portable mixer/backend design.
+
+## 2026-08-29 — Portable original-backend lowering contract
+
+- Added a host-independent backend policy layer above the established semantic `AudioEvent` stream and below any modern audio-device API.
+- Added explicit `AudioValueDomain` tagging so Win32 game-scale volume, DOS packed HMI channel volume, Hz and DOS HMI master volume cannot be silently interchanged.
+- Encoded Win32 reusable transient policy as per-cue 20-buffer pools with slot-0 stealing and DOS policy as one global 32-voice HMI array with first-inactive allocation and failure on saturation.
+- Added a clean DOS first-inactive voice selector mirroring the established `sosDIGIStartSample` scan.
+- Lowered sustained semantic cues to DirectSound Play flags on Win32 and HMI `wLoopCount=0xFFFFFFFF` on DOS; stop semantics remain explicit rewind on Win32 versus retained-voice stop on DOS.
+- Added backend-native sample/master control lowering and hard rejection of incompatible value domains.
+- Added build-specific cue availability: canonical DOS shareware has no counterpart for Win32 `hiphop.wav` or `credits.wav`, so faithful DOS lowering refuses those cues.
+- Added `CROSS-AUD-005` to make the portable-interface invariant part of the evidence/implementation record.

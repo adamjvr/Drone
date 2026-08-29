@@ -173,3 +173,18 @@ This establishes `DOS-AUD-005..007` and `CROSS-AUD-004`. All five DOS audio-runt
 ## Non-goals
 
 Exact whole-runtime trace parity remains Phase 6, end-to-end shareware discrepancy closure remains Phase 7, and registered-only content remains Phase 8.
+
+## Portable original-backend contract
+
+This Phase-5 slice establishes the first host-independent backend lowering boundary now that both original playback systems are executable-backed:
+
+- `AudioEvent` parameter values now carry an explicit `AudioValueDomain`; existing Win32-derived `SetVolume` events retain the exact game 0..100 scalar, `SetFrequency` is explicitly Hz, and DOS-faithful producers can carry native packed HMI channel volume or 15-bit HMI master-volume values without ambiguous conversion;
+- `portable_audio_backend` describes Win32 transient overlap as per-cue preduplicated 20-buffer pools with slot-0 stealing at saturation, while DOS uses the global 32-voice HMI array and returns failure when saturated;
+- Win32 Play lowers looping through DirectSound Play flags, while DOS sustained cues lower through `wLoopCount=0xFFFFFFFF`; the DOS lowering uses semantic cue ownership rather than reinterpreting the DirectSound flag as an HMI flag;
+- Win32 sample volume lowers the 0..100 game scalar through `30 * (v - 100)`, while DOS sample volume accepts only native packed HMI channel data; incompatible domains return no command rather than inventing a cross-backend volume mapping;
+- frequency control is shared semantically in Hz and lowers to DirectSound `SetFrequency` or HMI `sosDIGISetSampleRate`;
+- DOS HMI master-volume control is represented as a distinct command and is unavailable on the faithful Win32 contract, preserving the established overlay divergence;
+- Stop/rewind intent lowers to an explicit DirectSound stop+rewind primitive on Win32 but only retained-voice stop on DOS, where no DirectSound-style buffer rewind operation exists;
+- backend cue availability is explicit: the checked-in cross-build census has no DOS counterpart for Win32 `hiphop.wav` or `credits.wav`, so the DOS-faithful lowering rejects those cues instead of fabricating assets.
+
+The contract remains sample-data-free and host-API-free. It is the seam required before implementing an actual modern mixer: `GameSession` and presentation owners emit semantic events; an original-policy lowering converts them into platform-faithful backend commands; a later host mixer will execute those commands against imported/replacement sample data.

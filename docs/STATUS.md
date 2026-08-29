@@ -124,7 +124,7 @@ Phase 4 is complete for the canonical shareware simulation. The remaining non-na
 
 Phase 5 priorities are now:
 
-1. Define the portable audio mixer/backend interface now that Win32 DirectSound and DOS HMI voice, control, loop, and presentation-lifecycle policies are executable-backed.
-2. Complete the portable audio-event/mixer backend from the established semantic events while preserving exact backend differences: Win32 20-buffer steal-on-saturation pools versus DOS 32 dynamic return-failure voices, normalized DirectSound attenuation versus native HMI packed levels, and distinct loop representations.
-3. Add backend-level regression fixtures for saturation, loop and control semantics before binding the clean event layer to host audio APIs.
-4. Keep deterministic audio-trace comparison in Phase 6 and end-to-end shareware discrepancy closure in Phase 7.
+1. **Portable original-backend interface: COMPLETE first contract.** `AudioEvent` values are domain-tagged and lower through explicit Win32/DOS policy descriptors for arbitration, saturation, loop encoding, control representation, presentation ownership and build-specific cue availability.
+2. Implement the host-independent runtime/mixer state machine that executes these lowered commands against abstract sample voices while retaining both faithful policy modes; do not bind a desktop/mobile audio API yet.
+3. Add backend-level regression traces for overlapping transient starts, saturation/failure, retained-loop control and presentation transitions, then bind that validated runtime to host audio APIs.
+4. Keep deterministic original audio-trace comparison in Phase 6 and end-to-end shareware discrepancy closure in Phase 7.

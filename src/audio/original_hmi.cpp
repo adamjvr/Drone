@@ -2,6 +2,14 @@
 
 namespace drone::audio {
 
+std::optional<std::size_t> select_original_drone_dos_hmi_voice(
+    const std::array<std::uint32_t, original_drone_dos_hmi_voice_count>& voice_flags) noexcept {
+    for (std::size_t index = 0; index < voice_flags.size(); ++index) {
+        if ((voice_flags[index] & original_hmi_sample_flag_active) == 0) return index;
+    }
+    return std::nullopt;
+}
+
 const OriginalHmiSosApiContract& original_hmi_sos_api_contract() noexcept {
     static constexpr OriginalHmiSosApiContract contract{
         .default_mixer_channels = original_hmi_default_mixer_channels,

@@ -250,9 +250,14 @@ Gameplay teardown is a separate ownership boundary. After master attenuation, it
   - 32-channel/voice library ceiling recorded explicitly as capability rather than Drone configuration;
   - explicit separation from Win32 Drone's game-owned 20-buffer pool policy.
 - `include/drone/audio/audio_event.hpp`
-  - semantic cue/action types, including parameterized `SetVolume` in original game-scale units;
+  - semantic cue/action types with explicit parameter value domains;
+  - Win32 game-scale volume, Hz rate, DOS packed-channel volume and DOS 15-bit master-volume values cannot be silently confused;
   - metadata-only cue definitions;
   - fixed-capacity allocation-free `AudioEventQueue` for one session update (256 entries to retain worst-case multi-impact fanout).
+- `include/drone/audio/portable_backend.hpp`
+  - host-independent Win32/DOS backend-policy descriptors;
+  - semantic-event lowering to sample-data-free backend commands;
+  - explicit rejection of unsupported parameter domains and build-specific missing cues.
 - `GameSessionTickResult::audio_events`
   - emitted at proven gameplay call sites for rapid fire, shield pulse, special load/cycle, ordinary special launch, ordered bomb impacts/player hits, boss bomb fire, explosion variants, transient trajectory flight sounds and mission interstitial sounds.
 
@@ -496,3 +501,47 @@ Suppressed Results/Ordering paths emit neither cue. A high-score modal itself st
 2. add executable regression fixtures for the platform policies that must remain distinct: Win32 steal-slot-0 saturation versus DOS return-failure, DirectSound normalized attenuation versus HMI packed levels, loop flags versus HMI loop counts, and direct-Air overlay fades versus DOS HMI-master attenuation;
 3. bind those backend contracts to host audio APIs without moving presentation cadence or device latency into deterministic `GameSession`;
 4. leave later exact audio-trace parity and device/host latency validation to deterministic/fidelity phases rather than collapsing those concerns into the event contract.
+
+## Portable original-backend lowering contract
+
+With the DOS HMI lifecycle closed, the clean audio layer can finally define a backend seam without erasing original differences. `portable_audio_backend` is deliberately **not** a modern audio-device implementation. It converts one semantic `AudioEvent` into an `AudioBackendCommand` carrying only cue identity, original-policy voice topology, saturation behavior, loop encoding and native control payload. Sample decoding/import and host-device I/O stay outside this layer.
+
+### Typed parameter domains
+
+A raw integer is insufficient for faithful cross-build audio. The same numeric field could otherwise mean Win32's game-scale volume, an HMI packed left/right level, Hz, or the DOS digital-master scalar. `AudioEvent` therefore tags parameter values with one of:
+
+- `Win32GameVolume0To100`;
+- `FrequencyHz`;
+- `DosHmiPackedChannelVolume`;
+- `DosHmiMasterVolume15Bit`;
+- `None` for non-parameterized Play/Stop.
+
+Existing three-argument event construction remains source-compatible: `SetVolume` infers the established Win32 game-scale domain and `SetFrequency` infers Hz. DOS-faithful producers use the explicit four-argument constructor. A backend rejects incompatible domains rather than guessing. For example, Win32 `SetVolume(60)` lowers to DirectSound attenuation `-1200`; the DOS backend rejects that same event because `60` is not a proven HMI packed-channel value. Conversely `0x41004100` tagged as DOS HMI channel volume is accepted by DOS and rejected by Win32.
+
+### Voice arbitration
+
+| contract | Win32 DirectSound | DOS HMI S.O.S. |
+|---|---|---|
+| transient topology | per-cue preduplicated pool | global dynamic voice array |
+| capacity | 20 for each reusable pool | 32 total digital voices |
+| allocation | first raw status != 1 | first voice without `_SACTIVE` |
+| saturation | restart/steal pool slot 0 | return failure (`-1`) |
+| priority in selection | no | no |
+
+The clean DOS selector now mirrors `sosDIGIStartSample`: scan indices 0..31 and return the first non-active record, otherwise no voice. This is intentionally separate from `select_original_sfx_voice`, which preserves the Win32 pool-steal rule.
+
+### Loop and stop lowering
+
+Win32 Play retains the exact DirectSound Play flags already cataloged. DOS Play maps semantically sustained cues (`air`, `lowbees`, `drone`, `retro1`, `gemini`, Ordering `thunder2`) to HMI `wLoopCount=0xFFFFFFFF`; ordinary cues use zero. This mapping is explicit and does not treat a DirectSound flag value as an HMI flag.
+
+`StopAndRewind` is semantic ownership intent. Win32 lowers it to the original stop-then-position-zero behavior. DOS lowers it to retained HMI voice stop; HMI has no corresponding DirectSound buffer-position rewind operation to fake.
+
+### Control and presentation ownership
+
+`SetFrequency` uses the shared Hz domain and lowers to DirectSound `SetFrequency` or HMI `sosDIGISetSampleRate`. Sample volume is backend-native as described above. `SetMasterVolume` exists as a separate semantic action only for the established DOS HMI digital-master path; the faithful Win32 backend rejects it because Win32's pause/quit/nine-lives path owns attenuation at the Air sample instead.
+
+This means `CROSS-AUD-003` and `CROSS-AUD-004` are enforced by code rather than left as documentation warnings.
+
+### Build-specific cue availability
+
+The checked-in 63-row audio crosswalk establishes DOS counterparts for the current semantic cue catalog except Win32 `hiphop.wav` and `credits.wav`. `audio_cue_available_on_original_backend()` therefore rejects `ResultsHiphop` and `CompletionCredits` on the DOS-faithful backend. This is a hard evidence boundary: a future remaster may provide replacement content, but original-DOS fidelity mode must not invent assets absent from the canonical DOS shareware set.

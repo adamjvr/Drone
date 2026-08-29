@@ -1,6 +1,7 @@
 #include <drone/audio/audio_event.hpp>
 #include <drone/audio/original_directsound.hpp>
 #include <drone/audio/original_hmi.hpp>
+#include <drone/audio/portable_backend.hpp>
 #include <drone/gameplay/game_session.hpp>
 
 #include <algorithm>
@@ -332,6 +333,131 @@ int main() {
     assert(!dos_presentation.air_survives_gameplay_to_menu_transition);
 
     assert(dos_presentation.menu_transition_count == 7);
+
+    // The portable contract preserves original backend differences instead of
+    // pretending DirectSound and HMI share one hidden mixer policy.
+    const auto& win32_backend =
+        portable_audio_backend_contract(OriginalAudioBackend::Win32DirectSound);
+    assert(win32_backend.transient_voice_topology ==
+           AudioVoiceTopology::PerCuePreduplicatedPool);
+    assert(win32_backend.transient_voice_capacity == 20);
+    assert(win32_backend.transient_saturation == AudioSaturationBehavior::StealVoiceZero);
+    assert(win32_backend.loop_encoding == AudioLoopEncoding::DirectSoundPlayFlags);
+    assert(win32_backend.sample_volume_encoding ==
+           AudioVolumeEncoding::Win32GameScaleToDirectSoundAttenuation);
+    assert(win32_backend.overlay_attenuation_owner ==
+           AudioPresentationAttenuationOwner::AirSample);
+    assert(win32_backend.stop_semantics_include_explicit_rewind);
+    assert(!win32_backend.supports_digital_master_volume);
+
+    const auto& dos_backend =
+        portable_audio_backend_contract(OriginalAudioBackend::DosHmiSos);
+    assert(dos_backend.transient_voice_topology == AudioVoiceTopology::GlobalDynamicVoiceArray);
+    assert(dos_backend.transient_voice_capacity == 32);
+    assert(dos_backend.transient_saturation == AudioSaturationBehavior::ReturnFailure);
+    assert(dos_backend.loop_encoding == AudioLoopEncoding::HmiLoopCount);
+    assert(dos_backend.sample_volume_encoding == AudioVolumeEncoding::DosHmiPackedChannels);
+    assert(dos_backend.overlay_attenuation_owner ==
+           AudioPresentationAttenuationOwner::DigitalMaster);
+    assert(!dos_backend.stop_semantics_include_explicit_rewind);
+    assert(dos_backend.retained_runtime_voice_handle);
+    assert(dos_backend.supports_digital_master_volume);
+
+    std::array<std::uint32_t, original_drone_dos_hmi_voice_count> dos_voice_flags{};
+    dos_voice_flags.fill(original_hmi_sample_flag_active);
+    dos_voice_flags[11] = original_hmi_sample_flag_done;
+    const auto dos_voice = select_original_drone_dos_hmi_voice(dos_voice_flags);
+    assert(dos_voice.has_value() && *dos_voice == 11);
+    dos_voice_flags.fill(original_hmi_sample_flag_active);
+    assert(!select_original_drone_dos_hmi_voice(dos_voice_flags).has_value());
+
+    // Value-domain tagging is part of the interface: current Win32 producers
+    // keep their exact game-scale volume scalars, while DOS faithful callers
+    // can supply native HMI payloads without ambiguous unit conversion.
+    const AudioEvent win32_volume{AudioCue::DroneApproachLoop, AudioAction::SetVolume, 60};
+    assert(win32_volume.value_domain == AudioValueDomain::Win32GameVolume0To100);
+    const AudioEvent frequency{AudioCue::AirLoop, AudioAction::SetFrequency, 11025};
+    assert(frequency.value_domain == AudioValueDomain::FrequencyHz);
+    const AudioEvent dos_volume{AudioCue::DroneApproachLoop, AudioAction::SetVolume,
+                                static_cast<std::int32_t>(0x41004100u),
+                                AudioValueDomain::DosHmiPackedChannelVolume};
+    const AudioEvent dos_master{AudioCue::AirLoop, AudioAction::SetMasterVolume, 0x7FFF,
+                                AudioValueDomain::DosHmiMasterVolume15Bit};
+
+    auto command = lower_audio_event_for_original_backend(
+        OriginalAudioBackend::Win32DirectSound,
+        AudioEvent{AudioCue::RapidMissileFire, AudioAction::Play});
+    assert(command.has_value());
+    assert(command->voice_topology == AudioVoiceTopology::PerCuePreduplicatedPool);
+    assert(command->voice_capacity == 20);
+    assert(command->saturation == AudioSaturationBehavior::StealVoiceZero);
+    assert(command->loop_encoding == AudioLoopEncoding::DirectSoundPlayFlags);
+    assert(command->loop_value == 0);
+
+    command = lower_audio_event_for_original_backend(
+        OriginalAudioBackend::Win32DirectSound,
+        AudioEvent{AudioCue::AirLoop, AudioAction::Play});
+    assert(command.has_value() && command->loop_value == directsound_play_looping_flag);
+
+    assert(audio_cue_available_on_original_backend(OriginalAudioBackend::DosHmiSos,
+                                                   AudioCue::AirLoop));
+    assert(!audio_cue_available_on_original_backend(OriginalAudioBackend::DosHmiSos,
+                                                    AudioCue::ResultsHiphop));
+    assert(!audio_cue_available_on_original_backend(OriginalAudioBackend::DosHmiSos,
+                                                    AudioCue::CompletionCredits));
+    assert(!lower_audio_event_for_original_backend(
+        OriginalAudioBackend::DosHmiSos,
+        AudioEvent{AudioCue::CompletionCredits, AudioAction::Play}).has_value());
+
+    command = lower_audio_event_for_original_backend(
+        OriginalAudioBackend::DosHmiSos, AudioEvent{AudioCue::AirLoop, AudioAction::Play});
+    assert(command.has_value());
+    assert(command->voice_topology == AudioVoiceTopology::GlobalDynamicVoiceArray);
+    assert(command->voice_capacity == 32);
+    assert(command->saturation == AudioSaturationBehavior::ReturnFailure);
+    assert(command->loop_encoding == AudioLoopEncoding::HmiLoopCount);
+    assert(command->loop_value == 0xFFFFFFFFu);
+
+    command = lower_audio_event_for_original_backend(
+        OriginalAudioBackend::Win32DirectSound,
+        AudioEvent{AudioCue::AirLoop, AudioAction::StopAndRewind});
+    assert(command.has_value() && command->primitive == AudioBackendPrimitive::Stop);
+    assert(command->rewind_after_stop);
+    command = lower_audio_event_for_original_backend(
+        OriginalAudioBackend::DosHmiSos,
+        AudioEvent{AudioCue::AirLoop, AudioAction::StopAndRewind});
+    assert(command.has_value() && !command->rewind_after_stop);
+
+    command = lower_audio_event_for_original_backend(
+        OriginalAudioBackend::Win32DirectSound, win32_volume);
+    assert(command.has_value());
+    assert(command->primitive == AudioBackendPrimitive::SetSampleVolume);
+    assert(command->control_value == -1200);
+    assert(!lower_audio_event_for_original_backend(OriginalAudioBackend::DosHmiSos,
+                                                   win32_volume).has_value());
+
+    command = lower_audio_event_for_original_backend(OriginalAudioBackend::DosHmiSos,
+                                                      dos_volume);
+    assert(command.has_value());
+    assert(command->primitive == AudioBackendPrimitive::SetSampleVolume);
+    assert(command->control_value == 0x41004100u);
+    assert(!lower_audio_event_for_original_backend(OriginalAudioBackend::Win32DirectSound,
+                                                   dos_volume).has_value());
+
+    command = lower_audio_event_for_original_backend(OriginalAudioBackend::DosHmiSos,
+                                                      frequency);
+    assert(command.has_value());
+    assert(command->primitive == AudioBackendPrimitive::SetSampleRate);
+    assert(command->control_value == 11025);
+
+    command = lower_audio_event_for_original_backend(OriginalAudioBackend::DosHmiSos,
+                                                      dos_master);
+    assert(command.has_value());
+    assert(command->primitive == AudioBackendPrimitive::SetDigitalMasterVolume);
+    assert(command->control_value == 0x7FFF);
+    assert(!lower_audio_event_for_original_backend(OriginalAudioBackend::Win32DirectSound,
+                                                   dos_master).has_value());
+
     const auto* menu = dos_presentation.menu_transitions;
     assert(menu != nullptr);
     assert(menu[0].selection == OriginalDroneDosMenuSelection::PlayGame);
