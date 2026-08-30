@@ -144,6 +144,17 @@ if special.x > desired_x: special.x--
 
 This directly corroborates the README's statement that red stingers home toward the locked hostile target.
 
+### Ordinary trajectory-ship target seeding
+
+The trajectory updater at `0x00415FA0` also participates in the same shared target-pointer state before the later boss-priority chain runs. For each activity-1 trajectory actor, when the special is loaded/tracking or launched/homing, the actor is eligible only when the special is more than 20 pixels below it (`special_y > actor_y + 20`). The updater compares a Manhattan-like metric:
+
+```text
+candidate = abs(special_x - actor_x) + (special_y - actor_y)
+retained  = abs(special_x - retained_target_x) + (special_y - retained_target_y)
+```
+
+Only a **strictly smaller** candidate replaces the retained pointer, so canonical group/slot scan order resolves ties by keeping the earlier target. This means ordinary trajectory ships can seed the red-Stinger target naturally; the later Mothership/Gemini/Lid-Top/Spidey/etc. chain can still override that shared pointer according to its recovered priority rules. The clean session now owns this scan directly from its trajectory actors instead of leaving a newly loaded Stinger aimed at the X=160 dummy whenever no boss candidate is present.
+
 ### Blue Probe (frame 0)
 
 The canonical normal blue-probe branch targets entity **`0x00446080`**, which is independently initialized as a 15×38 common entity and populated from **`drone.jba`**. Its normal desired X is:
@@ -156,7 +167,7 @@ The literal `+4` is preserved even though it is not the geometric center of the 
 
 An alternate conditional branch involves entity `0x00433700`, populated from `hole.jba`. When a launched state-3 special collides with that active hole under the recovered gameplay gates, the original writes **state 4**. The renderer then draws both the hole entity and the special projectile through the normal transparent blitter. A later collision against `0x00472598`, now established as the Mothership core/target common entity, ends state 4. For Stinger/frame 1 it can advance motor/subassembly state and, once the prerequisite motor states are satisfied, set the Mothership target `+0x142` activity state to `2`, beginning the destruction sequence. The full subassembly mechanics remain partial; see [`MOTHERSHIP.md`](MOTHERSHIP.md).
 
-If the special projectile X leaves `0..319`, the original clears activity to state 0 and raises `+0x143`.
+If the special projectile X leaves `0..319`, the original clears activity to state 0 and raises `+0x143`. The later common visibility block at `0x0040EC78..0x0040ED71` also establishes the previously unresolved vertical lifecycle: `y < 0` raises `+0x143`; the projectile remains in its current activity while it travels above the visible playfield; and once `y < -60` the original clears activity to state 0, restores the canonical staging `y = 182`, clears `+0x143`, and zeros the associated common scratch word. Because launched state 3 advances `y -= 2`, a missed Probe/Stinger therefore has a short offscreen retirement delay and then becomes loadable again. There is no finite Probe/Stinger ammunition counter in this path. The same block contains a lower-edge reset for `y > 199`.
 
 ## Targeting reticle behavior
 
@@ -263,6 +274,7 @@ The clean module currently implements only behavior with direct evidence:
 - state 1 -> 3 launch;
 - state-1 player anchoring;
 - Y `-= 2` movement;
+- exact common top-edge lifecycle: `y < 0` marks offscreen and `y < -60` retires/reset the projectile, making missed Probe/Stinger launches reusable;
 - one-pixel X homing toward a caller-selected target;
 - exact normal Stinger and Probe target-X formulas;
 - frame-0 state-3 -> state-2 Drone attachment through the recovered inclusive point-hitbox producer;

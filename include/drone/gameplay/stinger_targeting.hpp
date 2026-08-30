@@ -12,6 +12,8 @@ inline constexpr std::int32_t canonical_stinger_dummy_target_x = 160;
 struct StingerTargetGeometry {
     std::int32_t x = 0;
     std::int16_t width = 0;
+    std::int32_t y = 0;
+    std::int16_t height = 0;
 };
 
 enum class StingerTargetIdentity : std::uint8_t {
@@ -24,11 +26,14 @@ enum class StingerTargetIdentity : std::uint8_t {
     RegisteredSlot2,
     Bomber,
     UnknownDynamicHostile,
+    TrajectoryActor,
 };
 
 struct StingerTargetState {
     StingerTargetIdentity identity = StingerTargetIdentity::DummyCenter;
     StingerTargetGeometry geometry{canonical_stinger_dummy_target_x, 0};
+    std::uint8_t trajectory_group_index = 0xff;
+    std::uint8_t trajectory_actor_index = 0xff;
 };
 
 // These are already-owned/current encounter facts used by the original target
@@ -83,6 +88,22 @@ void reset_stinger_target(StingerTargetState& state) noexcept;
     StingerTargetState& state,
     const StingerTargetSelectionContext& context,
     std::int32_t player_x) noexcept;
+
+// Win32 update_trajectory_groups also participates in the shared red-Stinger
+// target pointer. Each active following-path actor above the projectile can
+// replace the retained target when its Manhattan-like distance is strictly
+// smaller. Callers should visit actors in canonical group/slot order after
+// their current update/collision state is known.
+[[nodiscard]] bool consider_trajectory_stinger_target(
+    StingerTargetState& state,
+    std::int32_t special_x,
+    std::int32_t special_y,
+    std::uint8_t group_index,
+    std::uint8_t actor_index,
+    std::int32_t actor_x,
+    std::int32_t actor_y,
+    std::int16_t actor_width,
+    std::int16_t actor_height) noexcept;
 
 [[nodiscard]] std::int32_t stinger_target_desired_x(
     const StingerTargetState& state) noexcept;

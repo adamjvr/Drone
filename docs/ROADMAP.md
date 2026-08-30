@@ -46,7 +46,7 @@ Run the supplied shareware content end-to-end on the clean engine without relyin
 
 ## Phase 8 — Full-Game Reconstruction
 
-After a lawfully obtained full release is selected and hashed as a canonical evidence set, recover registered-only levels, enemies, bosses, assets, ending behavior, and executable/content differences.
+After a lawfully obtained full release is selected and hashed as a canonical evidence set, recover registered-only levels, enemies, bosses, assets, ending behavior, and executable/content differences. **The two-level shareware campaign is a parity/test profile, not the final product ceiling:** the production campaign target is the complete registered game, while shareware remains available only as a historical/evidence mode. Retail behavior must be recovered from the retail corpus rather than guessed from dormant shareware branches.
 
 ## Phase 9 — Decompilation Completion
 
@@ -79,3 +79,14 @@ Finalize installers/packages, asset verification/import, CI/release automation, 
 ## Architectural invariant
 
 The remaster is not the reverse-engineering target. `drone_core` must remain capable of validated original behavior independently of modern presentation features. Platform and remaster layers consume the reconstructed core; they do not redefine it.
+
+### Playable-host DRONE objective usability checkpoint — 2026-08-30
+
+- [x] Correct misleading "Down selects Probe" guidance: original Down-load preserves the currently selected special kind.
+- [x] Show explicit BLUE PROBE / RED STINGER state while loaded and while seeking.
+- [x] Show live Probe decode/disarm percentage after attachment.
+- [x] Add F5 Objective Safety host assist without changing deterministic original gameplay semantics.
+- [x] Auto-preselect blue Probe for a visible DRONE when the shared special slot is inactive and safety is enabled.
+- [x] Purge/suppress rapid missiles from Probe launch through attached decode/disarm settlement while safety is enabled.
+- [x] Block accidental red-Stinger launch at a visible DRONE while safety is enabled.
+- [ ] Continue long-play encounter/boss/DRONE sequencing validation against original runtime captures.

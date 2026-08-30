@@ -19,3 +19,8 @@ __pycache__/
 
 # Local indexed-framebuffer captures; publish hashes/metadata, not original frame bytes.
 *.drfb
+
+# Generated/local remastered art cache (installed from the 12x art delivery).
+/assets_hd/
+# Local classic runtime corpus used by the playable host.
+/runtime-assets/

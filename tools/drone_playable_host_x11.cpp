@@ -18,6 +18,7 @@
 #include <drone/gameplay/debris_effects.hpp>
 #include <drone/gameplay/gemini_boss.hpp>
 #include <drone/gameplay/lid_top_boss.hpp>
+#include <drone/gameplay/rapid_missile.hpp>
 #include <drone/gameplay/shield.hpp>
 #include <drone/gameplay/trajectory_templates.hpp>
 
@@ -25,6 +26,7 @@
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
+#include <png.h>
 
 #include <algorithm>
 #include <array>
@@ -42,6 +44,8 @@
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <memory>
+#include <sstream>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -62,6 +66,7 @@ constexpr int kMinScale = 1;
 constexpr int kMaxScale = 8;
 constexpr double kTickHz = 70.0863;
 constexpr auto kTickDuration = std::chrono::duration<double>(1.0 / kTickHz);
+constexpr std::uint32_t kStartupWeaponHelpTicks = static_cast<std::uint32_t>(kTickHz * 5.0);
 
 struct SpriteBank {
     fidelity::IndexedSpriteFrame frame0{};
@@ -158,9 +163,307 @@ struct AssetStore {
     }
 };
 
+struct RgbaImage {
+    int width{};
+    int height{};
+    std::vector<std::uint8_t> pixels{}; // RGBA8
+
+    bool valid() const noexcept {
+        return width > 0 && height > 0 &&
+               pixels.size() == static_cast<std::size_t>(width) * height * 4u;
+    }
+};
+
+RgbaImage load_png_rgba(const fs::path& path) {
+    png_image image{};
+    image.version = PNG_IMAGE_VERSION;
+    if (!png_image_begin_read_from_file(&image, path.c_str())) {
+        throw std::runtime_error("PNG read failed: " + path.string());
+    }
+    image.format = PNG_FORMAT_RGBA;
+    RgbaImage out;
+    out.width = static_cast<int>(image.width);
+    out.height = static_cast<int>(image.height);
+    out.pixels.resize(PNG_IMAGE_SIZE(image));
+    if (!png_image_finish_read(&image, nullptr, out.pixels.data(), 0, nullptr)) {
+        const std::string reason = image.message[0] ? image.message : "unknown libpng error";
+        png_image_free(&image);
+        throw std::runtime_error("PNG decode failed: " + path.string() + ": " + reason);
+    }
+    png_image_free(&image);
+    return out;
+}
+
+RgbaImage resize_rgba_bilinear(const RgbaImage& src, int dst_w, int dst_h) {
+    if (!src.valid() || dst_w <= 0 || dst_h <= 0) return {};
+    if (src.width == dst_w && src.height == dst_h) return src;
+
+    RgbaImage out;
+    out.width = dst_w;
+    out.height = dst_h;
+    out.pixels.resize(static_cast<std::size_t>(dst_w) * dst_h * 4u);
+
+    const double sx = static_cast<double>(src.width) / dst_w;
+    const double sy = static_cast<double>(src.height) / dst_h;
+    for (int y = 0; y < dst_h; ++y) {
+        const double fy = std::max(0.0, (y + 0.5) * sy - 0.5);
+        const int y0 = std::clamp(static_cast<int>(std::floor(fy)), 0, src.height - 1);
+        const int y1 = std::min(y0 + 1, src.height - 1);
+        const double wy = fy - std::floor(fy);
+        for (int x = 0; x < dst_w; ++x) {
+            const double fx = std::max(0.0, (x + 0.5) * sx - 0.5);
+            const int x0 = std::clamp(static_cast<int>(std::floor(fx)), 0, src.width - 1);
+            const int x1 = std::min(x0 + 1, src.width - 1);
+            const double wx = fx - std::floor(fx);
+            const std::size_t i00 = (static_cast<std::size_t>(y0) * src.width + x0) * 4u;
+            const std::size_t i10 = (static_cast<std::size_t>(y0) * src.width + x1) * 4u;
+            const std::size_t i01 = (static_cast<std::size_t>(y1) * src.width + x0) * 4u;
+            const std::size_t i11 = (static_cast<std::size_t>(y1) * src.width + x1) * 4u;
+            const std::size_t od = (static_cast<std::size_t>(y) * dst_w + x) * 4u;
+            for (int c = 0; c < 4; ++c) {
+                const double a = src.pixels[i00 + c] * (1.0 - wx) + src.pixels[i10 + c] * wx;
+                const double b = src.pixels[i01 + c] * (1.0 - wx) + src.pixels[i11 + c] * wx;
+                out.pixels[od + c] = static_cast<std::uint8_t>(
+                    std::clamp(std::lround(a * (1.0 - wy) + b * wy), 0l, 255l));
+            }
+        }
+    }
+    return out;
+}
+
+std::string strip_extension_upper(std::string value) {
+    value = upper_ascii(std::move(value));
+    const auto dot = value.find_last_of('.');
+    if (dot != std::string::npos) value.resize(dot);
+    return value;
+}
+
+struct HdAssetStore {
+    fs::path root;
+    bool available{false};
+    std::size_t png_file_count{0};
+    int cache_scale{0};
+    std::unordered_map<std::string, fs::path> windows_fullscreen_index{};
+    std::unordered_map<std::string, fs::path> dos_fullscreen_index{};
+    std::unordered_map<std::string, std::shared_ptr<RgbaImage>> resized_cache{};
+
+    static void index_decoded_tree(const fs::path& tree,
+                                   std::unordered_map<std::string, fs::path>& out) {
+        if (!fs::is_directory(tree)) return;
+        for (const auto& entry : fs::recursive_directory_iterator(tree)) {
+            if (!entry.is_regular_file()) continue;
+            if (upper_ascii(entry.path().extension().string()) != ".PNG") continue;
+            const auto stem = strip_extension_upper(entry.path().filename().string());
+            // First occurrence wins. The upscale corpus keeps canonical JBA
+            // basenames unique within each platform tree.
+            out.emplace(stem, entry.path());
+        }
+    }
+
+    explicit HdAssetStore(fs::path path) : root(std::move(path)) {
+        const bool trees_present = fs::is_directory(root / "decoded") &&
+                                   fs::is_directory(root / "sprite_frames");
+        if (!trees_present) return;
+
+        index_decoded_tree(root / "decoded" / "windows", windows_fullscreen_index);
+        index_decoded_tree(root / "decoded" / "dos", dos_fullscreen_index);
+        for (const auto& tree : {root / "decoded", root / "sprite_frames"}) {
+            if (!fs::is_directory(tree)) continue;
+            for (const auto& entry : fs::recursive_directory_iterator(tree)) {
+                if (entry.is_regular_file() && upper_ascii(entry.path().extension().string()) == ".PNG")
+                    ++png_file_count;
+            }
+        }
+
+        // A directory existing is not enough. Require the anchor assets that
+        // prove the generated 12x corpus is actually usable by this presenter.
+        available = !resolve_fullscreen("TITLESH.JBA").empty() &&
+                    !resolve_fullscreen("RIVERTOP.JBA").empty() &&
+                    !resolve_sprite("recovered", "SHIP", 0).empty();
+    }
+
+    std::string diagnostic_summary() const {
+        return "root=" + root.string() +
+               " pngs=" + std::to_string(png_file_count) +
+               " win_sheets=" + std::to_string(windows_fullscreen_index.size()) +
+               " dos_sheets=" + std::to_string(dos_fullscreen_index.size());
+    }
+
+    bool self_test(std::ostream& out) {
+        if (!available) {
+            out << "HD_SELFTEST FAIL " << diagnostic_summary() << " missing anchor assets\n";
+            return false;
+        }
+        try {
+            const auto title_path = resolve_fullscreen("TITLESH.JBA");
+            const auto river_path = resolve_fullscreen("RIVERTOP.JBA");
+            const auto ship_path = resolve_sprite("recovered", "SHIP", 0);
+            const auto title = load_png_rgba(title_path);
+            const auto river = load_png_rgba(river_path);
+            const auto ship = load_png_rgba(ship_path);
+            if (!title.valid() || !river.valid() || !ship.valid()) {
+                out << "HD_SELFTEST FAIL " << diagnostic_summary() << " decoded invalid image\n";
+                return false;
+            }
+            out << "HD_SELFTEST OK " << diagnostic_summary()
+                << " TITLESH=" << title.width << "x" << title.height
+                << " RIVERTOP=" << river.width << "x" << river.height
+                << " SHIP_00=" << ship.width << "x" << ship.height << "\n";
+            return true;
+        } catch (const std::exception& e) {
+            out << "HD_SELFTEST FAIL " << diagnostic_summary() << " " << e.what() << "\n";
+            return false;
+        }
+    }
+
+    void set_scale(int scale) {
+        if (cache_scale == scale) return;
+        cache_scale = scale;
+        resized_cache.clear();
+    }
+
+    fs::path resolve_fullscreen(std::string_view jba_name) const {
+        const auto stem = strip_extension_upper(std::string(jba_name));
+        // The playable host reconstructs the Win32 release, so prefer the
+        // Windows upscale when the DOS and Windows visual corpora differ.
+        if (const auto it = windows_fullscreen_index.find(stem); it != windows_fullscreen_index.end())
+            return it->second;
+        if (const auto it = dos_fullscreen_index.find(stem); it != dos_fullscreen_index.end())
+            return it->second;
+        return {};
+    }
+
+    fs::path resolve_sprite(std::string_view category,
+                            std::string_view family,
+                            std::size_t frame) const {
+        const auto stem = strip_extension_upper(std::string(family));
+        char suffix[32]{};
+        std::snprintf(suffix, sizeof(suffix), "_%02zu.png", frame);
+        const auto path = root / "sprite_frames" / std::string(category) /
+                          stem / (stem + suffix);
+        if (fs::exists(path)) return path;
+        return {};
+    }
+
+    const RgbaImage* resized_path(const fs::path& path, int width, int height) {
+        if (path.empty() || width <= 0 || height <= 0) return nullptr;
+        const std::string key = path.string() + "#" + std::to_string(width) + "x" + std::to_string(height);
+        if (auto it = resized_cache.find(key); it != resized_cache.end()) return it->second.get();
+        try {
+            auto decoded = load_png_rgba(path);
+            auto image = std::make_shared<RgbaImage>(resize_rgba_bilinear(decoded, width, height));
+            auto [it, inserted] = resized_cache.emplace(key, std::move(image));
+            (void)inserted;
+            return it->second.get();
+        } catch (const std::exception& e) {
+            std::cerr << "HD art warning: " << e.what() << '\n';
+            return nullptr;
+        }
+    }
+
+    const RgbaImage* fullscreen(std::string_view jba_name, int scale) {
+        return resized_path(resolve_fullscreen(jba_name), kLogicalW * scale, kLogicalH * scale);
+    }
+
+    const RgbaImage* sprite(std::string_view category,
+                            std::string_view family,
+                            std::size_t frame,
+                            int width,
+                            int height) {
+        return resized_path(resolve_sprite(category, family, frame), width, height);
+    }
+};
+
+enum class HdBackgroundKind : std::uint8_t {
+    Disabled,
+    Fullscreen,
+    World
+};
+
+struct HdSpriteDraw {
+    std::string category;
+    std::string family;
+    std::size_t frame{};
+    int x{};
+    int y{};
+    int logical_width{};
+    int logical_height{};
+};
+
+struct HdFramePlan {
+    HdBackgroundKind background{HdBackgroundKind::Disabled};
+    std::string fullscreen_asset{};
+    std::array<std::string, 3> world_assets{};
+    int world_scroll_row{};
+    std::array<std::uint8_t, fidelity::logical_viewport_bytes> base_pixels{};
+    bool base_valid{false};
+    bool dim_background{false};
+    std::vector<HdSpriteDraw> sprites{};
+
+    void reset() {
+        background = HdBackgroundKind::Disabled;
+        fullscreen_asset.clear();
+        world_assets = {};
+        world_scroll_row = 0;
+        base_valid = false;
+        dim_background = false;
+        sprites.clear();
+    }
+
+    void capture_base(const fidelity::IndexedFramebuffer& fb) {
+        std::copy_n(fb.pixels().begin(), base_pixels.size(), base_pixels.begin());
+        base_valid = true;
+    }
+
+    void begin_fullscreen(std::string asset, const fidelity::IndexedFramebuffer& fb) {
+        background = HdBackgroundKind::Fullscreen;
+        fullscreen_asset = std::move(asset);
+        capture_base(fb);
+    }
+
+    void begin_world(const std::array<std::string, 3>& pages,
+                     int scroll_row,
+                     const fidelity::IndexedFramebuffer& fb) {
+        background = HdBackgroundKind::World;
+        world_assets = pages;
+        world_scroll_row = scroll_row;
+        capture_base(fb);
+    }
+
+    void add_sprite(std::string category,
+                    std::string family,
+                    std::size_t frame,
+                    int x,
+                    int y,
+                    int logical_width,
+                    int logical_height) {
+        if (logical_width <= 0 || logical_height <= 0) return;
+        sprites.push_back({std::move(category), std::move(family), frame,
+                           x, y, logical_width, logical_height});
+    }
+};
+
+void blit_asset_sprite(fidelity::IndexedFramebuffer& fb,
+                       const fidelity::IndexedSpriteFrame& frame,
+                       int x,
+                       int y,
+                       HdFramePlan* hd,
+                       std::string_view category,
+                       std::string_view family,
+                       std::size_t frame_index,
+                       std::optional<std::pair<int, int>> destination_size = std::nullopt) {
+    fidelity::blit_transparent_original(fb, frame, x, y);
+    if (!hd) return;
+    const int w = destination_size ? destination_size->first : static_cast<int>(frame.width);
+    const int h = destination_size ? destination_size->second : static_cast<int>(frame.height);
+    hd->add_sprite(std::string(category), strip_extension_upper(std::string(family)),
+                   frame_index, x, y, w, h);
+}
+
 struct WorldImage {
     std::array<formats::Rgb8, 256> palette{};
     std::vector<std::uint8_t> pixels;
+    std::array<std::string, 3> source_pages{};
 };
 
 WorldImage load_world_stack(AssetStore& assets, const std::array<const char*, 3>& names) {
@@ -168,6 +471,7 @@ WorldImage load_world_stack(AssetStore& assets, const std::array<const char*, 3>
     world.pixels.resize(fidelity::scenery_world_bytes);
     for (std::size_t page = 0; page < names.size(); ++page) {
         const auto& image = assets.jba(names[page]);
+        world.source_pages[page] = upper_ascii(names[page]);
         if (page == 0) world.palette = image.palette;
         std::copy(image.pixels.begin(), image.pixels.end(),
                   world.pixels.begin() + static_cast<std::ptrdiff_t>(page * 320 * 200));
@@ -199,6 +503,7 @@ void apply_scenery_transition(WorldImage& world,
         // nonexistent third-level stack.
         const auto& image = assets.jba("DESERBOT.JBA");
         world.palette = image.palette;
+        world.source_pages = {"DESERBOT.JBA", "DESERBOT.JBA", "DESERBOT.JBA"};
         for (int page = 0; page < 3; ++page) {
             std::copy(image.pixels.begin(), image.pixels.end(),
                       world.pixels.begin() + static_cast<std::ptrdiff_t>(page * 320 * 200));
@@ -766,25 +1071,19 @@ PlayAssets load_play_assets(AssetStore& a) {
 }
 
 void update_effects(EffectRuntime& effects, const gameplay::GameSession& session,
-                    const gameplay::GameSessionTickResult& tick,
-                    const std::array<std::array<bool, gameplay::canonical_trajectory_group_max_slots>, gameplay::canonical_trajectory_group_count>& was_active,
-                    const std::array<std::array<std::pair<int,int>, gameplay::canonical_trajectory_group_max_slots>, gameplay::canonical_trajectory_group_count>& old_pos) {
-    // Actors can become inactive either by being destroyed or by naturally escaping a
-    // path.  Only destruction owns an explosion.  The clean core currently reports the
-    // destruction count but not the destroyed actor identities, so consume at most that
-    // many inactive transitions; pure escapes therefore never fabricate explosions.
-    std::size_t destruction_explosions_remaining = tick.trajectory_actors_destroyed;
-    for (std::size_t g = 0; g < session.encounter.trajectories.groups.size() && destruction_explosions_remaining != 0; ++g) {
-        const auto& group = session.encounter.trajectories.groups[g];
-        for (std::size_t a = 0; a < group.actors.size() && destruction_explosions_remaining != 0; ++a) {
-            if (was_active[g][a] && group.actors[a].activity == gameplay::TrajectoryEntityActivity::Inactive) {
-                effects.spawn_explosion(old_pos[g][a].first + group.actors[a].sprite_width / 2,
-                                        old_pos[g][a].second + group.actors[a].sprite_height / 2,
-                                        true);
-                --destruction_explosions_remaining;
-            }
-        }
+                    const gameplay::GameSessionTickResult& tick) {
+    // The simulation now exports exact destroyed trajectory actor identities and
+    // pre-retirement geometry. Do not infer kill locations from generic
+    // active->inactive transitions: natural path exits can occur in the same
+    // tick and were previously stealing another actor's explosion.
+    for (std::size_t i = 0; i < tick.trajectory_destroyed_actor_event_count; ++i) {
+        const auto& destroyed = tick.trajectory_destroyed_actor_events[i];
+        effects.spawn_explosion(
+            destroyed.x + destroyed.sprite_width / 2,
+            destroyed.y + destroyed.sprite_height / 2,
+            true);
     }
+
     for (const auto& request : tick.drone_detonation_explosions) {
         if (!tick.drone_detonation_effect_tick) break;
         int x = request.x;
@@ -824,7 +1123,7 @@ void update_effects(EffectRuntime& effects, const gameplay::GameSession& session
     effects.explosions.erase(std::remove_if(effects.explosions.begin(), effects.explosions.end(), [](const Explosion& e){ return !e.active; }), effects.explosions.end());
 
     // The original shares one updater across the three parallel 15-slot sprite
-    // debris pools.  Preserve that lifecycle; only the producer RNG remains a
+    // debris pools. Preserve that lifecycle; only the producer RNG remains a
     // host-side presentation approximation until its exact call-site stream is
     // folded into GameSession.
     const auto advance_debris_bank = [&](auto& bank) {
@@ -854,17 +1153,21 @@ void update_effects(EffectRuntime& effects, const gameplay::GameSession& session
 
 void render_debris_sprites(fidelity::IndexedFramebuffer& fb,
                            const EffectRuntime& effects,
-                           const PlayAssets& sprites) {
+                           const PlayAssets& sprites,
+                           HdFramePlan* hd) {
     // Original compositor interleaves junk1[i] -> junk2[i] -> wheel[i].
     for (std::size_t i = 0; i < gameplay::canonical_debris_sprite_pool_size; ++i) {
-        const auto draw = [&](const gameplay::DebrisSpriteState& d, const SpriteBank& bank) {
+        const auto draw = [&](const gameplay::DebrisSpriteState& d,
+                              const SpriteBank& bank,
+                              std::string_view family) {
             if (!d.active || bank.frames.empty()) return;
             const auto frame = static_cast<std::size_t>(d.current_frame) % bank.frames.size();
-            fidelity::blit_transparent_original(fb, bank.frames[frame], d.x, d.y);
+            blit_asset_sprite(fb, bank.frames[frame], d.x, d.y, hd,
+                              "runtime_known", family, frame);
         };
-        draw(effects.junk1[i], sprites.junk1);
-        draw(effects.junk2[i], sprites.junk2);
-        draw(effects.wheel[i], sprites.wheel);
+        draw(effects.junk1[i], sprites.junk1, "JUNK1");
+        draw(effects.junk2[i], sprites.junk2, "JUNK2");
+        draw(effects.wheel[i], sprites.wheel, "WHEEL");
     }
 }
 
@@ -876,7 +1179,32 @@ struct GameplayControlLegend {
     std::string resume_cancel;
 };
 
+enum class DroneFailureCause : std::uint8_t {
+    Unknown,
+    RapidMissile,
+    Stinger,
+    HoverTimeout,
+};
+
+struct ObjectiveAssistState {
+    bool fire_release_required = false;
+    std::uint32_t probe_lost_ticks_remaining = 0;
+    std::uint32_t safety_notice_ticks_remaining = 0;
+    std::uint32_t blocked_stinger_ticks_remaining = 0;
+};
+
+std::string_view drone_failure_cause_text(const DroneFailureCause cause) noexcept {
+    switch (cause) {
+    case DroneFailureCause::RapidMissile: return "YOUR RAPID MISSILE HIT THE DRONE";
+    case DroneFailureCause::Stinger: return "YOUR RED STINGER HIT THE DRONE";
+    case DroneFailureCause::HoverTimeout: return "THE DRONE TIMED OUT BEFORE DISARM";
+    case DroneFailureCause::Unknown: break;
+    }
+    return {};
+}
+
 void render_game(fidelity::IndexedFramebuffer& fb,
+                 HdFramePlan* hd,
                  const WorldImage& world,
                  const gameplay::GameSession& session,
                  const gameplay::GameSessionTickResult& tick,
@@ -891,8 +1219,11 @@ void render_game(fidelity::IndexedFramebuffer& fb,
                  bool quit_confirm,
                  bool debug_hud,
                  const GameplayControlLegend& control_legend,
-                 bool weapon_help_visible) {
+                 bool weapon_help_visible,
+                 bool objective_safety_enabled,
+                 const ObjectiveAssistState& objective_assist) {
     render_world(fb, world, session.encounter.world_scroll_row);
+    if (hd) hd->begin_world(world.source_pages, session.encounter.world_scroll_row, fb);
 
     // Major Win32 world-presentation ordering: boss/objective/special layers,
     // unscaled explosions + debris, trajectories, rapid missiles, bombs,
@@ -901,39 +1232,51 @@ void render_game(fidelity::IndexedFramebuffer& fb,
     if (boss.family == gameplay::BossFamily::LidTop) {
         const auto& b = boss.lid_top;
         if (b.top_activity != gameplay::boss_activity_inactive)
-            fidelity::blit_transparent_original(fb, bosses.top.frames[0], b.root_x, b.root_y);
+            blit_asset_sprite(fb, bosses.top.frames[0], b.root_x, b.root_y, hd,
+                              "recovered", "TOP", 0);
         if (b.lid_activity != gameplay::boss_activity_inactive && b.lid_frame < bosses.lid.frames.size())
-            fidelity::blit_transparent_original(fb, bosses.lid.frames[b.lid_frame], b.root_x + 16, b.root_y + 8);
+            blit_asset_sprite(fb, bosses.lid.frames[b.lid_frame], b.root_x + 16, b.root_y + 8, hd,
+                              "recovered", "LID", b.lid_frame);
     } else if (boss.family == gameplay::BossFamily::Gemini) {
         const auto& b = boss.gemini;
         const auto render_side = [&](const gameplay::GeminiBossSideLifecycleState& side) {
-            if (side.body_activity != gameplay::boss_activity_inactive && side.body_frame < bosses.gemini_body.size())
-                fidelity::blit_transparent_original(fb, bosses.gemini_body[side.body_frame], side.body_x, side.body_y);
+            if (side.body_activity != gameplay::boss_activity_inactive && side.body_frame < bosses.gemini_body.size()) {
+                const bool second = side.body_frame >= 15;
+                blit_asset_sprite(fb, bosses.gemini_body[side.body_frame], side.body_x, side.body_y, hd,
+                                  "recovered", second ? "GEMINI2" : "GEMINI1",
+                                  second ? side.body_frame - 15 : side.body_frame);
+            }
             if (side.head_activity != gameplay::boss_activity_inactive)
-                fidelity::blit_transparent_original(fb, bosses.gemini_head, side.head_x, side.head_y);
+                blit_asset_sprite(fb, bosses.gemini_head, side.head_x, side.head_y, hd,
+                                  "recovered", "GEMHEAD", 0);
         };
         render_side(b.side_a); render_side(b.side_b);
     }
 
     if (session.encounter.drone.activity != 0) {
-        fidelity::blit_transparent_original(fb, sprites.drone.frames[0], session.encounter.drone.x, session.encounter.drone.y);
+        blit_asset_sprite(fb, sprites.drone.frames[0], session.encounter.drone.x, session.encounter.drone.y, hd,
+                          "recovered", "DRONE", 0);
     }
 
     const auto& special = session.encounter.special_weapon;
     if (special.activity != gameplay::SpecialWeaponActivity::Inactive) {
         const auto& bank = special.kind == gameplay::SpecialWeaponKind::Stinger ? sprites.redprobe : sprites.probe;
-        fidelity::blit_transparent_original(fb, bank.frames[0], special.x, special.y);
+        blit_asset_sprite(fb, bank.frames[0], special.x, special.y, hd,
+                          "recovered",
+                          special.kind == gameplay::SpecialWeaponKind::Stinger ? "REDPROBE" : "PROBE", 0);
     }
     if (session.encounter.stinger_display.active && session.encounter.stinger_display.current_frame < sprites.stinger_display.frames.size()) {
-        fidelity::blit_transparent_original(fb, sprites.stinger_display.frames[session.encounter.stinger_display.current_frame],
-                                            session.encounter.stinger_display.x, session.encounter.stinger_display.y);
+        blit_asset_sprite(fb, sprites.stinger_display.frames[session.encounter.stinger_display.current_frame],
+                          session.encounter.stinger_display.x, session.encounter.stinger_display.y, hd,
+                          "runtime_known", "STINGER", session.encounter.stinger_display.current_frame);
     }
 
     for (const auto& e : effects.explosions) {
         if (e.active && e.frame >= 0 && static_cast<std::size_t>(e.frame) < sprites.explode.frames.size())
-            fidelity::blit_transparent_original(fb, sprites.explode.frames[static_cast<std::size_t>(e.frame)], e.x, e.y);
+            blit_asset_sprite(fb, sprites.explode.frames[static_cast<std::size_t>(e.frame)], e.x, e.y, hd,
+                              "runtime_known", "EXPLODE1", static_cast<std::size_t>(e.frame));
     }
-    render_debris_sprites(fb, effects, sprites);
+    render_debris_sprites(fb, effects, sprites, hd);
 
     for (std::size_t g = 0; g < session.encounter.trajectories.groups.size(); ++g) {
         const auto& group = session.encounter.trajectories.groups[g];
@@ -941,24 +1284,28 @@ void render_game(fidelity::IndexedFramebuffer& fb,
         for (const auto& actor : group.actors) {
             if (actor.activity == gameplay::TrajectoryEntityActivity::Inactive) continue;
             if (actor.current_frame < trajectories.banks[g].frames.size()) {
-                fidelity::blit_transparent_original(fb, trajectories.banks[g].frames[actor.current_frame], actor.x, actor.y);
+                blit_asset_sprite(fb, trajectories.banks[g].frames[actor.current_frame], actor.x, actor.y, hd,
+                                  "trajectory", kGroupSheets[g], actor.current_frame);
             }
         }
     }
 
     for (const auto& missile : session.encounter.rapid_missiles.missiles) {
         if (missile.active && missile.frame < sprites.missile.frames.size())
-            fidelity::blit_transparent_original(fb, sprites.missile.frames[missile.frame], missile.x, missile.y);
+            blit_asset_sprite(fb, sprites.missile.frames[missile.frame], missile.x, missile.y, hd,
+                              "recovered", "MISSILE", missile.frame);
     }
     for (const auto& bomb : session.encounter.enemy_bombs.bombs) {
         if (bomb.active && bomb.frame < sprites.bomb.frames.size())
-            fidelity::blit_transparent_original(fb, sprites.bomb.frames[bomb.frame], bomb.x, bomb.y);
+            blit_asset_sprite(fb, sprites.bomb.frames[bomb.frame], bomb.x, bomb.y, hd,
+                              "recovered", "BOMB", bomb.frame);
     }
 
     if (session.campaign.player_lifecycle.player_active) {
         const auto frame = std::clamp(session.encounter.player.frame, 0, static_cast<int>(sprites.ship.frames.size() - 1));
-        fidelity::blit_transparent_original(fb, sprites.ship.frames[static_cast<std::size_t>(frame)],
-                                            session.encounter.player.x, session.encounter.player.y);
+        blit_asset_sprite(fb, sprites.ship.frames[static_cast<std::size_t>(frame)],
+                          session.encounter.player.x, session.encounter.player.y, hd,
+                          "recovered", "SHIP", static_cast<std::size_t>(frame));
         if (session.encounter.shield.active) {
             render_player_shield_effect(fb, session.encounter.player, effects);
         }
@@ -966,9 +1313,11 @@ void render_game(fidelity::IndexedFramebuffer& fb,
     if (gameplay::player_death_effect_visible(session.encounter.player_death_effect) &&
         session.encounter.player_death_effect.frame >= 0 &&
         static_cast<std::size_t>(session.encounter.player_death_effect.frame) < sprites.explode.frames.size()) {
-        fidelity::blit_transparent_original(fb,
+        blit_asset_sprite(fb,
             sprites.explode.frames[static_cast<std::size_t>(session.encounter.player_death_effect.frame)],
-            session.encounter.player_death_effect.x, session.encounter.player_death_effect.y);
+            session.encounter.player_death_effect.x, session.encounter.player_death_effect.y, hd,
+            "runtime_known", "EXPLODE1",
+            static_cast<std::size_t>(session.encounter.player_death_effect.frame));
     }
 
     // Objective debris uses the original scaled-overlay presentation path and
@@ -977,7 +1326,14 @@ void render_game(fidelity::IndexedFramebuffer& fb,
         if (!d.active || d.bank >= sprites.objective_debris.size()) continue;
         const auto& bank = sprites.objective_debris[d.bank];
         if (d.frame < 0 || static_cast<std::size_t>(d.frame) >= bank.frames.size()) continue;
-        blit_scaled_transparent(fb, bank.frames[static_cast<std::size_t>(d.frame)], fidelity::objective_scaled_debris_destination(d.geom));
+        const auto destination = fidelity::objective_scaled_debris_destination(d.geom);
+        blit_scaled_transparent(fb, bank.frames[static_cast<std::size_t>(d.frame)], destination);
+        if (hd) {
+            const auto& desc = fidelity::objective_scaled_debris_descriptors()[d.bank];
+            hd->add_sprite("runtime_known", strip_extension_upper(std::string(desc.asset)),
+                           static_cast<std::size_t>(d.frame), destination.left, destination.top,
+                           destination.right - destination.left, destination.bottom - destination.top);
+        }
     }
 
     std::array<std::uint8_t, fidelity::drone_outcome_marker_count> raw_outcomes{};
@@ -987,12 +1343,17 @@ void render_game(fidelity::IndexedFramebuffer& fb,
     for (const auto& marker : fidelity::plan_drone_outcome_markers(raw_outcomes)) {
         if (!marker.visible || marker.frame_index >= sprites.outcome_markers.size()) continue;
         const auto& bank = sprites.outcome_markers[marker.frame_index];
-        if (!bank.frames.empty()) fidelity::blit_transparent_original(fb, bank.frames[0], marker.x, marker.y);
+        if (!bank.frames.empty()) {
+            static constexpr std::array<const char*, 3> names{{"MINIPRG", "MINIPRB", "MINIPRR"}};
+            blit_asset_sprite(fb, bank.frames[0], marker.x, marker.y, hd,
+                              "runtime_known", names[marker.frame_index], 0);
+        }
     }
     const auto cursor = fidelity::plan_drone_outcome_cursor(
         static_cast<std::uint8_t>(session.campaign.mission.processed_count), drone_outcome_cursor_y);
     if (cursor.visible && !sprites.outcome_cursor.frames.empty()) {
-        fidelity::blit_transparent_original(fb, sprites.outcome_cursor.frames[0], cursor.x, cursor.y);
+        blit_asset_sprite(fb, sprites.outcome_cursor.frames[0], cursor.x, cursor.y, hd,
+                          "runtime_known", "SQUARE", 0);
     }
 
     for (const auto& row : fidelity::plan_shield_meter_rows(gameplay::displayed_shield_units(session.encounter.shield))) {
@@ -1014,27 +1375,99 @@ void render_game(fidelity::IndexedFramebuffer& fb,
     hud_timers = hud.next_timers;
     if (hud.visible) draw_text(fb, font, hud.placement.x, hud.placement.y, hud.text, hud.placement.palette_index);
 
-    // Host usability aid: the original Instructions pages explain this, but the
-    // reconstructed front end previously hid the mission-critical two-step
-    // Probe/Stinger workflow behind generic "special" labels. Keep the core
-    // semantics untouched and render only explanatory text. F4 toggles the
-    // startup hint; a loaded weapon always identifies itself until launched.
-    if (weapon_help_visible && !paused && !quit_confirm &&
+    // Host usability aid only; gameplay semantics in GameSession remain the
+    // recovered original.  The safety layer can be toggled with F5.  Its job is
+    // to make the original two-step Probe workflow legible and prevent accidental
+    // self-sabotage while the Probe is seeking/decoding, without changing the
+    // underlying DRONE damage rules used by tests and parity work.
+    const auto& drone = session.encounter.drone;
+    const bool probe_attached =
+        special.activity == gameplay::SpecialWeaponActivity::ProbeAttachedDecoding;
+    const bool drone_objective_visible =
+        drone.activity == gameplay::canonical_drone_active_activity &&
+        !drone.disarm_completed &&
+        drone.y >= -39 && drone.y <= gameplay::canonical_drone_hover_y;
+
+    if (objective_assist.blocked_stinger_ticks_remaining > 0 &&
+        !paused && !quit_confirm && !session.runtime.demo_playback_mode) {
+        fill_rect(fb, 38, 3, 244, 19, 0x00);
+        draw_text(fb, font, 56, 5, "RED STINGER BLOCKED FOR DRONE SAFETY", 0xF7);
+        draw_text(fb, font, 50, 13, control_legend.special_select + " CYCLE TO BLUE PROBE", 28);
+    } else if (objective_assist.safety_notice_ticks_remaining > 0 &&
+               !paused && !quit_confirm && !session.runtime.demo_playback_mode) {
+        fill_rect(fb, 50, 3, 220, 19, 0x00);
+        draw_text(fb, font, 73, 5, std::string("OBJECTIVE SAFETY ") +
+            (objective_safety_enabled ? "ENABLED" : "DISABLED"), 0xF7);
+        draw_text(fb, font, 78, 13, "F5 TO TOGGLE ANY TIME", 28);
+    } else if (probe_attached && !paused && !quit_confirm &&
         !session.runtime.demo_playback_mode) {
+        fill_rect(fb, 30, 3, 260, 28, 0x00);
+        const bool phase2 = special.probe_decode.status == gameplay::ProbeDecodeStatus::Phase2Disarming;
+        const std::uint32_t elapsed = phase2 ? special.probe_decode.phase2_elapsed : special.probe_decode.phase1_elapsed;
+        const std::uint32_t threshold = std::max<std::uint32_t>(1, phase2 ? special.probe_decode.phase2_threshold : special.probe_decode.phase1_threshold);
+        const int percent = std::clamp(static_cast<int>((elapsed * 100u) / threshold), 0, 100);
+        const std::string phase = phase2 ? "DISARMING " : "DECODING ";
+        draw_text(fb, font, 53, 5, "BLUE PROBE ATTACHED - " + phase + std::to_string(percent) + "%", 0xF7);
+        draw_text(fb, font, 64, 13, objective_safety_enabled
+            ? "OBJECTIVE SAFETY ON - FIRE LOCKED"
+            : "DO NOT FIRE AT THE DRONE", 28);
+        fill_rect(fb, 52, 23, 216, 3, 0xF6);
+        fill_rect(fb, 52, 23, (216 * percent) / 100, 3, 0xF7);
+    } else if (objective_assist.probe_lost_ticks_remaining > 0 &&
+               !paused && !quit_confirm && !session.runtime.demo_playback_mode) {
+        fill_rect(fb, 42, 3, 236, 19, 0x00);
+        draw_text(fb, font, 65, 5, "PROBE KNOCKED OFF - LAUNCH ANOTHER", 0xF7);
+        draw_text(fb, font, 54, 13, control_legend.special_select + " LOAD/CYCLE   " +
+            control_legend.special_launch + " LAUNCH", 28);
+    } else if (drone_objective_visible && !paused && !quit_confirm &&
+        !session.runtime.demo_playback_mode) {
+        fill_rect(fb, 34, 3, 252, 27, 0x00);
+        if (special.activity == gameplay::SpecialWeaponActivity::LaunchedHoming) {
+            if (special.kind == gameplay::SpecialWeaponKind::Probe) {
+                draw_text(fb, font, 55, 5, "BLUE PROBE IN FLIGHT - SEEKING DRONE", 0xF7);
+                draw_text(fb, font, 64, 13, objective_safety_enabled
+                    ? "OBJECTIVE SAFETY ON - FIRE LOCKED"
+                    : "KEEP FIRE CLEAR OF THE DRONE", 28);
+            } else {
+                draw_text(fb, font, 46, 5, "RED STINGER IN FLIGHT - WAIT FOR RELOAD", 0xF7);
+                draw_text(fb, font, 49, 13, "NEXT: LOAD BLUE PROBE, THEN " + control_legend.special_launch, 28);
+            }
+        } else if (special.activity == gameplay::SpecialWeaponActivity::LoadedTracking) {
+            if (special.kind == gameplay::SpecialWeaponKind::Probe) {
+                draw_text(fb, font, 67, 5, "BLUE PROBE READY - " + control_legend.special_launch + " LAUNCH", 0xF7);
+                draw_text(fb, font, 68, 13, "THIS IS THE DRONE DISARM WEAPON", 28);
+            } else {
+                draw_text(fb, font, 48, 5, "RED STINGER SELECTED - DO NOT LAUNCH", 0xF7);
+                draw_text(fb, font, 50, 13, control_legend.special_select + " CYCLE TO BLUE PROBE", 28);
+            }
+        } else {
+            const std::string selected = special.kind == gameplay::SpecialWeaponKind::Probe
+                ? "BLUE PROBE SELECTED" : "RED STINGER SELECTED";
+            draw_text(fb, font, 68, 5, "DRONE OBJECTIVE - " + selected, 0xF7);
+            draw_text(fb, font, 48, 13, control_legend.special_select + " LOAD/CYCLE   " +
+                control_legend.special_launch + " LAUNCH", 28);
+        }
+        draw_text(fb, font, 76, 21, std::string("F5 OBJECTIVE SAFETY ") +
+            (objective_safety_enabled ? "ON" : "OFF"), 0xF6);
+    } else if (weapon_help_visible && !paused && !quit_confirm &&
+               !session.runtime.demo_playback_mode) {
         fill_rect(fb, 58, 3, 204, 27, 0x00);
         draw_text(fb, font, 86, 5, "BLUE PROBE DISARMS DRONE", 28);
-        draw_text(fb, font, 73, 13, control_legend.special_select + " SELECT PROBE/STINGER", 28);
+        draw_text(fb, font, 73, 13, control_legend.special_select + " LOAD/CYCLE PROBE/STINGER", 28);
         draw_text(fb, font, 79, 21, control_legend.special_launch + " LAUNCH   " + control_legend.main_fire + " FIRE", 28);
     }
 
-    if (special.activity == gameplay::SpecialWeaponActivity::LoadedTracking &&
+    if ((special.activity == gameplay::SpecialWeaponActivity::LoadedTracking ||
+         special.activity == gameplay::SpecialWeaponActivity::LaunchedHoming) &&
         !paused && !quit_confirm && !session.runtime.demo_playback_mode) {
-        const std::string kind = special.kind == gameplay::SpecialWeaponKind::Probe
-            ? "PROBE READY - "
-            : "STINGER READY - ";
-        const std::string prompt = kind + control_legend.special_launch + " LAUNCH";
-        fill_rect(fb, 76, 149, 168, 11, 0x00);
-        draw_text(fb, font, 86, 151, prompt, 28);
+        const bool launched = special.activity == gameplay::SpecialWeaponActivity::LaunchedHoming;
+        const std::string prompt = special.kind == gameplay::SpecialWeaponKind::Probe
+            ? (launched ? "BLUE PROBE - SEEKING DRONE"
+                        : "BLUE PROBE READY - " + control_legend.special_launch + " LAUNCH")
+            : (launched ? "RED STINGER - SEEKING ENEMY"
+                        : "RED STINGER READY - " + control_legend.special_launch + " LAUNCH");
+        fill_rect(fb, 62, 149, 196, 11, 0x00);
+        draw_text(fb, font, 72, 151, prompt, 28);
     }
 
     if ((special.activity == gameplay::SpecialWeaponActivity::LoadedTracking ||
@@ -1044,19 +1477,24 @@ void render_game(fidelity::IndexedFramebuffer& fb,
         int tw = gameplay::canonical_drone_sprite_width;
         int th = gameplay::canonical_drone_sprite_height;
         if (special.kind == gameplay::SpecialWeaponKind::Stinger) {
-            if (boss.family == gameplay::BossFamily::LidTop) {
-                tx = boss.lid_top.root_x; ty = boss.lid_top.root_y; tw = gameplay::lid_top_top_width; th = gameplay::lid_top_top_height;
-            } else if (boss.family == gameplay::BossFamily::Gemini) {
-                tx = boss.gemini.side_a.head_x; ty = boss.gemini.side_a.head_y; tw = gameplay::gemini_head_width; th = gameplay::gemini_head_height;
+            // GameSession now carries the actual retained target geometry,
+            // including ordinary trajectory actors selected by the original
+            // updater. Zero-sized dummy/stale targets use the historical host
+            // fallback rather than fabricating a gameplay target.
+            const auto& target = tick.stinger_target_geometry;
+            if (target.width > 0 && target.height > 0) {
+                tx = target.x; ty = target.y; tw = target.width; th = target.height;
             } else {
-                tx = tick.stinger_target_desired_x - 8; ty = 80; tw = 16; th = 16;
+                tx = tick.stinger_target_desired_x - 8; ty = 1; tw = 16; th = 16;
             }
         }
         const auto pos = fidelity::special_target_reticle_placement({tx, ty, static_cast<std::int16_t>(tw), static_cast<std::int16_t>(th)});
-        fidelity::blit_transparent_original(fb, sprites.target.frames[0], pos.x, pos.y);
+        blit_asset_sprite(fb, sprites.target.frames[0], pos.x, pos.y, hd,
+                          "runtime_known", "TARGET", 0);
     }
 
     if (paused || quit_confirm) {
+        if (hd) hd->dim_background = true;
         // Win32 pause overlay darkens each palette component by 40 with floor 0.
         for (auto& c : fb.palette()) {
             c.r = static_cast<std::uint8_t>(c.r > 40 ? c.r - 40 : 0);
@@ -1072,7 +1510,9 @@ void render_game(fidelity::IndexedFramebuffer& fb,
             draw_text(fb, font, 74, 86, control_legend.special_select + "  SELECT PROBE/STINGER", 28);
             draw_text(fb, font, 74, 96, control_legend.special_launch + "  LAUNCH SELECTED", 28);
             draw_text(fb, font, 74, 106, control_legend.shield + "  SHIELD", 28);
-            draw_text(fb, font, 74, 120, control_legend.resume_cancel + "  RESUMES", 28);
+            draw_text(fb, font, 74, 116, std::string("F5  OBJECTIVE SAFETY ") +
+                (objective_safety_enabled ? "ON" : "OFF"), 28);
+            draw_text(fb, font, 74, 130, control_legend.resume_cancel + "  RESUMES", 28);
         } else {
             // Win32 0x0040C734..0x0040C77C. Confirmation is Y, not Q.
             draw_text(fb, font, 120, 80, "QUIT GAME?", 28);
@@ -1096,14 +1536,26 @@ void render_game(fidelity::IndexedFramebuffer& fb,
                                   " KILL " + std::to_string(tick.trajectory_actors_destroyed), 57);
         draw_text(fb, font, 4, 28, "ALIEN " + std::to_string(session.encounter.encounter_alien_ships_hit) +
                                   "/" + std::to_string(session.encounter.encounter_alien_ships_total), 57);
+        draw_text(fb, font, 4, 36, "BRK " + std::to_string(tick.trajectory_groups_entered_breakaway) +
+                                  " RNG " + std::to_string(tick.trajectory_breakaway_random_draws_consumed), 57);
     }
 }
 
 struct MissionInterstitialUi {
+    static constexpr int surveillance_width = 160;
+    static constexpr int surveillance_height = 100;
+    static constexpr int confirm_lock_presentations = 58;
+
     bool active = false;
-    int stage = 0; // 0 outcome card, 1 next-mission card
     std::string outcome_asset;
     std::string mission_asset;
+    std::string failure_detail;
+    std::array<std::uint8_t, surveillance_width * surveillance_height> surveillance{};
+    bool surveillance_valid = false;
+    std::int32_t alien_ships_hit = 0;
+    std::int32_t alien_ships_total = 0;
+    std::int32_t score = 0;
+    int confirm_lock_remaining = confirm_lock_presentations;
 };
 
 std::string mission_outcome_asset(const gameplay::MissionInterstitialPlan& plan) {
@@ -1124,6 +1576,88 @@ std::string mission_briefing_asset(const gameplay::MissionInterstitialPlan& plan
     return "MISSION1.JBA";
 }
 
+
+void capture_mission_surveillance(
+    const fidelity::IndexedFramebuffer& fb,
+    std::array<std::uint8_t, MissionInterstitialUi::surveillance_width *
+                                  MissionInterstitialUi::surveillance_height>& out) {
+    // Win32 0x0040BB72..0x0040BBDF stores a 160x100 surveillance buffer by
+    // sampling every second source pixel and every second source row from the
+    // 320x200 software framebuffer. The buffer is later copied verbatim into
+    // the mission card at x=14/y=81.
+    const auto& pixels = fb.pixels();
+    for (int y = 0; y < MissionInterstitialUi::surveillance_height; ++y) {
+        for (int x = 0; x < MissionInterstitialUi::surveillance_width; ++x) {
+            out[static_cast<std::size_t>(y) * MissionInterstitialUi::surveillance_width + x] =
+                pixels[static_cast<std::size_t>(y * 2) * 320 + x * 2];
+        }
+    }
+}
+
+void render_mission_interstitial(
+    fidelity::IndexedFramebuffer& fb,
+    HdFramePlan* hd,
+    AssetStore& assets,
+    const FontCache& font,
+    const MissionInterstitialUi& ui) {
+    if (!assets.exists(ui.mission_asset) || !assets.exists(ui.outcome_asset)) return;
+
+    // The original 0x0041D690 path does NOT show GOODn/BADn as a fullscreen
+    // page. It captures only the first 280x37 pixels from that JBA into a
+    // transparent sprite, loads MISSIONn/MISS6*, and blits the outcome sprite
+    // at x=17/y=27. Pixel index 0 is transparent.
+    const auto& mission = assets.jba(ui.mission_asset);
+    const auto& outcome = assets.jba(ui.outcome_asset);
+    render_fullscreen_image(fb, mission);
+    if (hd) hd->begin_fullscreen(ui.mission_asset, fb);
+
+    constexpr int banner_w = 280;
+    constexpr int banner_h = 37;
+    constexpr int banner_x = 17;
+    constexpr int banner_y = 27;
+    for (int y = 0; y < banner_h; ++y) {
+        for (int x = 0; x < banner_w; ++x) {
+            const auto px = outcome.pixels[static_cast<std::size_t>(y) * 320 + x];
+            if (px == 0) continue;
+            fb.pixels()[static_cast<std::size_t>(banner_y + y) * 320 + banner_x + x] = px;
+        }
+    }
+
+    // 0x0041D8E1..0x0041D918 copies the saved 160x100 surveillance image
+    // into the framed aperture at x=14/y=81.
+    if (ui.surveillance_valid) {
+        constexpr int photo_x = 14;
+        constexpr int photo_y = 81;
+        for (int y = 0; y < MissionInterstitialUi::surveillance_height; ++y) {
+            const auto* src = ui.surveillance.data() +
+                static_cast<std::size_t>(y) * MissionInterstitialUi::surveillance_width;
+            auto* dst = fb.pixels().data() +
+                static_cast<std::size_t>(photo_y + y) * 320 + photo_x;
+            std::copy_n(src, MissionInterstitialUi::surveillance_width, dst);
+        }
+    }
+
+    // Exact dynamic-stat positions from 0x0041D91A..0x0041DA62. The original
+    // bitmap-text call uses palette index 0x1C for these five values.
+    const auto hit = std::max<std::int32_t>(0, ui.alien_ships_hit);
+    const auto total = std::max<std::int32_t>(0, ui.alien_ships_total);
+    const auto missed = std::max<std::int32_t>(0, total - hit);
+    const auto percentage = total > 0
+        ? static_cast<std::int32_t>((static_cast<std::int64_t>(hit) * 100) / total)
+        : 0;
+    draw_text(fb, font, 272, 98, std::to_string(hit), 0x1C);
+    draw_text(fb, font, 272, 112, std::to_string(missed), 0x1C);
+    draw_text(fb, font, 272, 126, std::to_string(total), 0x1C);
+    draw_text(fb, font, 272, 140, std::to_string(percentage) + "%", 0x1C);
+    draw_text(fb, font, 272, 154, std::to_string(ui.score), 0x1C);
+
+    if (!ui.failure_detail.empty()) {
+        // Host diagnostic only; keep it above the original ENTER footer.
+        fill_rect(fb, 34, 65, 252, 10, 0x00);
+        draw_text(fb, font, 42, 66, ui.failure_detail, 0xF7);
+    }
+}
+
 std::string results_art_asset(const gameplay::Win32PostGamePlan& plan, const AssetStore& assets) {
     const auto index = static_cast<int>(plan.outcome_summary.disarm_art_index);
     if (index == 2 && assets.exists("DISARM2S.JBA")) return "DISARM2S.JBA";
@@ -1133,6 +1667,7 @@ std::string results_art_asset(const gameplay::Win32PostGamePlan& plan, const Ass
 }
 
 void render_post_game(fidelity::IndexedFramebuffer& fb,
+                      HdFramePlan* hd,
                       AssetStore& assets,
                       const gameplay::GameSession& session,
                       const FontCache& font,
@@ -1141,7 +1676,9 @@ void render_post_game(fidelity::IndexedFramebuffer& fb,
     const auto phase = session.post_game.phase;
     if (phase == gameplay::PostGameModalPhase::ResultsConfirmLock ||
         phase == gameplay::PostGameModalPhase::ResultsAwaitConfirmation) {
-        render_fullscreen_image(fb, assets.jba(results_art_asset(*session.post_game.plan, assets)));
+        const auto result_asset = results_art_asset(*session.post_game.plan, assets);
+        render_fullscreen_image(fb, assets.jba(result_asset));
+        if (hd) hd->begin_fullscreen(result_asset, fb);
         const auto& st = session.post_game.plan->statistics;
         // The original result art carries its own labels.  These values are the
         // six recovered dynamic statistics; keep the small overlay compact until
@@ -1157,7 +1694,10 @@ void render_post_game(fidelity::IndexedFramebuffer& fb,
     if (phase == gameplay::PostGameModalPhase::OrderingInformation) {
         const auto page = std::clamp(ordering_page, 1, 5);
         const auto name = std::string("ORDER") + std::to_string(page) + ".JBA";
-        if (assets.exists(name)) render_fullscreen_image(fb, assets.jba(name));
+        if (assets.exists(name)) {
+            render_fullscreen_image(fb, assets.jba(name));
+            if (hd) hd->begin_fullscreen(name, fb);
+        }
         draw_text(fb, font, 250, 190, "ENTER", 57);
         return;
     }
@@ -1493,10 +2033,12 @@ constexpr std::array<MenuTextPlacement, 3> kDifficultyPlacements{{
 }};
 
 void render_main_menu(fidelity::IndexedFramebuffer& fb,
+                      HdFramePlan* hd,
                       AssetStore& assets,
                       const FontCache& font,
                       int selection) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
+    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
     selection = std::clamp(selection, 0, static_cast<int>(kMainMenuLabels.size()) - 1);
     for (std::size_t i = 0; i < kMainMenuLabels.size(); ++i) {
         draw_text(fb, font, kMainMenuPlacements[i].x, kMainMenuPlacements[i].y,
@@ -1527,10 +2069,12 @@ void blit_frontend_modal(fidelity::IndexedFramebuffer& fb,
 }
 
 void render_difficulty(fidelity::IndexedFramebuffer& fb,
+                       HdFramePlan* hd,
                        AssetStore& assets,
                        const FontCache& font,
                        gameplay::DifficultyLevel difficulty) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
+    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
     blit_frontend_modal(fb, assets.jba("CHOOSE.JBA"));
     const int selected = std::clamp(static_cast<int>(difficulty) - 1, 0, 2);
     for (std::size_t i = 0; i < kDifficultyLabels.size(); ++i) {
@@ -1540,6 +2084,7 @@ void render_difficulty(fidelity::IndexedFramebuffer& fb,
 }
 
 void render_controls_editor(fidelity::IndexedFramebuffer& fb,
+                            HdFramePlan* hd,
                             AssetStore& assets,
                             const FontCache& font,
                             const ControlBindings& controls,
@@ -1547,6 +2092,7 @@ void render_controls_editor(fidelity::IndexedFramebuffer& fb,
                             bool waiting_for_key,
                             int display_scale) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
+    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
 
     // This is a host-extension of the original CONFIGURE JOYSTICK path.  Keep
     // the original 320x200/paletted presentation vocabulary, but make the
@@ -1573,17 +2119,18 @@ void render_controls_editor(fidelity::IndexedFramebuffer& fb,
     draw_text(fb, font, 16, 143, "BLUE PROBE DISARMS DRONES", 0xF7);
     draw_text(fb, font, 16, 151, "RED STINGER MISSILE ATTACKS ENEMIES", 0xF7);
     draw_text(fb, font, 16, 160,
-              "SCALE " + std::to_string(display_scale) + "X  F2-/F3+   F4 GAME HELP", 0xF6);
+              "SCALE " + std::to_string(display_scale) + "X F2-/F3+ F4 HELP F5 SAFE F6 ART", 0xF6);
     draw_text(fb, font, 16, 169,
               waiting_for_key
                   ? (controls.status.empty() ? "PRESS NEW KEY - ESC CANCEL" : controls.status)
-                  : (controls.status.empty() ? "DOWN SELECTS - UP LAUNCHES" : controls.status),
+                  : (controls.status.empty() ? "AMMO UNLIMITED - DOWN LOADS/CYCLES, UP LAUNCHES" : controls.status),
               waiting_for_key ? 0xF7 : 0xF6);
     draw_text(fb, font, 16, 178, "ENTER REBIND   BACKSPACE DEFAULT", 0xF6);
     draw_text(fb, font, 16, 187, "D ALL DEFAULTS   ESC BACK", 0xF6);
 }
 
 void render_frontend(fidelity::IndexedFramebuffer& fb,
+                     HdFramePlan* hd,
                      AssetStore& assets,
                      const FontCache& font,
                      const gameplay::GameSession& session,
@@ -1597,26 +2144,29 @@ void render_frontend(fidelity::IndexedFramebuffer& fb,
                      int display_scale) {
     switch (mode) {
     case FrontEndMode::MainMenu:
-        render_main_menu(fb, assets, font, main_menu_selection);
+        render_main_menu(fb, hd, assets, font, main_menu_selection);
         return;
     case FrontEndMode::Difficulty:
-        render_difficulty(fb, assets, font, session.runtime.difficulty);
+        render_difficulty(fb, hd, assets, font, session.runtime.difficulty);
         return;
     case FrontEndMode::Instructions: {
         const int page = std::clamp(instructions_page, 1, 9);
         const auto name = std::string("INSTR0") + std::to_string(page) + ".JBA";
         render_fullscreen_image(fb, assets.jba(name));
+        if (hd) hd->begin_fullscreen(name, fb);
         return;
     }
     case FrontEndMode::Ordering: {
         const int page = std::clamp(ordering_page, 1, 5);
         const auto name = std::string("ORDER") + std::to_string(page) + ".JBA";
         render_fullscreen_image(fb, assets.jba(name));
+        if (hd) hd->begin_fullscreen(name, fb);
         return;
     }
-    case FrontEndMode::HighScores:
-        if (assets.exists("TOPFLYER.JBA")) render_fullscreen_image(fb, assets.jba("TOPFLYER.JBA"));
-        else render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
+    case FrontEndMode::HighScores: {
+        const std::string high_score_asset = assets.exists("TOPFLYER.JBA") ? "TOPFLYER.JBA" : "TITLESH.JBA";
+        render_fullscreen_image(fb, assets.jba(high_score_asset));
+        if (hd) hd->begin_fullscreen(high_score_asset, fb);
         {
             // TOPFLYER.JBA already contains the title, rank numerals and Escape
             // footer. Fill only the ten dynamic entry rows.
@@ -1628,8 +2178,9 @@ void render_frontend(fidelity::IndexedFramebuffer& fb,
             }
         }
         return;
+    }
     case FrontEndMode::ConfigureJoystick:
-        render_controls_editor(fb, assets, font, controls, control_selection,
+        render_controls_editor(fb, hd, assets, font, controls, control_selection,
                                control_waiting_for_key, display_scale);
         return;
     case FrontEndMode::Gameplay:
@@ -1645,6 +2196,8 @@ struct X11Presenter {
     XImage* image{};
     std::vector<std::uint32_t> pixels;
     Atom wm_delete{};
+    HdAssetStore* hd_assets{};
+    bool hd_enabled{false};
     int scale{kMinScale};
     int window_w{kLogicalW};
     int window_h{kLogicalH};
@@ -1662,11 +2215,21 @@ struct X11Presenter {
         return chosen;
     }
 
-    explicit X11Presenter(std::optional<int> requested_scale = std::nullopt) {
+    int maximum_fitting_scale() const noexcept {
+        return choose_auto_scale(display, screen);
+    }
+
+    explicit X11Presenter(std::optional<int> requested_scale = std::nullopt,
+                          HdAssetStore* hd_store = nullptr,
+                          bool enable_hd = false)
+        : hd_assets(hd_store),
+          hd_enabled(enable_hd && hd_store && hd_store->available) {
         display = XOpenDisplay(nullptr);
         if (!display) throw std::runtime_error("XOpenDisplay failed");
         screen = DefaultScreen(display);
-        scale = std::clamp(requested_scale.value_or(choose_auto_scale(display, screen)), kMinScale, kMaxScale);
+        const int fit_max = choose_auto_scale(display, screen);
+        scale = std::clamp(requested_scale.value_or(fit_max), kMinScale, fit_max);
+        if (hd_assets) hd_assets->set_scale(scale);
         window_w = kLogicalW * scale;
         window_h = kLogicalH * scale;
         window = XCreateSimpleWindow(display, RootWindow(display, screen), 50, 50, window_w, window_h, 0,
@@ -1714,14 +2277,33 @@ struct X11Presenter {
     }
 
     void update_title() {
-        const std::string title = "Drone — Reconstructed Playable Host [" + std::to_string(scale) + "x]";
+        std::string mode = " CLASSIC";
+        if (hd_enabled && hd_assets)
+            mode = " HD:" + std::to_string(hd_assets->png_file_count);
+        const std::string title = "Drone — Reconstructed Playable Host [" +
+                                  std::to_string(scale) + "x" + mode + "]";
         XStoreName(display, window, title.c_str());
     }
 
+    bool toggle_hd() {
+        if (!hd_assets || !hd_assets->available) return false;
+        hd_enabled = !hd_enabled;
+        hd_assets->set_scale(scale);
+        update_title();
+        XClearWindow(display, window);
+        XFlush(display);
+        return true;
+    }
+
     bool set_scale(int requested) {
-        const int next = std::clamp(requested, kMinScale, kMaxScale);
+        // Do not let F3 create a fixed-size window larger than the current
+        // desktop. The previous host allowed 8x (2560x1600) even on a 1080p/
+        // ~1200p desktop, which clipped mission cards and made successful
+        // transitions appear corrupt.
+        const int next = std::clamp(requested, kMinScale, maximum_fitting_scale());
         if (next == scale) return false;
         scale = next;
+        if (hd_assets) hd_assets->set_scale(scale);
         rebuild_image();
         XResizeWindow(display, window, static_cast<unsigned>(window_w), static_cast<unsigned>(window_h));
         apply_window_hints();
@@ -1739,44 +2321,160 @@ struct X11Presenter {
         return false;
     }
 
-    void present(const fidelity::IndexedFramebuffer& fb) {
+    static std::uint32_t pack_rgb(std::uint8_t r, std::uint8_t g, std::uint8_t b,
+                                  bool dim = false) noexcept {
+        if (dim) {
+            r = static_cast<std::uint8_t>(r > 40 ? r - 40 : 0);
+            g = static_cast<std::uint8_t>(g > 40 ? g - 40 : 0);
+            b = static_cast<std::uint8_t>(b > 40 ? b - 40 : 0);
+        }
+        return (static_cast<std::uint32_t>(r) << 16) |
+               (static_cast<std::uint32_t>(g) << 8) | b;
+    }
+
+    void render_classic_full(const fidelity::IndexedFramebuffer& fb) {
         const auto& palette = fb.palette();
         const auto& src = fb.pixels();
         for (int y = 0; y < kLogicalH; ++y) {
             for (int x = 0; x < kLogicalW; ++x) {
                 const auto c = palette[src[static_cast<std::size_t>(y) * kLogicalW + x]];
-                const std::uint32_t rgb = (static_cast<std::uint32_t>(c.r) << 16) |
-                                          (static_cast<std::uint32_t>(c.g) << 8) | c.b;
+                const std::uint32_t rgb = pack_rgb(c.r, c.g, c.b);
                 const int oy = y * scale;
                 const int ox = x * scale;
                 for (int sy = 0; sy < scale; ++sy)
                     std::fill_n(pixels.data() + static_cast<std::size_t>(oy + sy) * window_w + ox, scale, rgb);
             }
         }
+    }
+
+    bool render_hd_background(const HdFramePlan& plan) {
+        if (!hd_assets || !hd_assets->available) return false;
+        if (plan.background == HdBackgroundKind::Fullscreen) {
+            const auto* image = hd_assets->fullscreen(plan.fullscreen_asset, scale);
+            if (!image || image->width != window_w || image->height != window_h) return false;
+            for (int y = 0; y < window_h; ++y) {
+                for (int x = 0; x < window_w; ++x) {
+                    const auto i = (static_cast<std::size_t>(y) * window_w + x) * 4u;
+                    pixels[static_cast<std::size_t>(y) * window_w + x] =
+                        pack_rgb(image->pixels[i], image->pixels[i + 1], image->pixels[i + 2],
+                                 plan.dim_background);
+                }
+            }
+            return true;
+        }
+        if (plan.background == HdBackgroundKind::World) {
+            std::array<const RgbaImage*, 3> pages{};
+            for (std::size_t i = 0; i < pages.size(); ++i) {
+                pages[i] = hd_assets->fullscreen(plan.world_assets[i], scale);
+                if (!pages[i] || pages[i]->width != window_w || pages[i]->height != window_h) return false;
+            }
+            const int page_h = kLogicalH * scale;
+            const int world_h = page_h * 3;
+            int source_y = (plan.world_scroll_row * scale) % world_h;
+            if (source_y < 0) source_y += world_h;
+            for (int y = 0; y < window_h; ++y) {
+                const int wy = (source_y + y) % world_h;
+                const int page = wy / page_h;
+                const int py = wy % page_h;
+                const auto* image = pages[static_cast<std::size_t>(page)];
+                for (int x = 0; x < window_w; ++x) {
+                    const auto i = (static_cast<std::size_t>(py) * window_w + x) * 4u;
+                    pixels[static_cast<std::size_t>(y) * window_w + x] =
+                        pack_rgb(image->pixels[i], image->pixels[i + 1], image->pixels[i + 2],
+                                 plan.dim_background);
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void overlay_classic_deltas(const fidelity::IndexedFramebuffer& fb,
+                                const HdFramePlan& plan) {
+        if (!plan.base_valid) return;
+        const auto& palette = fb.palette();
+        const auto& src = fb.pixels();
+        const auto covered_by_hd_sprite = [&](int px, int py) {
+            for (const auto& sprite : plan.sprites) {
+                if (px >= sprite.x && py >= sprite.y &&
+                    px < sprite.x + sprite.logical_width &&
+                    py < sprite.y + sprite.logical_height) return true;
+            }
+            return false;
+        };
+        for (int y = 0; y < kLogicalH; ++y) {
+            for (int x = 0; x < kLogicalW; ++x) {
+                const auto li = static_cast<std::size_t>(y) * kLogicalW + x;
+                if (src[li] == plan.base_pixels[li]) continue;
+                // Asset-backed sprites are replaced by their transparent HD
+                // counterparts below. Do not leave the old chunky indexed
+                // sprite underneath their alpha edges.
+                if (covered_by_hd_sprite(x, y)) continue;
+                const auto c = palette[src[li]];
+                const std::uint32_t rgb = pack_rgb(c.r, c.g, c.b);
+                const int oy = y * scale;
+                const int ox = x * scale;
+                for (int sy = 0; sy < scale; ++sy)
+                    std::fill_n(pixels.data() + static_cast<std::size_t>(oy + sy) * window_w + ox, scale, rgb);
+            }
+        }
+    }
+
+    void blit_hd_sprite(const HdSpriteDraw& cmd, bool dim) {
+        if (!hd_assets) return;
+        const int dst_w = cmd.logical_width * scale;
+        const int dst_h = cmd.logical_height * scale;
+        const auto* image = hd_assets->sprite(cmd.category, cmd.family, cmd.frame, dst_w, dst_h);
+        if (!image) return;
+
+        const int origin_x = cmd.x * scale;
+        const int origin_y = cmd.y * scale;
+        for (int sy = 0; sy < image->height; ++sy) {
+            const int dy = origin_y + sy;
+            if (dy < 0 || dy >= window_h) continue;
+            for (int sx = 0; sx < image->width; ++sx) {
+                const int dx = origin_x + sx;
+                if (dx < 0 || dx >= window_w) continue;
+                const auto si = (static_cast<std::size_t>(sy) * image->width + sx) * 4u;
+                const std::uint8_t alpha = image->pixels[si + 3];
+                if (alpha == 0) continue;
+                std::uint8_t r = image->pixels[si];
+                std::uint8_t g = image->pixels[si + 1];
+                std::uint8_t b = image->pixels[si + 2];
+                if (dim) {
+                    r = static_cast<std::uint8_t>(r > 40 ? r - 40 : 0);
+                    g = static_cast<std::uint8_t>(g > 40 ? g - 40 : 0);
+                    b = static_cast<std::uint8_t>(b > 40 ? b - 40 : 0);
+                }
+                auto& dst = pixels[static_cast<std::size_t>(dy) * window_w + dx];
+                if (alpha == 255) {
+                    dst = pack_rgb(r, g, b);
+                } else {
+                    const std::uint8_t dr = static_cast<std::uint8_t>((dst >> 16) & 0xffu);
+                    const std::uint8_t dg = static_cast<std::uint8_t>((dst >> 8) & 0xffu);
+                    const std::uint8_t db = static_cast<std::uint8_t>(dst & 0xffu);
+                    const unsigned inv = 255u - alpha;
+                    const auto rr = static_cast<std::uint8_t>((r * alpha + dr * inv + 127u) / 255u);
+                    const auto gg = static_cast<std::uint8_t>((g * alpha + dg * inv + 127u) / 255u);
+                    const auto bb = static_cast<std::uint8_t>((b * alpha + db * inv + 127u) / 255u);
+                    dst = pack_rgb(rr, gg, bb);
+                }
+            }
+        }
+    }
+
+    void present(const fidelity::IndexedFramebuffer& fb, const HdFramePlan* plan = nullptr) {
+        const bool use_hd = hd_enabled && plan && plan->base_valid && render_hd_background(*plan);
+        if (!use_hd) {
+            render_classic_full(fb);
+        } else {
+            overlay_classic_deltas(fb, *plan);
+            for (const auto& sprite : plan->sprites) blit_hd_sprite(sprite, plan->dim_background);
+        }
         XPutImage(display, window, gc, image, 0, 0, 0, 0, window_w, window_h);
         XFlush(display);
     }
 };
-
-std::array<std::array<bool, gameplay::canonical_trajectory_group_max_slots>, gameplay::canonical_trajectory_group_count>
-active_snapshot(const gameplay::GameSession& s) {
-    std::array<std::array<bool, gameplay::canonical_trajectory_group_max_slots>, gameplay::canonical_trajectory_group_count> result{};
-    for (std::size_t g = 0; g < result.size(); ++g)
-        for (std::size_t a = 0; a < result[g].size(); ++a)
-            result[g][a] = s.encounter.trajectories.groups[g].actors[a].activity != gameplay::TrajectoryEntityActivity::Inactive;
-    return result;
-}
-
-std::array<std::array<std::pair<int,int>, gameplay::canonical_trajectory_group_max_slots>, gameplay::canonical_trajectory_group_count>
-position_snapshot(const gameplay::GameSession& s) {
-    std::array<std::array<std::pair<int,int>, gameplay::canonical_trajectory_group_max_slots>, gameplay::canonical_trajectory_group_count> result{};
-    for (std::size_t g = 0; g < result.size(); ++g)
-        for (std::size_t a = 0; a < result[g].size(); ++a) {
-            const auto& actor = s.encounter.trajectories.groups[g].actors[a];
-            result[g][a] = {actor.x, actor.y};
-        }
-    return result;
-}
 
 } // namespace
 
@@ -1784,6 +2482,11 @@ int main(int argc, char** argv) {
     try {
         fs::path asset_root = "assets";
         bool asset_root_set = false;
+        fs::path hd_root{};
+        bool hd_root_set = false;
+        bool prefer_hd = true;
+        bool require_hd = false;
+        bool hd_self_test = false;
         std::optional<int> requested_scale{};
 
         const auto parse_scale = [&](std::string_view value) -> bool {
@@ -1823,9 +2526,33 @@ int main(int argc, char** argv) {
                               << kMinScale << " to " << kMaxScale << "\n";
                     return 2;
                 }
+            } else if (arg == "--hd-art") {
+                prefer_hd = true;
+            } else if (arg == "--classic-art") {
+                prefer_hd = false;
+            } else if (arg == "--require-hd") {
+                prefer_hd = true;
+                require_hd = true;
+            } else if (arg == "--hd-self-test") {
+                prefer_hd = true;
+                require_hd = true;
+                hd_self_test = true;
+            } else if (arg == "--hd-root") {
+                if (i + 1 >= argc) {
+                    std::cerr << "--hd-root requires a directory\n";
+                    return 2;
+                }
+                hd_root = fs::path(argv[++i]);
+                hd_root_set = true;
+            } else if (arg.rfind("--hd-root=", 0) == 0) {
+                hd_root = fs::path(std::string(arg.substr(10)));
+                hd_root_set = true;
             } else if (arg == "--help" || arg == "-h") {
-                std::cout << "usage: " << argv[0] << " [asset-directory] [--scale auto|1..8]\n"
-                          << "DRONE_SCALE may also set the startup integer scale.\n";
+                std::cout << "usage: " << argv[0]
+                          << " [asset-directory] [--scale auto|1..8] [--hd-art|--classic-art|--require-hd]"
+                             " [--hd-root DIR] [--hd-self-test]\n"
+                          << "DRONE_SCALE may also set the startup integer scale.\n"
+                          << "HD art defaults to <asset-directory>/../assets_hd when present; F6 toggles it.\n";
                 return 0;
             } else if (!asset_root_set) {
                 asset_root = fs::path(arg);
@@ -1837,12 +2564,30 @@ int main(int argc, char** argv) {
         }
 
         if (!fs::exists(asset_root / "SHIP.JBA")) {
-            std::cerr << "usage: " << argv[0] << " [asset-directory] [--scale auto|1..8]\n"
+            std::cerr << "usage: " << argv[0]
+                      << " [asset-directory] [--scale auto|1..8] [--hd-art|--classic-art|--require-hd] [--hd-root DIR] [--hd-self-test]\n"
                       << "asset directory must contain SHIP.JBA and the original Drone data files\n";
             return 2;
         }
 
         AssetStore assets(asset_root);
+        if (!hd_root_set) {
+            const fs::path parent = asset_root.has_parent_path() ? asset_root.parent_path() : fs::current_path();
+            hd_root = parent / "assets_hd";
+        }
+        HdAssetStore hd_assets(hd_root);
+        if (hd_self_test) return hd_assets.self_test(std::cout) ? 0 : 3;
+        if (prefer_hd && !hd_assets.available) {
+            std::cerr << "HD art not usable: " << hd_assets.diagnostic_summary() << "\n";
+            if (require_hd) {
+                std::cerr << "HD mode was required; refusing silent CLASSIC fallback.\n";
+                return 3;
+            }
+            std::cerr << "Falling back to classic JBA rendering.\n";
+        } else if (prefer_hd && hd_assets.available) {
+            std::cout << "HD_ART_ACTIVE " << hd_assets.diagnostic_summary()
+                      << " (F6 toggles CLASSIC/HD)\n";
+        }
         fs::path controls_root = asset_root.has_parent_path() ? asset_root.parent_path() : fs::path{};
         if (controls_root.empty()) controls_root = fs::current_path();
         ControlBindings controls(controls_root / "drone-controls.cfg");
@@ -1867,12 +2612,17 @@ int main(int argc, char** argv) {
         audio::MainMenuAudioRuntimeState menu_audio{};
         audio.push(audio::begin_original_main_menu_audio(menu_audio).view());
 
-        X11Presenter x11(requested_scale);
+        X11Presenter x11(requested_scale, &hd_assets, prefer_hd);
         fidelity::IndexedFramebuffer framebuffer;
+        HdFramePlan hd_plan{};
         fidelity::SpecialWeaponHudTimers hud_timers{};
         gameplay::GameSessionTickResult last_tick{};
         EffectRuntime effects{};
         MissionInterstitialUi interstitial{};
+        std::array<std::uint8_t, MissionInterstitialUi::surveillance_width *
+                                  MissionInterstitialUi::surveillance_height> mission_surveillance{};
+        bool mission_surveillance_valid = false;
+        bool mission_surveillance_capture_pending = false;
         FrontEndMode frontend = FrontEndMode::MainMenu;
         DemoPlaybackRuntime demo_replay{};
         int main_menu_selection = 0;
@@ -1886,8 +2636,13 @@ int main(int argc, char** argv) {
         bool quit_confirm = false;
         bool debug_hud = false;
         bool weapon_help_visible = false;
+        bool weapon_help_pinned = false;
+        std::uint32_t weapon_help_ticks_remaining = 0;
+        ObjectiveAssistState objective_assist{};
+        bool objective_safety_enabled = true;
+        DroneFailureCause drone_failure_cause = DroneFailureCause::Unknown;
         bool prev_p = false, prev_q = false, prev_r = false, prev_y = false, prev_escape = false;
-        bool prev_f1 = false, prev_f2 = false, prev_f3 = false, prev_f4 = false;
+        bool prev_f1 = false, prev_f2 = false, prev_f3 = false, prev_f4 = false, prev_f5 = false, prev_f6 = false;
         bool prev_enter = false, prev_up = false, prev_down = false, prev_left = false, prev_right = false;
         KeySnapshot previous_keys(x11.display);
 
@@ -1920,6 +2675,8 @@ int main(int argc, char** argv) {
             const bool f2 = keys.down(XK_F2);
             const bool f3 = keys.down(XK_F3);
             const bool f4 = keys.down(XK_F4);
+            const bool f5 = keys.down(XK_F5);
+            const bool f6 = keys.down(XK_F6);
             const bool enter = keys.down(XK_Return) || keys.down(XK_KP_Enter);
             const bool enter_edge = enter && !prev_enter;
             const bool up_edge = up && !prev_up;
@@ -1932,13 +2689,28 @@ int main(int argc, char** argv) {
             const bool r_edge = r && !prev_r;
 
             if (f1 && !prev_f1) debug_hud = !debug_hud;
+            if (frontend == FrontEndMode::Gameplay && f5 && !prev_f5 &&
+                !session.runtime.demo_playback_mode) {
+                objective_safety_enabled = !objective_safety_enabled;
+                objective_assist.safety_notice_ticks_remaining = 210;
+                objective_assist.blocked_stinger_ticks_remaining = 0;
+            }
             if (frontend == FrontEndMode::Gameplay && f4 && !prev_f4 &&
                 !session.runtime.demo_playback_mode) {
-                weapon_help_visible = !weapon_help_visible;
+                if (weapon_help_visible) {
+                    weapon_help_visible = false;
+                    weapon_help_pinned = false;
+                    weapon_help_ticks_remaining = 0;
+                } else {
+                    weapon_help_visible = true;
+                    weapon_help_pinned = true;
+                    weapon_help_ticks_remaining = 0;
+                }
             }
             const bool scale_changed =
                 (f2 && !prev_f2 && x11.set_scale(x11.scale - 1)) ||
                 (f3 && !prev_f3 && x11.set_scale(x11.scale + 1));
+            const bool hd_changed = f6 && !prev_f6 && x11.toggle_hd();
 
             if (frontend != FrontEndMode::Gameplay) {
                 switch (frontend) {
@@ -1990,6 +2762,12 @@ int main(int argc, char** argv) {
                             paused = false;
                             quit_confirm = false;
                             weapon_help_visible = false;
+                            weapon_help_pinned = false;
+                            weapon_help_ticks_remaining = 0;
+                            objective_assist = ObjectiveAssistState{};
+                            drone_failure_cause = DroneFailureCause::Unknown;
+                            mission_surveillance_valid = false;
+                            mission_surveillance_capture_pending = true;
                             frontend = FrontEndMode::Gameplay;
                             next_tick = std::chrono::steady_clock::now();
                             break;
@@ -2026,6 +2804,12 @@ int main(int argc, char** argv) {
                         paused = false;
                         quit_confirm = false;
                         weapon_help_visible = true;
+                        weapon_help_pinned = false;
+                        weapon_help_ticks_remaining = kStartupWeaponHelpTicks;
+                        objective_assist = ObjectiveAssistState{};
+                        drone_failure_cause = DroneFailureCause::Unknown;
+                        mission_surveillance_valid = false;
+                        mission_surveillance_capture_pending = true;
                         frontend = FrontEndMode::Gameplay;
                         next_tick = std::chrono::steady_clock::now();
                     }
@@ -2099,9 +2883,10 @@ int main(int argc, char** argv) {
                 case FrontEndMode::Gameplay:
                     break;
                 }
-            } else if (interstitial.active && enter_edge) {
-                if (interstitial.stage == 0) interstitial.stage = 1;
-                else { interstitial.active = false; next_tick = std::chrono::steady_clock::now(); }
+            } else if (interstitial.active && enter_edge &&
+                       interstitial.confirm_lock_remaining == 0) {
+                interstitial.active = false;
+                next_tick = std::chrono::steady_clock::now();
             }
 
             if (frontend == FrontEndMode::Gameplay) {
@@ -2134,12 +2919,19 @@ int main(int argc, char** argv) {
             prev_f2 = f2;
             prev_f3 = f3;
             prev_f4 = f4;
+            prev_f5 = f5;
+            prev_f6 = f6;
             prev_enter = enter;
             prev_up = up;
             prev_down = down;
             prev_left = left;
             prev_right = right;
             previous_keys = keys;
+
+            const bool rapid_fire_down = controls.down(keys, HostControlAction::RapidFire);
+            if (objective_assist.fire_release_required && !rapid_fire_down) {
+                objective_assist.fire_release_required = false;
+            }
 
             auto now = std::chrono::steady_clock::now();
             int catchup = 0;
@@ -2150,6 +2942,11 @@ int main(int argc, char** argv) {
                     }
                 } else if (interstitial.active) {
                     // Synchronous original presentation: gameplay does not advance.
+                    // 0x0041DA6A starts a 0x3A (=58) presentation/fade lock and
+                    // does not poll confirmation until it reaches zero.
+                    if (interstitial.confirm_lock_remaining > 0) {
+                        --interstitial.confirm_lock_remaining;
+                    }
                 } else if (session.post_game.phase != gameplay::PostGameModalPhase::Inactive &&
                            session.post_game.phase != gameplay::PostGameModalPhase::Complete) {
                     gameplay::PostGameModalInput modal{};
@@ -2184,10 +2981,61 @@ int main(int argc, char** argv) {
                     input.movement.right = controls.down(keys, HostControlAction::MoveRight);
                     input.movement.up = controls.down(keys, HostControlAction::MoveUp);
                     input.movement.down = controls.down(keys, HostControlAction::MoveDown);
-                    input.rapid_fire = controls.down(keys, HostControlAction::RapidFire);
                     input.shield = controls.down(keys, HostControlAction::Shield);
                     input.special_load_cycle = controls.down(keys, HostControlAction::SpecialLoad);
                     input.special_launch = controls.down(keys, HostControlAction::SpecialLaunch);
+
+                    const bool objective_visible_before_step =
+                        session.encounter.drone.activity == gameplay::canonical_drone_active_activity &&
+                        !session.encounter.drone.disarm_completed &&
+                        session.encounter.drone.y >= -39 &&
+                        session.encounter.drone.y <= gameplay::canonical_drone_hover_y;
+                    const bool probe_seeking_before_step =
+                        session.encounter.special_weapon.activity == gameplay::SpecialWeaponActivity::LaunchedHoming &&
+                        session.encounter.special_weapon.kind == gameplay::SpecialWeaponKind::Probe;
+                    const bool probe_attached_before_step =
+                        session.encounter.special_weapon.activity == gameplay::SpecialWeaponActivity::ProbeAttachedDecoding;
+
+                    // Remaster-side objective safety.  The deterministic core
+                    // still preserves the original ability to detonate a DRONE.
+                    // Safety ON only filters host input around a live blue-Probe
+                    // disarm attempt and can be disabled instantly with F5.
+                    if (objective_safety_enabled && objective_visible_before_step &&
+                        session.encounter.special_weapon.activity == gameplay::SpecialWeaponActivity::Inactive) {
+                        // The original Down-load action preserves the previous
+                        // selection.  For a visible DRONE objective, make the host
+                        // choose the documented blue Probe so "Down then Up" is
+                        // deterministic instead of silently reloading a Stinger.
+                        session.encounter.special_weapon.kind = gameplay::SpecialWeaponKind::Probe;
+                    }
+
+                    const bool launching_probe_this_tick =
+                        objective_safety_enabled && objective_visible_before_step &&
+                        input.special_launch &&
+                        session.encounter.special_weapon.activity == gameplay::SpecialWeaponActivity::LoadedTracking &&
+                        session.encounter.special_weapon.kind == gameplay::SpecialWeaponKind::Probe;
+                    if (launching_probe_this_tick) {
+                        for (std::size_t i = 0; i < session.encounter.rapid_missiles.missiles.size(); ++i) {
+                            (void)gameplay::deactivate_rapid_missile(session.encounter.rapid_missiles, i);
+                        }
+                        objective_assist.fire_release_required = rapid_fire_down;
+                    }
+
+                    const bool protect_probe_attempt =
+                        objective_safety_enabled &&
+                        (probe_attached_before_step ||
+                         (objective_visible_before_step &&
+                          (launching_probe_this_tick || probe_seeking_before_step)));
+                    input.rapid_fire = rapid_fire_down &&
+                        !objective_assist.fire_release_required && !protect_probe_attempt;
+
+                    if (objective_safety_enabled && objective_visible_before_step &&
+                        input.special_launch &&
+                        session.encounter.special_weapon.activity == gameplay::SpecialWeaponActivity::LoadedTracking &&
+                        session.encounter.special_weapon.kind == gameplay::SpecialWeaponKind::Stinger) {
+                        input.special_launch = false;
+                        objective_assist.blocked_stinger_ticks_remaining = 210;
+                    }
 
                     bool demo_terminal_after_step = false;
                     if (session.runtime.demo_playback_mode && demo_replay.active()) {
@@ -2203,11 +3051,63 @@ int main(int argc, char** argv) {
                             record_index >= demo_replay.frames.size();
                     }
 
-                    const auto was_active = active_snapshot(session);
-                    const auto old_pos = position_snapshot(session);
+                    const auto interstitial_alien_hit_before_step =
+                        session.encounter.encounter_alien_ships_hit;
+                    const auto interstitial_alien_total_before_step =
+                        session.encounter.encounter_alien_ships_total;
+                    const auto interstitial_score_before_step = session.campaign.score.total;
+
                     last_tick = gameplay::step_game_session(session, input, targets);
+
+                    // Host-only objective safety assist. The original core remains
+                    // unchanged and still allows deliberate rapid-fire/Stinger
+                    // destruction of a DRONE. When a blue Probe first attaches,
+                    // purge already-launched player rapid missiles and require one
+                    // fire-key release before accepting new rapid fire. This removes
+                    // the keyboard race where a successful attachment is followed by
+                    // an older missile arriving a few frames later.
+                    if (last_tick.probe_attached_to_drone && !session.runtime.demo_playback_mode) {
+                        for (std::size_t i = 0; i < session.encounter.rapid_missiles.missiles.size(); ++i) {
+                            (void)gameplay::deactivate_rapid_missile(session.encounter.rapid_missiles, i);
+                        }
+                        objective_assist.fire_release_required = rapid_fire_down;
+                        objective_assist.probe_lost_ticks_remaining = 0;
+                        drone_failure_cause = DroneFailureCause::Unknown;
+                    }
+                    if (last_tick.enemy_bomb_probe_impact_effect_requested &&
+                        !session.runtime.demo_playback_mode) {
+                        objective_assist.probe_lost_ticks_remaining = 210;
+                    } else if (objective_assist.probe_lost_ticks_remaining > 0) {
+                        --objective_assist.probe_lost_ticks_remaining;
+                    }
+                    if (last_tick.probe_decode_completed) {
+                        objective_assist.fire_release_required = false;
+                        objective_assist.probe_lost_ticks_remaining = 0;
+                    }
+                    if (objective_assist.safety_notice_ticks_remaining > 0) {
+                        --objective_assist.safety_notice_ticks_remaining;
+                    }
+                    if (objective_assist.blocked_stinger_ticks_remaining > 0) {
+                        --objective_assist.blocked_stinger_ticks_remaining;
+                    }
+                    if (last_tick.rapid_missile_hit_drone) {
+                        drone_failure_cause = DroneFailureCause::RapidMissile;
+                    } else if (last_tick.stinger_hit_drone) {
+                        drone_failure_cause = DroneFailureCause::Stinger;
+                    } else if (last_tick.drone_hover_timeout_reached) {
+                        drone_failure_cause = DroneFailureCause::HoverTimeout;
+                    }
+
                     if (last_tick.special_launched && !session.runtime.demo_playback_mode) {
                         weapon_help_visible = false;
+                        weapon_help_pinned = false;
+                        weapon_help_ticks_remaining = 0;
+                    } else if (weapon_help_visible && !weapon_help_pinned &&
+                               weapon_help_ticks_remaining > 0) {
+                        --weapon_help_ticks_remaining;
+                        if (weapon_help_ticks_remaining == 0) {
+                            weapon_help_visible = false;
+                        }
                     }
                     const auto cursor_plan = fidelity::plan_drone_outcome_cursor(
                         static_cast<std::uint8_t>(session.campaign.mission.processed_count), drone_outcome_cursor_y);
@@ -2215,15 +3115,29 @@ int main(int argc, char** argv) {
                         drone_outcome_cursor_y, cursor_plan.target_y,
                         static_cast<std::uint8_t>(last_tick.gameplay_substep_phase));
                     audio.push(last_tick.audio_events.view());
-                    update_effects(effects, session, last_tick, was_active, old_pos);
+                    update_effects(effects, session, last_tick);
                     if (last_tick.encounter_transition) {
                         apply_scenery_transition(world, assets, last_tick.encounter_transition->scenery);
                     }
                     if (last_tick.mission_interstitial) {
+                        interstitial = MissionInterstitialUi{};
                         interstitial.active = true;
-                        interstitial.stage = 0;
                         interstitial.outcome_asset = mission_outcome_asset(*last_tick.mission_interstitial);
                         interstitial.mission_asset = mission_briefing_asset(*last_tick.mission_interstitial);
+                        interstitial.surveillance = mission_surveillance;
+                        interstitial.surveillance_valid = mission_surveillance_valid;
+                        interstitial.alien_ships_hit = interstitial_alien_hit_before_step;
+                        interstitial.alien_ships_total = interstitial_alien_total_before_step;
+                        interstitial.score = interstitial_score_before_step;
+                        interstitial.confirm_lock_remaining =
+                            MissionInterstitialUi::confirm_lock_presentations;
+                        if (last_tick.mission_interstitial->tone == gameplay::MissionInterstitialTone::Bad) {
+                            interstitial.failure_detail = std::string(drone_failure_cause_text(drone_failure_cause));
+                        }
+                        // The reset performed inside the transition has already
+                        // staged the next encounter. Capture its surveillance
+                        // image after this interstitial is dismissed.
+                        mission_surveillance_capture_pending = true;
                     }
                     if (demo_terminal_after_step) {
                         // Original demo terminal path suppresses the ordinary post-game
@@ -2248,7 +3162,8 @@ int main(int argc, char** argv) {
             // Present only after one or more logical/UI ticks.  The old dev host
             // submitted identical XImages every ~2 ms between 70 Hz simulation
             // updates, wasting CPU and introducing compositor pacing noise.
-            if (catchup != 0 || scale_changed) {
+            if (catchup != 0 || scale_changed || hd_changed) {
+                hd_plan.reset();
                 const GameplayControlLegend control_legend{
                     .main_fire = controls.display(HostControlAction::RapidFire),
                     .shield = controls.display(HostControlAction::Shield),
@@ -2257,24 +3172,29 @@ int main(int argc, char** argv) {
                     .resume_cancel = controls.display(HostControlAction::ResumeCancel),
                 };
                 if (frontend != FrontEndMode::Gameplay) {
-                    render_frontend(framebuffer, assets, font, session, controls, frontend,
+                    render_frontend(framebuffer, &hd_plan, assets, font, session, controls, frontend,
                                     main_menu_selection, instructions_page, ordering_page,
                                     control_selection, control_waiting_for_key, x11.scale);
                 } else if (interstitial.active) {
-                    const auto& name = interstitial.stage == 0 ? interstitial.outcome_asset : interstitial.mission_asset;
-                    if (assets.exists(name)) render_fullscreen_image(framebuffer, assets.jba(name));
-                    else render_game(framebuffer, world, session, last_tick, trajectory_sprites, boss_sprites,
+                    if (assets.exists(interstitial.mission_asset) && assets.exists(interstitial.outcome_asset)) {
+                        render_mission_interstitial(framebuffer, &hd_plan, assets, font, interstitial);
+                    } else render_game(framebuffer, &hd_plan, world, session, last_tick, trajectory_sprites, boss_sprites,
                                      play_assets, font, effects, hud_timers, drone_outcome_cursor_y, false, false, debug_hud,
-                                     control_legend, weapon_help_visible);
+                                     control_legend, weapon_help_visible, objective_safety_enabled, objective_assist);
                 } else if (session.post_game.phase != gameplay::PostGameModalPhase::Inactive &&
                            session.post_game.phase != gameplay::PostGameModalPhase::Complete) {
-                    render_post_game(framebuffer, assets, session, font, ordering_page);
+                    render_post_game(framebuffer, &hd_plan, assets, session, font, ordering_page);
                 } else {
-                    render_game(framebuffer, world, session, last_tick, trajectory_sprites, boss_sprites,
+                    render_game(framebuffer, &hd_plan, world, session, last_tick, trajectory_sprites, boss_sprites,
                                 play_assets, font, effects, hud_timers, drone_outcome_cursor_y, paused, quit_confirm, debug_hud,
-                                control_legend, weapon_help_visible);
+                                control_legend, weapon_help_visible, objective_safety_enabled, objective_assist);
+                    if (mission_surveillance_capture_pending && !paused && !quit_confirm) {
+                        capture_mission_surveillance(framebuffer, mission_surveillance);
+                        mission_surveillance_valid = true;
+                        mission_surveillance_capture_pending = false;
+                    }
                 }
-                x11.present(framebuffer);
+                x11.present(framebuffer, &hd_plan);
             }
 
         }

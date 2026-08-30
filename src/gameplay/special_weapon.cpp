@@ -80,12 +80,31 @@ bool step_special_weapon_homing(
         --state.x;
     }
 
-    // The canonical update path clears activity when X leaves 0..319 and sets
-    // +0x143. Y termination is handled by later special-weapon logic and is
-    // deliberately not invented here.
+    // The canonical update path first clears activity when X leaves 0..319 and
+    // raises +0x143.  The later common visibility block then handles the Y
+    // lifecycle independently: Y<0 raises +0x143, and Y<-60 fully retires the
+    // special entity back to its canonical staging Y=182 while clearing the
+    // edge flag.  This delayed top retirement is what makes missed Probes and
+    // Stingers reusable without inventing an ammo counter.
     if (state.x < 0 || state.x > 319) {
         state.activity = SpecialWeaponActivity::Inactive;
         state.out_of_bounds = true;
+    }
+
+    if (state.y < 0) {
+        state.out_of_bounds = true;
+        if (state.y < -60) {
+            state.activity = SpecialWeaponActivity::Inactive;
+            state.y = 182;
+            state.out_of_bounds = false;
+        }
+    } else if (state.y > 199) {
+        // This lower-edge reset is also present in the same Win32 block.  The
+        // special projectile normally travels upward, but preserve the proven
+        // common-entity boundary behavior for completeness.
+        state.activity = SpecialWeaponActivity::Inactive;
+        state.y = 182;
+        state.out_of_bounds = false;
     }
     return true;
 }

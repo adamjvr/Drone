@@ -84,16 +84,16 @@ Thus a first Drone failure with three lives runs the bad/detonate Mission 1 inte
 
 ## Per-objective mission interstitial and encounter handoff
 
-`0x0041D690` is now established as `run_mission_outcome_transition`. Before it changes scenery or encounter resources, it reduces the already-processed outcome prefix and presents two mission cards.
+`0x0041D690` is now established as `run_mission_outcome_transition`. Before it changes scenery or encounter resources, it reduces the already-processed outcome prefix and builds one composite mission interstitial. A prior host reconstruction incorrectly displayed the raw `goodN.jba`/`badN.jba` as a standalone fullscreen page; executable reinspection shows that is not what Win32 does.
 
-The first card reports the just-resolved outcome:
+The outcome asset supplies a transparent banner for the composite:
 
 - a detonated Drone selects `badN.jba`, where `N` is the cumulative detonated count;
 - a disarmed Drone selects `goodN.jba`, where `N` is the cumulative disarmed count.
 
 The accompanying sound is `detonate.wav` for a detonated last outcome and `deepness.wav` for a disarmed last outcome.
 
-The second card is indexed by total processed objectives:
+The briefing background is indexed by total processed objectives:
 
 ```text
 1 -> mission1.jba
@@ -105,7 +105,9 @@ The second card is indexed by total processed objectives:
 6 -> miss6no.jba   otherwise
 ```
 
-This is a **mission interstitial**, not the later post-game results screen. After the interstitial, the same routine performs the scenery/resource transition and calls `initialize_gameplay_session(0)`. The zero argument is now proven to mean **encounter-only reset**: it skips campaign-wide initialization and therefore preserves score, lives, the six outcome slots, and processed count. `initialize_gameplay_session(1)` remains the full new-campaign reset.
+This is a **mission interstitial**, not the later post-game results screen. The exact compositor is now established from `0x0041D690`: it initializes a 280x37 sprite at destination `(17,27)`, loads `goodN.jba`/`badN.jba`, captures source `(0,0)` into that sprite, loads the mission background, and transparent-blits the captured banner (palette index 0 transparent). It then copies the saved 160x100 surveillance buffer into `(14,81)` and draws encounter HIT/MISSED/TOTAL/PERCENTAGE/SCORE values at x=272 and y=98/112/126/140/154. The same routine starts a 58-presentation confirmation lock before polling Enter/joystick confirmation.
+
+After confirmation, the routine performs the scenery/resource transition and calls `initialize_gameplay_session(0)`. The zero argument is proven to mean **encounter-only reset**: it skips campaign-wide initialization and therefore preserves score, lives, the six outcome slots, and processed count. `initialize_gameplay_session(1)` remains the full new-campaign reset.
 
 The clean, asset-independent reconstruction lives in `gameplay/mission_progression.*` and returns semantic good/bad, audio, briefing, and encounter-transition plans without embedding the proprietary files.
 

@@ -26,6 +26,19 @@ void append_original_explosion_variants(
     }
 }
 
+void append_destroyed_trajectory_events(
+    GameSessionTickResult& tick,
+    const TrajectoryWeaponCollisionResult& collisions) noexcept {
+    for (std::size_t i = 0; i < collisions.destroyed_actor_event_count; ++i) {
+        if (tick.trajectory_destroyed_actor_event_count >=
+            tick.trajectory_destroyed_actor_events.size()) {
+            return;
+        }
+        tick.trajectory_destroyed_actor_events[
+            tick.trajectory_destroyed_actor_event_count++] = collisions.destroyed_actors[i];
+    }
+}
+
 drone::audio::AudioCue post_game_results_audio_cue(
     const MissionResultsMusic music) noexcept {
     using drone::audio::AudioCue;
@@ -455,6 +468,26 @@ GameSessionTickResult step_game_session(
         if (spawn_result.activated) {
             ++encounter.encounter_alien_ships_total;
         }
+
+        // The canonical trajectory updater performs the live mode-10 gate
+        // before stagger/path advancement. Beyond restoring the visible
+        // breakaway/fly-off behavior, this also restores the shared CRT RNG
+        // cadence: every live non-primary group consumes rand()%300 on phase 2
+        // even when processed_drone_count is zero.
+        const auto breakaway_result = step_trajectory_breakaway_transitions(
+            encounter.trajectories,
+            session.original_random,
+            TrajectoryBreakawayTransitionContext{
+                .demo_playback_mode = session.runtime.demo_playback_mode,
+                .demo_recording_mode = session.runtime.demo_recording_mode,
+                .gameplay_phase = encounter.gameplay_substep_phase,
+                .processed_drone_count = static_cast<std::int32_t>(campaign.mission.processed_count),
+            });
+        result.trajectory_breakaway_groups_checked = breakaway_result.groups_checked;
+        result.trajectory_groups_entered_breakaway = breakaway_result.groups_entered;
+        result.trajectory_breakaway_actor_axes_initialized = breakaway_result.actor_axes_initialized;
+        result.trajectory_breakaway_random_draws_consumed = breakaway_result.random_draws_consumed;
+
         const auto trajectory_result = advance_trajectory_encounter(
             encounter.trajectories,
             *targets.trajectory_paths,
@@ -489,6 +522,7 @@ GameSessionTickResult step_game_session(
         result.trajectory_groups_retired += rapid_trajectory.groups_retired;
         result.trajectory_destruction_bursts += rapid_trajectory.destruction_bursts;
         result.trajectory_score_delta += rapid_trajectory.score_delta;
+        append_destroyed_trajectory_events(result, rapid_trajectory);
         encounter.encounter_alien_ships_hit +=
             static_cast<std::int32_t>(rapid_trajectory.actors_destroyed);
         campaign.alien_ships_hit +=
@@ -496,6 +530,49 @@ GameSessionTickResult step_game_session(
         append_original_explosion_variants(
             result.audio_events, session.original_audio,
             rapid_trajectory.explosion_sfx_variant_calls);
+    }
+
+    // Win32 update_trajectory_groups also updates the shared special-target
+    // pointer after each actor's rapid-missile collision. Refresh a retained
+    // trajectory pointer from the current actor storage, then scan canonical
+    // group/slot order so ordinary enemies can become red-Stinger targets.
+    if (encounter.stinger_target.identity == StingerTargetIdentity::TrajectoryActor) {
+        const auto group_index = static_cast<std::size_t>(encounter.stinger_target.trajectory_group_index);
+        const auto actor_index = static_cast<std::size_t>(encounter.stinger_target.trajectory_actor_index);
+        if (group_index < encounter.trajectories.groups.size() &&
+            actor_index < encounter.trajectories.groups[group_index].actors.size()) {
+            const auto& actor = encounter.trajectories.groups[group_index].actors[actor_index];
+            encounter.stinger_target.geometry = StingerTargetGeometry{
+                .x = actor.x,
+                .width = actor.sprite_width,
+                .y = actor.y,
+                .height = actor.sprite_height,
+            };
+        }
+    }
+    bool trajectory_stinger_target_changed = false;
+    if (encounter.special_weapon.activity == SpecialWeaponActivity::LoadedTracking ||
+        encounter.special_weapon.activity == SpecialWeaponActivity::LaunchedHoming) {
+        for (std::size_t group_index = 0; group_index < encounter.trajectories.groups.size(); ++group_index) {
+            const auto& group = encounter.trajectories.groups[group_index];
+            if (group.lifecycle.mode == TrajectoryGroupMode::Inactive) continue;
+            const auto count = static_cast<std::size_t>(
+                std::max<std::int8_t>(0, group.lifecycle.entity_count));
+            for (std::size_t actor_index = 0; actor_index < count && actor_index < group.actors.size(); ++actor_index) {
+                const auto& actor = group.actors[actor_index];
+                if (actor.activity != TrajectoryEntityActivity::FollowingPath) continue;
+                trajectory_stinger_target_changed = consider_trajectory_stinger_target(
+                    encounter.stinger_target,
+                    encounter.special_weapon.x,
+                    encounter.special_weapon.y,
+                    static_cast<std::uint8_t>(group_index),
+                    static_cast<std::uint8_t>(actor_index),
+                    actor.x,
+                    actor.y,
+                    actor.sprite_width,
+                    actor.sprite_height) || trajectory_stinger_target_changed;
+            }
+        }
     }
 
     // update_drone_detonation_effect is called after trajectory processing and
@@ -766,10 +843,14 @@ GameSessionTickResult step_game_session(
                 stinger_context.gemini_head_a = StingerTargetGeometry{
                     .x = stinger_boss_snapshot.gemini.side_a.head_x,
                     .width = gemini_head_width,
+                    .y = stinger_boss_snapshot.gemini.side_a.head_y,
+                    .height = gemini_head_height,
                 };
                 stinger_context.gemini_head_b = StingerTargetGeometry{
                     .x = stinger_boss_snapshot.gemini.side_b.head_x,
                     .width = gemini_head_width,
+                    .y = stinger_boss_snapshot.gemini.side_b.head_y,
+                    .height = gemini_head_height,
                 };
             } else if (stinger_boss_snapshot.family == BossFamily::LidTop) {
                 stinger_context.lid_top_top_active =
@@ -779,6 +860,8 @@ GameSessionTickResult step_game_session(
                 stinger_context.lid_top_top = StingerTargetGeometry{
                     .x = stinger_boss_snapshot.lid_top.root_x,
                     .width = lid_top_top_width,
+                    .y = stinger_boss_snapshot.lid_top.root_y,
+                    .height = lid_top_top_height,
                 };
             }
 
@@ -788,8 +871,10 @@ GameSessionTickResult step_game_session(
                 encounter.player.x);
             target_x = selection.desired_x;
             result.stinger_target_identity = selection.identity;
+            result.stinger_target_geometry = selection.geometry;
             result.stinger_target_desired_x = selection.desired_x;
-            result.stinger_target_changed = selection.target_changed;
+            result.stinger_target_changed =
+                trajectory_stinger_target_changed || selection.target_changed;
         }
         (void)step_special_weapon_homing(
             encounter.special_weapon, encounter.player, target_x);
@@ -821,6 +906,7 @@ GameSessionTickResult step_game_session(
     result.trajectory_groups_retired += stinger_display_trajectory.groups_retired;
     result.trajectory_destruction_bursts += stinger_display_trajectory.destruction_bursts;
     result.trajectory_score_delta += stinger_display_trajectory.score_delta;
+    append_destroyed_trajectory_events(result, stinger_display_trajectory);
     encounter.encounter_alien_ships_hit +=
         static_cast<std::int32_t>(stinger_display_trajectory.actors_destroyed);
     append_original_explosion_variants(
@@ -1107,6 +1193,7 @@ GameSessionTickResult step_game_session(
     result.trajectory_groups_retired += direct_special_trajectory.groups_retired;
     result.trajectory_destruction_bursts += direct_special_trajectory.destruction_bursts;
     result.trajectory_score_delta += direct_special_trajectory.score_delta;
+    append_destroyed_trajectory_events(result, direct_special_trajectory);
 
     encounter.world_scroll_row = advance_gameplay_world_scroll_row(
         encounter.world_scroll_row,

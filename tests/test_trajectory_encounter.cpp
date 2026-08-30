@@ -87,6 +87,53 @@ int main() {
         assert(group.actors[1].activity == TrajectoryEntityActivity::FollowingPath);
     }
 
+    // The recovered mode-10 gate is now part of the live trajectory owner.
+    // Even with zero processed Drones, every live non-primary group consumes
+    // its phase-2 rand()%300 draw; a passing fully-activated group initializes
+    // two breakaway target draws for every fixed slot.
+    {
+        TrajectoryEncounterState encounter{};
+        reset_trajectory_encounter(encounter, &paths);
+        assert(activate_transient_trajectory_group(encounter, 1, paths));
+        auto& group = encounter.groups[1];
+        const auto count = static_cast<std::size_t>(group.lifecycle.entity_count);
+        group.lifecycle.active_entity_count = static_cast<std::uint8_t>(count);
+        group.lifecycle.activated_entity_count = static_cast<std::int16_t>(count);
+        for (std::size_t i = 0; i < count; ++i) {
+            group.actors[i].activity = TrajectoryEntityActivity::FollowingPath;
+            group.actors[i].x = static_cast<std::int32_t>(50 + i * 10);
+            group.actors[i].y = static_cast<std::int32_t>(60 + i * 5);
+        }
+
+        OriginalRandomState random{};
+        auto result = step_trajectory_breakaway_transitions(
+            encounter, random,
+            {.gameplay_phase = 2, .processed_drone_count = 0});
+        assert(result.groups_checked == 1);
+        assert(result.groups_entered == 0);
+        assert(result.random_draws_consumed == 1);
+        assert(random.draws == 1);
+
+        seed_original_random(random, 1);
+        result = step_trajectory_breakaway_transitions(
+            encounter, random,
+            {.gameplay_phase = 2, .processed_drone_count = 300});
+        assert(result.groups_checked == 1);
+        assert(result.groups_entered == 1);
+        assert(result.actor_axes_initialized == count);
+        assert(result.random_draws_consumed == 1 + count * 2);
+        assert(random.draws == 1 + count * 2);
+        assert(group.lifecycle.mode == TrajectoryGroupMode::BreakawayFlyOff);
+        for (std::size_t i = 0; i < count; ++i) {
+            assert(group.actors[i].breakaway_x.speed == 0x8000);
+            assert(group.actors[i].breakaway_y.speed == 0x8000);
+            assert(group.actors[i].breakaway_x.target == -60 ||
+                   group.actors[i].breakaway_x.target == 321);
+            assert(group.actors[i].breakaway_y.target == -60 ||
+                   group.actors[i].breakaway_y.target == 201);
+        }
+    }
+
     // Mode-2 completion is an escape: actor retires, its score value is
     // subtracted from total/progress, and the final active actor tears down the
     // whole group.

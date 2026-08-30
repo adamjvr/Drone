@@ -31,6 +31,11 @@ void accumulate_destroyed(
     if (hit.group_retired) ++result.groups_retired;
     result.destruction_bursts += hit.destruction_burst_count;
     result.score_delta += hit.score_delta;
+    if (result.destroyed_actor_event_count < result.destroyed_actors.size()) {
+        result.destroyed_actors[result.destroyed_actor_event_count++] = {
+            hit.group_index, hit.actor_index, hit.x, hit.y,
+            hit.sprite_width, hit.sprite_height, hit.destruction_burst_count};
+    }
 }
 
 } // namespace

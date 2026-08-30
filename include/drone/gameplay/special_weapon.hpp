@@ -113,7 +113,9 @@ bool launch_special_weapon(
 
 // State 1 is re-anchored to player+(14,7) each update before the common special
 // movement block runs. State 1 and state 3 then move Y upward by two and steer
-// X by exactly one pixel toward an already-selected target X coordinate.
+// X by exactly one pixel toward an already-selected target X coordinate.  The
+// recovered common boundary block marks Y<0 offscreen and retires/reset the
+// special entity once Y<-60, so missed Probe/Stinger launches become reusable.
 // Returns false if the state is not one of those two established movable states.
 bool step_special_weapon_homing(
     SpecialWeaponState& state,

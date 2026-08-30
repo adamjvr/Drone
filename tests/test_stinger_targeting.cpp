@@ -113,6 +113,36 @@ int main() {
         assert(result.identity == StingerTargetIdentity::UnknownDynamicHostile);
     }
 
+    // Ordinary trajectory actors participate in the same retained target
+    // pointer. Only actors more than 20 pixels above the projectile qualify,
+    // and strict distance improvement wins in canonical scan order.
+    {
+        StingerTargetState state{};
+        assert(consider_trajectory_stinger_target(
+            state, 160, 170, 2, 3, 150, 100, 28, 21));
+        assert(state.identity == StingerTargetIdentity::TrajectoryActor);
+        assert(state.trajectory_group_index == 2);
+        assert(state.trajectory_actor_index == 3);
+        assert(state.geometry.x == 150 && state.geometry.y == 100);
+        assert(state.geometry.width == 28 && state.geometry.height == 21);
+        assert(stinger_target_desired_x(state) == 164);
+
+        // Equal metric does not replace the earlier candidate.
+        assert(!consider_trajectory_stinger_target(
+            state, 160, 170, 4, 1, 130, 120, 35, 22));
+        assert(state.trajectory_group_index == 2);
+
+        // A strictly nearer actor replaces it.
+        assert(consider_trajectory_stinger_target(
+            state, 160, 170, 4, 2, 140, 120, 35, 22));
+        assert(state.trajectory_group_index == 4);
+        assert(state.trajectory_actor_index == 2);
+
+        // An actor within the 20-pixel vertical exclusion band cannot lock.
+        assert(!consider_trajectory_stinger_target(
+            state, 160, 170, 5, 0, 160, 150, 20, 20));
+    }
+
     // No qualifying branch retains the previous shared target pointer exactly.
     {
         StingerTargetState state{

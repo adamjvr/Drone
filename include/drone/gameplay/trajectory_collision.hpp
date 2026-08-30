@@ -46,6 +46,20 @@ void activate_stinger_display_at(
 
 void advance_stinger_display(StingerDisplayState& display) noexcept;
 
+
+struct TrajectoryDestroyedActorEvent {
+    std::uint8_t group_index{};
+    std::uint8_t actor_index{};
+    std::int32_t x{};
+    std::int32_t y{};
+    std::int16_t sprite_width{};
+    std::int16_t sprite_height{};
+    std::uint8_t destruction_burst_count{};
+};
+
+inline constexpr std::size_t canonical_trajectory_destroy_event_capacity =
+    canonical_trajectory_group_count * canonical_trajectory_group_max_slots;
+
 struct TrajectoryWeaponCollisionResult {
     std::size_t collisions = 0;
     std::size_t actors_destroyed = 0;
@@ -58,6 +72,8 @@ struct TrajectoryWeaponCollisionResult {
     std::size_t explosion_sfx_variant_calls = 0;
     bool special_collision = false;
     bool stinger_display_activated = false;
+    std::array<TrajectoryDestroyedActorEvent, canonical_trajectory_destroy_event_capacity> destroyed_actors{};
+    std::size_t destroyed_actor_event_count = 0;
 };
 
 // Win32 update_trajectory_groups rapid-fire path: actors are outer-looped,

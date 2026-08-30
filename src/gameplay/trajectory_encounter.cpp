@@ -160,6 +160,63 @@ bool activate_transient_trajectory_group(
     return true;
 }
 
+TrajectoryBreakawayTransitionResult step_trajectory_breakaway_transitions(
+    TrajectoryEncounterState& encounter,
+    OriginalRandomState& random,
+    const TrajectoryBreakawayTransitionContext& context) noexcept {
+    TrajectoryBreakawayTransitionResult result{};
+
+    // Win32 0x00415FDC..0x004160BB. Group 0 skips this branch entirely.
+    // For every other live group the phase/demo/recording gates precede the
+    // rand()%300 draw; the activated-count and already-mode-10 tests occur only
+    // after a passing roll. This means a zero processed count still consumes one
+    // draw per live non-primary group on phase 2.
+    for (std::size_t group_index = 1; group_index < encounter.groups.size(); ++group_index) {
+        auto& group = encounter.groups[group_index];
+        if (group.lifecycle.mode == TrajectoryGroupMode::Inactive ||
+            context.demo_playback_mode ||
+            context.demo_recording_mode ||
+            context.gameplay_phase != 2) {
+            continue;
+        }
+
+        ++result.groups_checked;
+        const auto roll = static_cast<std::int32_t>(original_random_mod(random, 300));
+        ++result.random_draws_consumed;
+        if (!trajectory_group_can_enter_breakaway(
+                group.lifecycle,
+                false,
+                context.demo_playback_mode,
+                context.demo_recording_mode,
+                context.gameplay_phase,
+                roll,
+                context.processed_drone_count)) {
+            continue;
+        }
+
+        group.lifecycle.mode = TrajectoryGroupMode::BreakawayFlyOff;
+        ++result.groups_entered;
+
+        const auto count = static_cast<std::size_t>(
+            std::max<std::int8_t>(0, group.lifecycle.entity_count));
+        for (std::size_t actor_index = 0; actor_index < count && actor_index < group.actors.size(); ++actor_index) {
+            auto& actor = group.actors[actor_index];
+            const auto x_target = original_random_mod(random, 10) < 5
+                ? std::int16_t{-60}
+                : std::int16_t{321};
+            const auto y_target = original_random_mod(random, 100) < 25
+                ? std::int16_t{-60}
+                : std::int16_t{201};
+            result.random_draws_consumed += 2;
+            actor.breakaway_x = make_trajectory_breakaway_axis(actor.x, x_target);
+            actor.breakaway_y = make_trajectory_breakaway_axis(actor.y, y_target);
+            ++result.actor_axes_initialized;
+        }
+    }
+
+    return result;
+}
+
 TrajectoryEncounterStepResult advance_trajectory_encounter(
     TrajectoryEncounterState& encounter,
     const TrajectoryPathCatalogView& paths,
@@ -262,6 +319,12 @@ TrajectoryHitResult apply_trajectory_hit(
     result.destroyed = true;
     result.destruction_burst_count = actor.destruction_burst_count;
     result.score_delta = actor.score_value;
+    result.group_index = hit.group_index;
+    result.actor_index = hit.actor_index;
+    result.x = actor.x;
+    result.y = actor.y;
+    result.sprite_width = actor.sprite_width;
+    result.sprite_height = actor.sprite_height;
     apply_score_delta(score, actor.score_value);
     result.group_retired = retire_actor(encounter, group, actor);
     return result;
@@ -284,6 +347,12 @@ TrajectoryHitResult destroy_trajectory_actor_direct(
     result.destroyed = true;
     result.destruction_burst_count = actor.destruction_burst_count;
     result.score_delta = actor.score_value;
+    result.group_index = group_index;
+    result.actor_index = actor_index;
+    result.x = actor.x;
+    result.y = actor.y;
+    result.sprite_width = actor.sprite_width;
+    result.sprite_height = actor.sprite_height;
     apply_score_delta(score, actor.score_value);
     result.group_retired = retire_actor(encounter, group, actor, false);
     return result;

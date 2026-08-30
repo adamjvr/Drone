@@ -260,6 +260,83 @@ int main() {
     }
 
 
+    // Ordinary session-owned trajectory actors seed the same shared Stinger
+    // target pointer before the later boss-priority chain. This prevents a
+    // loaded red Stinger from continuing toward the dummy X=160 target when a
+    // normal hostile is the nearest eligible ship above it.
+    {
+        GameSession session{};
+        auto& group = session.encounter.trajectories.groups[1];
+        group.lifecycle.mode = TrajectoryGroupMode::RetireOnPathWrap;
+        group.lifecycle.active_entity_count = 1;
+        group.lifecycle.activated_entity_count = 1;
+        auto& actor = group.actors[0];
+        actor.activity = TrajectoryEntityActivity::FollowingPath;
+        actor.x = 100;
+        actor.y = 100;
+        actor.sprite_width = 20;
+        actor.sprite_height = 14;
+
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Stinger;
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LoadedTracking;
+        session.encounter.special_weapon.x = 160;
+        session.encounter.special_weapon.y = 180;
+
+        const auto result = step_game_session(session, GameplayInputFrame{});
+        assert(result.stinger_target_identity == StingerTargetIdentity::TrajectoryActor);
+        assert(result.stinger_target_geometry.x == 100);
+        assert(result.stinger_target_geometry.y == 100);
+        assert(result.stinger_target_geometry.width == 20);
+        assert(result.stinger_target_geometry.height == 14);
+        assert(result.stinger_target_desired_x == 110);
+        assert(result.stinger_target_changed);
+        assert(session.encounter.stinger_target.trajectory_group_index == 1);
+        assert(session.encounter.stinger_target.trajectory_actor_index == 0);
+        // Loaded state anchors at player.x+14=161 then moves one pixel toward 110.
+        assert(session.encounter.special_weapon.x == 160);
+    }
+
+    // The mode-10 transition is now integrated at the exact phase-2 lifecycle
+    // point. A deterministic shared-RNG seed makes the live spawn roll fail
+    // and the following rand()%300 breakaway comparison pass; all fixed group
+    // slots receive breakaway axes and
+    // the tick reports the original one gate draw plus two target draws/slot.
+    {
+        std::array<std::vector<drone::formats::FlyRecord>, drone::gameplay::canonical_trajectory_path_family_count> storage{};
+        const auto paths = make_session_trajectory_paths(storage);
+
+        GameSession session{};
+        // Seed 15 gives spawn roll 87 (fails the live spawn chance at
+        // processed_count=6) followed by breakaway roll 5, so the mode-10
+        // comparison deterministically wins without creating a second group.
+        seed_original_random(session.original_random, 15);
+        session.campaign.mission.processed_count = 6;
+        session.encounter.gameplay_substep_phase = 1;
+        session.encounter.trajectory_spawn.interval_counter = 0;
+
+        auto& group = session.encounter.trajectories.groups[1];
+        group.lifecycle.mode = TrajectoryGroupMode::RetireOnPathWrap;
+        group.lifecycle.active_entity_count = static_cast<std::uint8_t>(group.lifecycle.entity_count);
+        group.lifecycle.activated_entity_count = group.lifecycle.entity_count;
+        const auto count = static_cast<std::size_t>(group.lifecycle.entity_count);
+        assert(count > 0);
+        for (std::size_t i = 0; i < count; ++i) {
+            group.actors[i].activity = TrajectoryEntityActivity::FollowingPath;
+            group.actors[i].x = 120 + static_cast<std::int32_t>(i);
+            group.actors[i].y = 80 + static_cast<std::int32_t>(i);
+        }
+
+        GameSessionTargetContext targets{};
+        targets.trajectory_paths = &paths;
+        const auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.gameplay_substep_phase == 2);
+        assert(result.trajectory_breakaway_groups_checked == 1);
+        assert(result.trajectory_groups_entered_breakaway == 1);
+        assert(result.trajectory_breakaway_actor_axes_initialized == count);
+        assert(result.trajectory_breakaway_random_draws_consumed == 1 + count * 2);
+        assert(group.lifecycle.mode == TrajectoryGroupMode::BreakawayFlyOff);
+    }
+
     // Shareware Gemini activity and head geometry are both read from the
     // pre-boss-update session snapshot. The native initializer places head A
     // at x=6 and head B at x=176; player-left x=147 therefore selects B and
@@ -822,6 +899,50 @@ int main() {
             drone::audio::AudioCue::DroneApproachLoop,
             drone::audio::AudioAction::StopAndRewind);
         assert(parachute_index + 1 == drone_stop_index);
+    }
+
+    // A normal live-play Probe attachment with no subsequent destructive fire
+    // must always settle as a Disarmed objective and produce the GOOD1
+    // interstitial. This covers the complete user-visible path rather than
+    // stopping at the decoder-completion boundary.
+    {
+        GameSession session{};
+        GameSessionTargetContext targets{};
+        session.runtime.demo_playback_mode = false;
+        session.runtime.difficulty = DifficultyLevel::Beginner;
+        session.encounter.drone.x = 100;
+        session.encounter.drone.y = canonical_drone_hover_y;
+        session.encounter.gameplay_substep_phase = 0;
+        session.encounter.special_weapon.kind = SpecialWeaponKind::Probe;
+        session.encounter.special_weapon.activity = SpecialWeaponActivity::LaunchedHoming;
+        session.encounter.special_weapon.x = 104;
+        session.encounter.special_weapon.y = 47;
+
+        auto result = step_game_session(session, GameplayInputFrame{}, targets);
+        assert(result.probe_attached_to_drone);
+        assert(session.encounter.drone.destruction_countdown ==
+               canonical_drone_destruction_countdown_idle);
+
+        bool saw_decode_complete = false;
+        bool saw_transition = false;
+        for (int i = 0; i < 4000 && !saw_transition; ++i) {
+            result = step_game_session(session, GameplayInputFrame{}, targets);
+            assert(!result.drone_detonation_started);
+            assert(!result.drone_destruction_settled);
+            if (result.probe_decode_completed) saw_decode_complete = true;
+            if (result.drone_resolution_transition_started) {
+                saw_transition = true;
+                assert(result.mission_interstitial);
+                assert(result.mission_interstitial->tone == MissionInterstitialTone::Good);
+                assert(result.mission_interstitial->result_ordinal == 1);
+                assert(result.mission_interstitial->disarmed_count == 1);
+                assert(result.mission_interstitial->detonated_count == 0);
+            }
+        }
+        assert(saw_decode_complete);
+        assert(saw_transition);
+        assert(session.campaign.mission.processed_count == 1);
+        assert(session.campaign.mission.outcomes[0] == DroneOutcome::Disarmed);
     }
 
     // Objective 2 is the compiled shareware termination branch. It zeroes lives

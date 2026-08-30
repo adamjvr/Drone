@@ -216,6 +216,10 @@ struct GameSessionTickResult {
     std::int16_t trajectory_spawn_x_offset = 0;
     std::int16_t trajectory_spawn_y_offset = 0;
     bool trajectory_spawn_actor_offsets_randomized = false;
+    std::size_t trajectory_breakaway_groups_checked = 0;
+    std::size_t trajectory_groups_entered_breakaway = 0;
+    std::size_t trajectory_breakaway_actor_axes_initialized = 0;
+    std::size_t trajectory_breakaway_random_draws_consumed = 0;
     std::size_t trajectory_actors_activated = 0;
     std::size_t trajectory_actors_escaped = 0;
     std::size_t trajectory_actors_destroyed = 0;
@@ -227,6 +231,9 @@ struct GameSessionTickResult {
     std::size_t trajectory_stinger_display_collisions = 0;
     std::size_t trajectory_direct_special_collisions = 0;
     bool trajectory_stinger_display_activated = false;
+    std::array<TrajectoryDestroyedActorEvent, canonical_trajectory_destroy_event_capacity>
+        trajectory_destroyed_actor_events{};
+    std::size_t trajectory_destroyed_actor_event_count = 0;
 
     bool boss_activated = false;
     std::optional<BossFamily> boss_activated_family{};
@@ -301,6 +308,7 @@ struct GameSessionTickResult {
     bool special_cycled = false;
     bool special_launched = false;
     StingerTargetIdentity stinger_target_identity = StingerTargetIdentity::DummyCenter;
+    StingerTargetGeometry stinger_target_geometry{canonical_stinger_dummy_target_x, 0};
     std::int32_t stinger_target_desired_x = canonical_stinger_dummy_target_x;
     bool stinger_target_changed = false;
 

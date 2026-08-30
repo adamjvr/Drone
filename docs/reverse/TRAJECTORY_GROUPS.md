@@ -105,11 +105,11 @@ A non-primary live group can randomly convert to mode 10 only when all of these 
 - the group is not already in mode 10;
 - `rand() % 300 < drone_outcome_processed_count`.
 
-This makes breakaway probability increase with mission progression and deliberately disables the transition during deterministic replay/recording paths.
+This makes breakaway probability increase with mission progression and deliberately disables the transition during deterministic replay/recording paths. The original updater still consumes the `rand() % 300` draw for every eligible live non-primary group on phase 2 **before** testing the processed-Drone count, full activation, or existing mode-10 state. The clean `GameSession` now preserves that shared-CRT-RNG cadence exactly; even `processed_drone_count == 0` advances the RNG once per eligible group although no breakaway can win.
 
 ### Breakaway initialization
 
-For each active member:
+For each fixed slot in the group (matching the original fixed-array initializer, not merely the currently active members):
 
 - integer X/Y are copied to 16.16 fixed-point scratch coordinates;
 - X and Y speeds start at `0x8000`;
@@ -249,7 +249,7 @@ Evidence-backed helpers live in:
 - `tests/test_gameplay.cpp`
 - `tests/test_trajectory_encounter.cpp`
 
-The implementation covers path-index arithmetic, AUX frame control, the complete 17-template startup catalog, stagger activation, mode-2 retirement, zero-active teardown, breakaway eligibility, 16.16 breakaway movement, off-screen bounds, breakaway frame direction, owned mutable actor/group state, the common live transient-wave activation contract, proven-hit damage/destruction/score/group teardown, and native rapid-missile/current-frame-mask plus direct-special/Stinger-display collision production. `GameSession` owns this encounter state continuously when immutable path samples are supplied.
+The implementation covers path-index arithmetic, AUX frame control, the complete 17-template startup catalog, stagger activation, mode-2 retirement, zero-active teardown, the exact phase-2 mode-10 breakaway gate including its pre-gate shared-RNG draw, 16.16 breakaway initialization/movement, off-screen bounds, breakaway frame direction, owned mutable actor/group state, the common live transient-wave activation contract, proven-hit damage/destruction/score/group teardown, and native rapid-missile/current-frame-mask plus direct-special/Stinger-display collision production. `GameSession` owns this encounter state continuously when immutable path samples are supplied.
 
 ## Whole-session integration and remaining boundaries
 

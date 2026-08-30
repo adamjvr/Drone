@@ -2,6 +2,7 @@
 
 #include <drone/formats/fly.hpp>
 #include <drone/gameplay/scoring.hpp>
+#include <drone/gameplay/original_random.hpp>
 #include <drone/gameplay/trajectory.hpp>
 #include <drone/gameplay/trajectory_templates.hpp>
 
@@ -66,6 +67,20 @@ struct TrajectoryEncounterStepResult {
     std::int32_t escape_score_delta{};
 };
 
+struct TrajectoryBreakawayTransitionContext {
+    bool demo_playback_mode = false;
+    bool demo_recording_mode = false;
+    std::int32_t gameplay_phase = 0;
+    std::int32_t processed_drone_count = 0;
+};
+
+struct TrajectoryBreakawayTransitionResult {
+    std::size_t groups_checked{};
+    std::size_t groups_entered{};
+    std::size_t actor_axes_initialized{};
+    std::size_t random_draws_consumed{};
+};
+
 enum class TrajectoryHitSource : std::uint8_t {
     Unspecified = 0,
     RapidMissile = 1,
@@ -85,6 +100,17 @@ struct TrajectoryHitResult {
     bool group_retired{};
     std::uint8_t destruction_burst_count{};
     std::int32_t score_delta{};
+
+    // Exact identity/geometry at the moment of destruction. Presentation needs
+    // this because an actor that naturally exits a path may become inactive in
+    // the same tick as a different actor is destroyed; inferring kill location
+    // from inactive transitions is therefore incorrect.
+    std::uint8_t group_index{};
+    std::uint8_t actor_index{};
+    std::int32_t x{};
+    std::int32_t y{};
+    std::int16_t sprite_width{};
+    std::int16_t sprite_height{};
 };
 
 // Rebuild all 17 startup records from the established template catalog. Group
@@ -112,6 +138,17 @@ void reset_trajectory_encounter(
     const TrajectoryPathCatalogView& paths,
     std::int16_t group_x_offset = 0,
     std::int16_t group_y_offset = 0) noexcept;
+
+// Reproduce the live per-group mode-10 gate that runs before stagger/path
+// advancement. The original consumes rand()%300 for every live non-primary
+// group on phase 2 even when processed_drone_count is zero or the group cannot
+// yet transition; preserving those draws is important because the same CRT RNG
+// drives later spawns/attacks. Successful transitions initialize every fixed
+// slot's 16.16 breakaway axes and off-screen targets.
+[[nodiscard]] TrajectoryBreakawayTransitionResult step_trajectory_breakaway_transitions(
+    TrajectoryEncounterState& encounter,
+    OriginalRandomState& random,
+    const TrajectoryBreakawayTransitionContext& context) noexcept;
 
 // Advance normal path-following/acquiring entities plus stagger activation.
 // Mode-2 path completion retires actors and applies the established negative

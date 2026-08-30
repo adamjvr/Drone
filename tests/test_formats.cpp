@@ -500,6 +500,28 @@ int main() {
         assert(drone::gameplay::step_special_weapon_homing(special, player, 400));
         assert(special.activity == SpecialWeaponActivity::Inactive);
         assert(special.out_of_bounds);
+
+        // A missed launch leaving through the top remains active briefly while
+        // offscreen, then the recovered common boundary block retires it at
+        // y<-60 and restores the canonical staging Y.  This is a reload delay,
+        // not finite ammunition.
+        special = SpecialWeaponState{};
+        special.activity = SpecialWeaponActivity::LaunchedHoming;
+        special.kind = SpecialWeaponKind::Probe;
+        special.x = 160;
+        special.y = 1;
+        assert(drone::gameplay::step_special_weapon_homing(special, player, 160));
+        assert(special.y == -1);
+        assert(special.activity == SpecialWeaponActivity::LaunchedHoming);
+        assert(special.out_of_bounds);
+
+        special.y = -59;
+        assert(drone::gameplay::step_special_weapon_homing(special, player, 160));
+        assert(special.activity == SpecialWeaponActivity::Inactive);
+        assert(special.y == 182);
+        assert(!special.out_of_bounds);
+        assert(drone::gameplay::load_special_weapon(special, player, true, true));
+        assert(special.activity == SpecialWeaponActivity::LoadedTracking);
     }
 
     {
