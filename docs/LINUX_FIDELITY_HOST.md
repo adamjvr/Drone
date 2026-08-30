@@ -291,5 +291,38 @@ corpus is unavailable instead of continuing in classic mode.
 A verified generated corpus currently reports 599 PNGs. While HD mode is
 active, the X11 title includes `HD:<count>` (for example `[6x HD:599]`). F6
 changes that title to `CLASSIC` and back, providing an unambiguous A/B check.
-The standalone delivery statically links the PNG/zlib decode implementation;
-source builds use the system libpng development package.
+Source builds use the system libpng development package; normal runtime launches only
+need the corresponding libpng runtime library used by the built host.
+
+## 2026-08-30 — persistent Video Settings and HD fallback hardening
+
+The reconstructed front end now exposes host/remaster display preferences directly as
+**VIDEO SETTINGS** on the main menu. These preferences are stored beside the runtime
+asset corpus in `drone-video.cfg` and are reloaded on the next launch:
+
+- **ART MODE** — `HD 12X` or `CLASSIC`;
+- **SCALE** — `AUTO` or an explicit integer display multiple that fits the current X11 desktop;
+- **FILTER** — `SMOOTH` (bilinear resampling of the 12x art to the active display scale)
+  or `SHARP` (nearest-neighbor sampling);
+- **DEFAULTS** — restores HD/AUTO/SMOOTH.
+
+F2/F3 scale changes and F6 Classic/HD changes update the same persistent preference
+file rather than acting as undocumented one-run-only switches. Command-line options
+remain temporary overrides. The repo launcher no longer appends `--require-hd` to every
+normal launch, because doing so would silently override a user-selected persistent
+CLASSIC preference; the launcher still performs the mandatory HD decode self-test
+before starting when the HD cache is installed.
+
+The Video Settings page also reports the installed HD PNG count and the previous
+presentation frame's HD background/sprite-replacement totals. This makes it possible
+to distinguish "HD mode enabled" from "this frame actually had an HD mapping".
+
+A compositor bug was also corrected. Previously, any *planned* HD sprite caused the
+corresponding classic framebuffer rectangle to be suppressed before the renderer knew
+whether the PNG actually existed. A missing or mismatched frame therefore made an
+actor disappear instead of falling back to classic art. The compositor now suppresses
+the classic pixels only after verifying that the exact HD sprite frame is present;
+missing HD frames remain visible through the authoritative indexed-render fallback.
+
+The renderer still keeps simulation/collision coordinates at 320x200. HD imagery is
+presentation-only and does not modify gameplay geometry or deterministic timing.

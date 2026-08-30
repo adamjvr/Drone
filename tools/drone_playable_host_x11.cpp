@@ -231,6 +231,35 @@ RgbaImage resize_rgba_bilinear(const RgbaImage& src, int dst_w, int dst_h) {
     return out;
 }
 
+enum class HdFilterMode : std::uint8_t {
+    Smooth,
+    Sharp,
+};
+
+std::string_view hd_filter_name(HdFilterMode mode) noexcept {
+    return mode == HdFilterMode::Sharp ? "SHARP" : "SMOOTH";
+}
+
+RgbaImage resize_rgba_nearest(const RgbaImage& src, int dst_w, int dst_h) {
+    if (!src.valid() || dst_w <= 0 || dst_h <= 0) return {};
+    if (src.width == dst_w && src.height == dst_h) return src;
+    RgbaImage out;
+    out.width = dst_w;
+    out.height = dst_h;
+    out.pixels.resize(static_cast<std::size_t>(dst_w) * dst_h * 4u);
+    for (int y = 0; y < dst_h; ++y) {
+        const int sy = std::clamp((y * src.height) / dst_h, 0, src.height - 1);
+        for (int x = 0; x < dst_w; ++x) {
+            const int sx = std::clamp((x * src.width) / dst_w, 0, src.width - 1);
+            const auto si = (static_cast<std::size_t>(sy) * src.width + sx) * 4u;
+            const auto di = (static_cast<std::size_t>(y) * dst_w + x) * 4u;
+            std::copy_n(src.pixels.begin() + static_cast<std::ptrdiff_t>(si), 4,
+                        out.pixels.begin() + static_cast<std::ptrdiff_t>(di));
+        }
+    }
+    return out;
+}
+
 std::string strip_extension_upper(std::string value) {
     value = upper_ascii(std::move(value));
     const auto dot = value.find_last_of('.');
@@ -243,6 +272,7 @@ struct HdAssetStore {
     bool available{false};
     std::size_t png_file_count{0};
     int cache_scale{0};
+    HdFilterMode filter{HdFilterMode::Smooth};
     std::unordered_map<std::string, fs::path> windows_fullscreen_index{};
     std::unordered_map<std::string, fs::path> dos_fullscreen_index{};
     std::unordered_map<std::string, std::shared_ptr<RgbaImage>> resized_cache{};
@@ -322,6 +352,12 @@ struct HdAssetStore {
         resized_cache.clear();
     }
 
+    void set_filter(HdFilterMode next) {
+        if (filter == next) return;
+        filter = next;
+        resized_cache.clear();
+    }
+
     fs::path resolve_fullscreen(std::string_view jba_name) const {
         const auto stem = strip_extension_upper(std::string(jba_name));
         // The playable host reconstructs the Win32 release, so prefer the
@@ -345,13 +381,22 @@ struct HdAssetStore {
         return {};
     }
 
+    bool has_sprite(std::string_view category,
+                    std::string_view family,
+                    std::size_t frame) const {
+        return !resolve_sprite(category, family, frame).empty();
+    }
+
     const RgbaImage* resized_path(const fs::path& path, int width, int height) {
         if (path.empty() || width <= 0 || height <= 0) return nullptr;
         const std::string key = path.string() + "#" + std::to_string(width) + "x" + std::to_string(height);
         if (auto it = resized_cache.find(key); it != resized_cache.end()) return it->second.get();
         try {
             auto decoded = load_png_rgba(path);
-            auto image = std::make_shared<RgbaImage>(resize_rgba_bilinear(decoded, width, height));
+            auto image = std::make_shared<RgbaImage>(
+                filter == HdFilterMode::Sharp
+                    ? resize_rgba_nearest(decoded, width, height)
+                    : resize_rgba_bilinear(decoded, width, height));
             auto [it, inserted] = resized_cache.emplace(key, std::move(image));
             (void)inserted;
             return it->second.get();
@@ -1728,6 +1773,7 @@ enum class FrontEndMode : std::uint8_t {
     Ordering,
     HighScores,
     ConfigureJoystick,
+    VideoSettings,
     Gameplay,
 };
 
@@ -1902,6 +1948,56 @@ struct ControlBindings {
     }
 };
 
+struct VideoPreferences {
+    fs::path config_path{};
+    bool prefer_hd{true};
+    int scale_mode{0}; // 0 = AUTO, otherwise exact integer scale.
+    HdFilterMode filter{HdFilterMode::Smooth};
+    std::string status{};
+
+    explicit VideoPreferences(fs::path path) : config_path(std::move(path)) { load(); }
+
+    void restore_defaults(bool persist = true) {
+        prefer_hd = true;
+        scale_mode = 0;
+        filter = HdFilterMode::Smooth;
+        if (persist) status = save() ? "VIDEO DEFAULTS RESTORED" : "DEFAULTS ACTIVE - SAVE FAILED";
+    }
+
+    void load() {
+        std::ifstream in(config_path);
+        if (!in) return;
+        std::string line;
+        while (std::getline(in, line)) {
+            if (line.empty() || line[0] == '#') continue;
+            const auto equals = line.find('=');
+            if (equals == std::string::npos) continue;
+            const auto key = upper_ascii(line.substr(0, equals));
+            const auto value = upper_ascii(line.substr(equals + 1));
+            if (key == "ART_MODE") {
+                prefer_hd = value != "CLASSIC";
+            } else if (key == "SCALE") {
+                if (value == "AUTO") scale_mode = 0;
+                else {
+                    try { scale_mode = std::clamp(std::stoi(value), kMinScale, kMaxScale); } catch (...) {}
+                }
+            } else if (key == "HD_FILTER") {
+                filter = value == "SHARP" ? HdFilterMode::Sharp : HdFilterMode::Smooth;
+            }
+        }
+    }
+
+    bool save() const {
+        std::ofstream out(config_path, std::ios::trunc);
+        if (!out) return false;
+        out << "# Drone reconstructed Linux video preferences v1\n";
+        out << "ART_MODE=" << (prefer_hd ? "HD" : "CLASSIC") << '\n';
+        out << "SCALE=" << (scale_mode == 0 ? std::string("AUTO") : std::to_string(scale_mode)) << '\n';
+        out << "HD_FILTER=" << hd_filter_name(filter) << '\n';
+        return static_cast<bool>(out);
+    }
+};
+
 struct DemoPlaybackRuntime {
     // Win32 0x0042B97C initializes to -1 and the attract/demo launch path
     // pre-increments/wraps it through four shareware demos.
@@ -1999,12 +2095,13 @@ void apply_demo_replay_checkpoints(
     session.encounter.drone.y = frame.drone.y;
 }
 
-constexpr std::array<std::string_view, 7> kMainMenuLabels{{
+constexpr std::array<std::string_view, 8> kMainMenuLabels{{
     "START GAME",
     "INSTRUCTIONS",
     "ORDERING INFORMATION",
     "HIGH SCORES",
-    "CONFIGURE JOYSTICK",
+    "CONFIGURE CONTROLS",
+    "VIDEO SETTINGS",
     "PLAY DEMO",
     "EXIT DRONE",
 }};
@@ -2014,15 +2111,18 @@ struct MenuTextPlacement {
     int y;
 };
 
-// Exact Win32 run_main_menu placements recovered at 0x004198B1 onward.
-constexpr std::array<MenuTextPlacement, 7> kMainMenuPlacements{{
-    {125, 72},
-    {117, 82},
-    {85, 92},
-    {121, 102},
-    {92, 112},
-    {128, 122},
-    {124, 132},
+// The first five and final two entries retain the recovered front-end vocabulary.
+// VIDEO SETTINGS is an explicit host/remaster extension so display preferences are
+// discoverable without relying on F-key shortcuts.
+constexpr std::array<MenuTextPlacement, 8> kMainMenuPlacements{{
+    {125, 67},
+    {117, 77},
+    {85, 87},
+    {121, 97},
+    {96, 107},
+    {108, 117},
+    {128, 127},
+    {124, 137},
 }};
 
 constexpr std::array<std::string_view, 3> kDifficultyLabels{{
@@ -2119,7 +2219,7 @@ void render_controls_editor(fidelity::IndexedFramebuffer& fb,
     draw_text(fb, font, 16, 143, "BLUE PROBE DISARMS DRONES", 0xF7);
     draw_text(fb, font, 16, 151, "RED STINGER MISSILE ATTACKS ENEMIES", 0xF7);
     draw_text(fb, font, 16, 160,
-              "SCALE " + std::to_string(display_scale) + "X F2-/F3+ F4 HELP F5 SAFE F6 ART", 0xF6);
+              "SCALE " + std::to_string(display_scale) + "X   VIDEO SETTINGS ON MAIN MENU", 0xF6);
     draw_text(fb, font, 16, 169,
               waiting_for_key
                   ? (controls.status.empty() ? "PRESS NEW KEY - ESC CANCEL" : controls.status)
@@ -2127,6 +2227,63 @@ void render_controls_editor(fidelity::IndexedFramebuffer& fb,
               waiting_for_key ? 0xF7 : 0xF6);
     draw_text(fb, font, 16, 178, "ENTER REBIND   BACKSPACE DEFAULT", 0xF6);
     draw_text(fb, font, 16, 187, "D ALL DEFAULTS   ESC BACK", 0xF6);
+}
+
+struct VideoSettingsView {
+    bool hd_available{};
+    bool hd_enabled{};
+    int active_scale{kMinScale};
+    int maximum_scale{kMinScale};
+    std::size_t hd_asset_count{};
+    bool last_background_hd{};
+    std::size_t last_sprite_hits{};
+    std::size_t last_sprite_misses{};
+};
+
+void render_video_settings(fidelity::IndexedFramebuffer& fb,
+                           HdFramePlan* hd,
+                           AssetStore& assets,
+                           const FontCache& font,
+                           const VideoPreferences& video,
+                           const VideoSettingsView& view,
+                           int selection) {
+    render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
+    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
+    fill_rect(fb, 24, 38, 272, 136, 0xF6);
+    fill_rect(fb, 26, 40, 268, 132, 0x00);
+    draw_text(fb, font, 104, 47, "VIDEO SETTINGS", 0xF7);
+    draw_hline(fb, 34, 58, 252, 0xF6);
+
+    const auto row = [&](int index, int y, std::string_view label, const std::string& value) {
+        const bool selected = selection == index;
+        const auto color = static_cast<std::uint8_t>(selected ? 0xF7 : 0xF6);
+        if (selected) draw_text(fb, font, 34, y, ">", color);
+        draw_text(fb, font, 44, y, label, color);
+        draw_text(fb, font, 182, y, value, color);
+    };
+
+    row(0, 68, "ART MODE",
+        view.hd_enabled ? "HD 12X" : "CLASSIC");
+    const std::string scale_value = video.scale_mode == 0
+        ? "AUTO " + std::to_string(view.active_scale) + "X"
+        : std::to_string(view.active_scale) + "X";
+    row(1, 82, "SCALE", scale_value);
+    row(2, 96, "FILTER", std::string(hd_filter_name(video.filter)));
+    row(3, 110, "DEFAULTS", "ENTER");
+
+    draw_hline(fb, 34, 124, 252, 0xF6);
+    draw_text(fb, font, 36, 130,
+              view.hd_available
+                  ? ("HD CACHE " + std::to_string(view.hd_asset_count) + " PNGS")
+                  : "HD CACHE NOT AVAILABLE",
+              view.hd_available ? 0xF7 : 0xF6);
+    draw_text(fb, font, 36, 139,
+              "FRAME BG " + std::string(view.last_background_hd ? "HD" : "CLASSIC") +
+                  " SPR " + std::to_string(view.last_sprite_hits) +
+                  "/" + std::to_string(view.last_sprite_hits + view.last_sprite_misses), 0xF6);
+    if (!video.status.empty()) draw_text(fb, font, 36, 148, video.status, 0xF7);
+    else draw_text(fb, font, 36, 148, "LEFT/RIGHT CHANGE", 0xF6);
+    draw_text(fb, font, 36, 159, "ENTER SELECT   ESC BACK", 0xF6);
 }
 
 void render_frontend(fidelity::IndexedFramebuffer& fb,
@@ -2141,7 +2298,10 @@ void render_frontend(fidelity::IndexedFramebuffer& fb,
                      int ordering_page,
                      int control_selection,
                      bool control_waiting_for_key,
-                     int display_scale) {
+                     int display_scale,
+                     const VideoPreferences& video,
+                     const VideoSettingsView& video_view,
+                     int video_selection) {
     switch (mode) {
     case FrontEndMode::MainMenu:
         render_main_menu(fb, hd, assets, font, main_menu_selection);
@@ -2183,6 +2343,9 @@ void render_frontend(fidelity::IndexedFramebuffer& fb,
         render_controls_editor(fb, hd, assets, font, controls, control_selection,
                                control_waiting_for_key, display_scale);
         return;
+    case FrontEndMode::VideoSettings:
+        render_video_settings(fb, hd, assets, font, video, video_view, video_selection);
+        return;
     case FrontEndMode::Gameplay:
         return;
     }
@@ -2198,6 +2361,9 @@ struct X11Presenter {
     Atom wm_delete{};
     HdAssetStore* hd_assets{};
     bool hd_enabled{false};
+    bool last_hd_background{false};
+    std::size_t last_hd_sprite_hits{0};
+    std::size_t last_hd_sprite_misses{0};
     int scale{kMinScale};
     int window_w{kLogicalW};
     int window_h{kLogicalH};
@@ -2285,11 +2451,25 @@ struct X11Presenter {
         XStoreName(display, window, title.c_str());
     }
 
-    bool toggle_hd() {
-        if (!hd_assets || !hd_assets->available) return false;
-        hd_enabled = !hd_enabled;
-        hd_assets->set_scale(scale);
+    bool set_hd_enabled(bool enabled) {
+        if (enabled && (!hd_assets || !hd_assets->available)) return false;
+        if (hd_enabled == enabled) return false;
+        hd_enabled = enabled;
+        if (hd_assets) hd_assets->set_scale(scale);
         update_title();
+        XClearWindow(display, window);
+        XFlush(display);
+        return true;
+    }
+
+    bool toggle_hd() {
+        return set_hd_enabled(!hd_enabled);
+    }
+
+    bool set_hd_filter(HdFilterMode filter) {
+        if (!hd_assets) return false;
+        if (hd_assets->filter == filter) return false;
+        hd_assets->set_filter(filter);
         XClearWindow(display, window);
         XFlush(display);
         return true;
@@ -2395,7 +2575,13 @@ struct X11Presenter {
         const auto& palette = fb.palette();
         const auto& src = fb.pixels();
         const auto covered_by_hd_sprite = [&](int px, int py) {
+            if (!hd_assets) return false;
             for (const auto& sprite : plan.sprites) {
+                // Only suppress the classic pixels when a real HD replacement
+                // exists. The previous compositor suppressed planned sprites
+                // even when their PNG mapping was absent, creating invisible
+                // actors instead of a correct classic fallback.
+                if (!hd_assets->has_sprite(sprite.category, sprite.family, sprite.frame)) continue;
                 if (px >= sprite.x && py >= sprite.y &&
                     px < sprite.x + sprite.logical_width &&
                     py < sprite.y + sprite.logical_height) return true;
@@ -2420,12 +2606,12 @@ struct X11Presenter {
         }
     }
 
-    void blit_hd_sprite(const HdSpriteDraw& cmd, bool dim) {
-        if (!hd_assets) return;
+    bool blit_hd_sprite(const HdSpriteDraw& cmd, bool dim) {
+        if (!hd_assets) return false;
         const int dst_w = cmd.logical_width * scale;
         const int dst_h = cmd.logical_height * scale;
         const auto* image = hd_assets->sprite(cmd.category, cmd.family, cmd.frame, dst_w, dst_h);
-        if (!image) return;
+        if (!image) return false;
 
         const int origin_x = cmd.x * scale;
         const int origin_y = cmd.y * scale;
@@ -2461,15 +2647,23 @@ struct X11Presenter {
                 }
             }
         }
+        return true;
     }
 
     void present(const fidelity::IndexedFramebuffer& fb, const HdFramePlan* plan = nullptr) {
+        last_hd_background = false;
+        last_hd_sprite_hits = 0;
+        last_hd_sprite_misses = 0;
         const bool use_hd = hd_enabled && plan && plan->base_valid && render_hd_background(*plan);
+        last_hd_background = use_hd;
         if (!use_hd) {
             render_classic_full(fb);
         } else {
             overlay_classic_deltas(fb, *plan);
-            for (const auto& sprite : plan->sprites) blit_hd_sprite(sprite, plan->dim_background);
+            for (const auto& sprite : plan->sprites) {
+                if (blit_hd_sprite(sprite, plan->dim_background)) ++last_hd_sprite_hits;
+                else ++last_hd_sprite_misses;
+            }
         }
         XPutImage(display, window, gc, image, 0, 0, 0, 0, window_w, window_h);
         XFlush(display);
@@ -2487,6 +2681,10 @@ int main(int argc, char** argv) {
         bool prefer_hd = true;
         bool require_hd = false;
         bool hd_self_test = false;
+        bool scale_cli_override = false;
+        bool art_cli_override = false;
+        bool filter_cli_override = false;
+        HdFilterMode requested_filter = HdFilterMode::Smooth;
         std::optional<int> requested_scale{};
 
         const auto parse_scale = [&](std::string_view value) -> bool {
@@ -2505,6 +2703,7 @@ int main(int argc, char** argv) {
         };
 
         if (const char* env_scale = std::getenv("DRONE_SCALE")) {
+            scale_cli_override = true;
             if (!parse_scale(env_scale)) {
                 std::cerr << "DRONE_SCALE must be auto or an integer from "
                           << kMinScale << " to " << kMaxScale << "\n";
@@ -2515,12 +2714,14 @@ int main(int argc, char** argv) {
         for (int i = 1; i < argc; ++i) {
             const std::string_view arg = argv[i];
             if (arg == "--scale") {
+                scale_cli_override = true;
                 if (i + 1 >= argc || !parse_scale(argv[++i])) {
                     std::cerr << "--scale requires auto or an integer from "
                               << kMinScale << " to " << kMaxScale << "\n";
                     return 2;
                 }
             } else if (arg.rfind("--scale=", 0) == 0) {
+                scale_cli_override = true;
                 if (!parse_scale(arg.substr(8))) {
                     std::cerr << "--scale requires auto or an integer from "
                               << kMinScale << " to " << kMaxScale << "\n";
@@ -2528,15 +2729,31 @@ int main(int argc, char** argv) {
                 }
             } else if (arg == "--hd-art") {
                 prefer_hd = true;
+                art_cli_override = true;
             } else if (arg == "--classic-art") {
                 prefer_hd = false;
+                art_cli_override = true;
             } else if (arg == "--require-hd") {
                 prefer_hd = true;
+                art_cli_override = true;
                 require_hd = true;
             } else if (arg == "--hd-self-test") {
                 prefer_hd = true;
+                art_cli_override = true;
                 require_hd = true;
                 hd_self_test = true;
+            } else if (arg == "--hd-filter") {
+                if (i + 1 >= argc) {
+                    std::cerr << "--hd-filter requires smooth or sharp\n";
+                    return 2;
+                }
+                const auto mode = upper_ascii(argv[++i]);
+                if (mode != "SMOOTH" && mode != "SHARP") {
+                    std::cerr << "--hd-filter requires smooth or sharp\n";
+                    return 2;
+                }
+                requested_filter = mode == "SHARP" ? HdFilterMode::Sharp : HdFilterMode::Smooth;
+                filter_cli_override = true;
             } else if (arg == "--hd-root") {
                 if (i + 1 >= argc) {
                     std::cerr << "--hd-root requires a directory\n";
@@ -2550,9 +2767,10 @@ int main(int argc, char** argv) {
             } else if (arg == "--help" || arg == "-h") {
                 std::cout << "usage: " << argv[0]
                           << " [asset-directory] [--scale auto|1..8] [--hd-art|--classic-art|--require-hd]"
-                             " [--hd-root DIR] [--hd-self-test]\n"
+                             " [--hd-root DIR] [--hd-self-test] [--hd-filter smooth|sharp]\n"
                           << "DRONE_SCALE may also set the startup integer scale.\n"
-                          << "HD art defaults to <asset-directory>/../assets_hd when present; F6 toggles it.\n";
+                          << "HD art defaults to <asset-directory>/../assets_hd when present; F6 toggles it.\n"
+                          << "Video preferences persist in drone-video.cfg and are editable from the main menu.\n";
                 return 0;
             } else if (!asset_root_set) {
                 asset_root = fs::path(arg);
@@ -2565,17 +2783,28 @@ int main(int argc, char** argv) {
 
         if (!fs::exists(asset_root / "SHIP.JBA")) {
             std::cerr << "usage: " << argv[0]
-                      << " [asset-directory] [--scale auto|1..8] [--hd-art|--classic-art|--require-hd] [--hd-root DIR] [--hd-self-test]\n"
+                      << " [asset-directory] [--scale auto|1..8] [--hd-art|--classic-art|--require-hd] [--hd-root DIR] [--hd-self-test] [--hd-filter smooth|sharp]\n"
                       << "asset directory must contain SHIP.JBA and the original Drone data files\n";
             return 2;
         }
 
         AssetStore assets(asset_root);
+        fs::path controls_root = asset_root.has_parent_path() ? asset_root.parent_path() : fs::path{};
+        if (controls_root.empty()) controls_root = fs::current_path();
+        VideoPreferences video(controls_root / "drone-video.cfg");
+        if (!scale_cli_override) {
+            requested_scale = video.scale_mode == 0 ? std::optional<int>{} : std::optional<int>{video.scale_mode};
+        }
+        if (!art_cli_override) prefer_hd = video.prefer_hd;
+        if (!filter_cli_override) requested_filter = video.filter;
+        else video.filter = requested_filter;
+
         if (!hd_root_set) {
             const fs::path parent = asset_root.has_parent_path() ? asset_root.parent_path() : fs::current_path();
             hd_root = parent / "assets_hd";
         }
         HdAssetStore hd_assets(hd_root);
+        hd_assets.set_filter(requested_filter);
         if (hd_self_test) return hd_assets.self_test(std::cout) ? 0 : 3;
         if (prefer_hd && !hd_assets.available) {
             std::cerr << "HD art not usable: " << hd_assets.diagnostic_summary() << "\n";
@@ -2588,8 +2817,6 @@ int main(int argc, char** argv) {
             std::cout << "HD_ART_ACTIVE " << hd_assets.diagnostic_summary()
                       << " (F6 toggles CLASSIC/HD)\n";
         }
-        fs::path controls_root = asset_root.has_parent_path() ? asset_root.parent_path() : fs::path{};
-        if (controls_root.empty()) controls_root = fs::current_path();
         ControlBindings controls(controls_root / "drone-controls.cfg");
 
         auto world = load_initial_river_world(assets);
@@ -2613,6 +2840,10 @@ int main(int argc, char** argv) {
         audio.push(audio::begin_original_main_menu_audio(menu_audio).view());
 
         X11Presenter x11(requested_scale, &hd_assets, prefer_hd);
+        // Command-line overrides are temporary; menu/F-key changes below become
+        // persistent preferences in drone-video.cfg.
+        if (!scale_cli_override && video.scale_mode != 0) video.scale_mode = x11.scale;
+        if (!art_cli_override) video.prefer_hd = x11.hd_enabled;
         fidelity::IndexedFramebuffer framebuffer;
         HdFramePlan hd_plan{};
         fidelity::SpecialWeaponHudTimers hud_timers{};
@@ -2630,6 +2861,7 @@ int main(int argc, char** argv) {
         int ordering_page = 1;
         int control_selection = 0;
         bool control_waiting_for_key = false;
+        int video_selection = 0;
         std::int32_t drone_outcome_cursor_y = fidelity::drone_outcome_cursor_initial_y;
 
         bool paused = false;
@@ -2707,16 +2939,29 @@ int main(int argc, char** argv) {
                     weapon_help_ticks_remaining = 0;
                 }
             }
-            const bool scale_changed =
-                (f2 && !prev_f2 && x11.set_scale(x11.scale - 1)) ||
-                (f3 && !prev_f3 && x11.set_scale(x11.scale + 1));
-            const bool hd_changed = f6 && !prev_f6 && x11.toggle_hd();
+            bool scale_changed = false;
+            if (f2 && !prev_f2 && x11.set_scale(x11.scale - 1)) {
+                scale_changed = true;
+                video.scale_mode = x11.scale;
+                video.status = video.save() ? "WINDOW SCALE SAVED" : "SCALE ACTIVE - SAVE FAILED";
+            }
+            if (f3 && !prev_f3 && x11.set_scale(x11.scale + 1)) {
+                scale_changed = true;
+                video.scale_mode = x11.scale;
+                video.status = video.save() ? "WINDOW SCALE SAVED" : "SCALE ACTIVE - SAVE FAILED";
+            }
+            bool hd_changed = false;
+            if (f6 && !prev_f6 && x11.toggle_hd()) {
+                hd_changed = true;
+                video.prefer_hd = x11.hd_enabled;
+                video.status = video.save() ? "ART MODE SAVED" : "ART MODE ACTIVE - SAVE FAILED";
+            }
 
             if (frontend != FrontEndMode::Gameplay) {
                 switch (frontend) {
                 case FrontEndMode::MainMenu:
-                    if (up_edge) main_menu_selection = (main_menu_selection + 6) % 7;
-                    if (down_edge) main_menu_selection = (main_menu_selection + 1) % 7;
+                    if (up_edge) main_menu_selection = (main_menu_selection + static_cast<int>(kMainMenuLabels.size()) - 1) % static_cast<int>(kMainMenuLabels.size());
+                    if (down_edge) main_menu_selection = (main_menu_selection + 1) % static_cast<int>(kMainMenuLabels.size());
                     if (enter_edge) {
                         // Exact menu selection order recovered from Win32 run_main_menu.
                         switch (main_menu_selection) {
@@ -2751,7 +2996,12 @@ int main(int argc, char** argv) {
                             controls.status.clear();
                             frontend = FrontEndMode::ConfigureJoystick;
                             break;
-                        case 5: // PLAY DEMO -> raw state 13, then original four-demo selector.
+                        case 5: // VIDEO SETTINGS -> host/remaster preferences.
+                            video_selection = 0;
+                            video.status.clear();
+                            frontend = FrontEndMode::VideoSettings;
+                            break;
+                        case 6: // PLAY DEMO -> raw state 13, then original four-demo selector.
                             audio.push(audio::leave_original_main_menu_audio(menu_audio, 13).view());
                             audio.push(audio::original_main_menu_air_restart(session.original_audio, 13).view());
                             begin_next_original_demo(demo_replay, assets, session, world);
@@ -2771,7 +3021,7 @@ int main(int argc, char** argv) {
                             frontend = FrontEndMode::Gameplay;
                             next_tick = std::chrono::steady_clock::now();
                             break;
-                        case 6: // EXIT DRONE -> raw state 0.
+                        case 7: // EXIT DRONE -> raw state 0.
                             audio.push(audio::leave_original_main_menu_audio(menu_audio, 0).view());
                             running = false;
                             break;
@@ -2880,6 +3130,47 @@ int main(int argc, char** argv) {
                         }
                     }
                     break;
+                case FrontEndMode::VideoSettings: {
+                    constexpr int rows = 4;
+                    if (up_edge) { video_selection = (video_selection + rows - 1) % rows; video.status.clear(); }
+                    if (down_edge) { video_selection = (video_selection + 1) % rows; video.status.clear(); }
+                    const bool change_left = left_edge;
+                    const bool change_right = right_edge || enter_edge;
+                    if (video_selection == 0 && (change_left || change_right)) {
+                        const bool wanted = !x11.hd_enabled;
+                        if (wanted && !hd_assets.available) {
+                            video.status = "HD ASSETS NOT AVAILABLE";
+                        } else {
+                            hd_changed |= x11.set_hd_enabled(wanted);
+                            video.prefer_hd = x11.hd_enabled;
+                            video.status = video.save() ? "ART MODE SAVED" : "ART MODE ACTIVE - SAVE FAILED";
+                        }
+                    } else if (video_selection == 1 && (change_left || change_right)) {
+                        const int fit = x11.maximum_fitting_scale();
+                        int mode = std::clamp(video.scale_mode, 0, fit);
+                        if (change_right) mode = (mode + 1) % (fit + 1);
+                        else mode = (mode + fit) % (fit + 1);
+                        video.scale_mode = mode;
+                        const int target_scale = mode == 0 ? fit : mode;
+                        scale_changed |= x11.set_scale(target_scale);
+                        video.status = video.save() ? "WINDOW SCALE SAVED" : "SCALE ACTIVE - SAVE FAILED";
+                    } else if (video_selection == 2 && (change_left || change_right)) {
+                        video.filter = video.filter == HdFilterMode::Smooth ? HdFilterMode::Sharp : HdFilterMode::Smooth;
+                        hd_changed |= x11.set_hd_filter(video.filter);
+                        video.status = video.save() ? "HD FILTER SAVED" : "FILTER ACTIVE - SAVE FAILED";
+                    } else if (video_selection == 3 && enter_edge) {
+                        video.restore_defaults(false);
+                        video.prefer_hd = hd_assets.available;
+                        video.scale_mode = 0;
+                        video.filter = HdFilterMode::Smooth;
+                        hd_changed |= x11.set_hd_enabled(video.prefer_hd);
+                        hd_changed |= x11.set_hd_filter(video.filter);
+                        scale_changed |= x11.set_scale(x11.maximum_fitting_scale());
+                        video.status = video.save() ? "VIDEO DEFAULTS RESTORED" : "DEFAULTS ACTIVE - SAVE FAILED";
+                    }
+                    if (escape_edge) frontend = FrontEndMode::MainMenu;
+                    break;
+                }
                 case FrontEndMode::Gameplay:
                     break;
                 }
@@ -3174,7 +3465,17 @@ int main(int argc, char** argv) {
                 if (frontend != FrontEndMode::Gameplay) {
                     render_frontend(framebuffer, &hd_plan, assets, font, session, controls, frontend,
                                     main_menu_selection, instructions_page, ordering_page,
-                                    control_selection, control_waiting_for_key, x11.scale);
+                                    control_selection, control_waiting_for_key, x11.scale,
+                                    video, VideoSettingsView{
+                                        .hd_available = hd_assets.available,
+                                        .hd_enabled = x11.hd_enabled,
+                                        .active_scale = x11.scale,
+                                        .maximum_scale = x11.maximum_fitting_scale(),
+                                        .hd_asset_count = hd_assets.png_file_count,
+                                        .last_background_hd = x11.last_hd_background,
+                                        .last_sprite_hits = x11.last_hd_sprite_hits,
+                                        .last_sprite_misses = x11.last_hd_sprite_misses,
+                                    }, video_selection);
                 } else if (interstitial.active) {
                     if (assets.exists(interstitial.mission_asset) && assets.exists(interstitial.outcome_asset)) {
                         render_mission_interstitial(framebuffer, &hd_plan, assets, font, interstitial);
