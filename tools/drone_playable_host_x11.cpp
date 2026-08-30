@@ -67,6 +67,7 @@ constexpr int kMaxScale = 8;
 constexpr double kTickHz = 70.0863;
 constexpr auto kTickDuration = std::chrono::duration<double>(1.0 / kTickHz);
 constexpr std::uint32_t kStartupWeaponHelpTicks = static_cast<std::uint32_t>(kTickHz * 5.0);
+constexpr std::size_t kExpectedCurrentHdSpriteFrames = 398;
 
 struct SpriteBank {
     fidelity::IndexedSpriteFrame frame0{};
@@ -167,10 +168,34 @@ struct RgbaImage {
     int width{};
     int height{};
     std::vector<std::uint8_t> pixels{}; // RGBA8
+    // Full-screen HD pages are reused every presentation frame.  Keep packed
+    // X11-friendly RGB32 copies lazily so scrolling no longer repacks millions
+    // of RGBA pixels at 60/70 Hz. Sprite images never request these buffers.
+    mutable std::vector<std::uint32_t> packed_rgb{};
+    mutable std::vector<std::uint32_t> packed_dim{};
 
     bool valid() const noexcept {
         return width > 0 && height > 0 &&
                pixels.size() == static_cast<std::size_t>(width) * height * 4u;
+    }
+
+    const std::vector<std::uint32_t>& packed(bool dim) const {
+        auto& out = dim ? packed_dim : packed_rgb;
+        if (!out.empty()) return out;
+        out.resize(static_cast<std::size_t>(width) * height);
+        for (std::size_t i = 0; i < out.size(); ++i) {
+            std::uint8_t r = pixels[i * 4u + 0];
+            std::uint8_t g = pixels[i * 4u + 1];
+            std::uint8_t b = pixels[i * 4u + 2];
+            if (dim) {
+                r = static_cast<std::uint8_t>(r > 40 ? r - 40 : 0);
+                g = static_cast<std::uint8_t>(g > 40 ? g - 40 : 0);
+                b = static_cast<std::uint8_t>(b > 40 ? b - 40 : 0);
+            }
+            out[i] = (static_cast<std::uint32_t>(r) << 16) |
+                     (static_cast<std::uint32_t>(g) << 8) | b;
+        }
+        return out;
     }
 };
 
@@ -271,11 +296,19 @@ struct HdAssetStore {
     fs::path root;
     bool available{false};
     std::size_t png_file_count{0};
+    std::size_t sprite_file_count{0};
     int cache_scale{0};
     HdFilterMode filter{HdFilterMode::Smooth};
     std::unordered_map<std::string, fs::path> windows_fullscreen_index{};
     std::unordered_map<std::string, fs::path> dos_fullscreen_index{};
+    // Hot-path sprite resolution must never touch the filesystem. The broken
+    // compositor performed fs::exists() from inside a per-pixel loop, causing
+    // millions of stat() calls per second as enemy/effect counts rose.
+    std::unordered_map<std::string, fs::path> sprite_index{};
     std::unordered_map<std::string, std::shared_ptr<RgbaImage>> resized_cache{};
+    std::unordered_map<std::string, std::uint64_t> cache_last_use{};
+    std::uint64_t cache_clock{0};
+    static constexpr std::size_t cache_budget_bytes = 320u * 1024u * 1024u;
 
     static void index_decoded_tree(const fs::path& tree,
                                    std::unordered_map<std::string, fs::path>& out) {
@@ -290,13 +323,48 @@ struct HdAssetStore {
         }
     }
 
+    static std::string sprite_key(std::string_view category,
+                                  std::string_view family,
+                                  std::size_t frame) {
+        const auto cat = upper_ascii(std::string(category));
+        const auto stem = strip_extension_upper(std::string(family));
+        char suffix[32]{};
+        std::snprintf(suffix, sizeof(suffix), "_%02zu.PNG", frame);
+        return cat + "/" + stem + "/" + stem + suffix;
+    }
+
+    void index_sprite_tree(const fs::path& tree) {
+        if (!fs::is_directory(tree)) return;
+        for (const auto& category_entry : fs::directory_iterator(tree)) {
+            if (!category_entry.is_directory()) continue;
+            const auto category = upper_ascii(category_entry.path().filename().string());
+            for (const auto& family_entry : fs::directory_iterator(category_entry.path())) {
+                if (!family_entry.is_directory()) continue;
+                const auto family = upper_ascii(family_entry.path().filename().string());
+                for (const auto& frame_entry : fs::directory_iterator(family_entry.path())) {
+                    if (!frame_entry.is_regular_file()) continue;
+                    if (upper_ascii(frame_entry.path().extension().string()) != ".PNG") continue;
+                    const auto filename = upper_ascii(frame_entry.path().filename().string());
+                    sprite_index.emplace(category + "/" + family + "/" + filename, frame_entry.path());
+                    ++sprite_file_count;
+                }
+            }
+        }
+    }
+
     explicit HdAssetStore(fs::path path) : root(std::move(path)) {
         const bool trees_present = fs::is_directory(root / "decoded") &&
                                    fs::is_directory(root / "sprite_frames");
         if (!trees_present) return;
 
+        windows_fullscreen_index.reserve(128);
+        dos_fullscreen_index.reserve(128);
+        sprite_index.reserve(512);
+        resized_cache.reserve(512);
+        cache_last_use.reserve(512);
         index_decoded_tree(root / "decoded" / "windows", windows_fullscreen_index);
         index_decoded_tree(root / "decoded" / "dos", dos_fullscreen_index);
+        index_sprite_tree(root / "sprite_frames");
         for (const auto& tree : {root / "decoded", root / "sprite_frames"}) {
             if (!fs::is_directory(tree)) continue;
             for (const auto& entry : fs::recursive_directory_iterator(tree)) {
@@ -315,13 +383,70 @@ struct HdAssetStore {
     std::string diagnostic_summary() const {
         return "root=" + root.string() +
                " pngs=" + std::to_string(png_file_count) +
+               " sprites=" + std::to_string(sprite_file_count) +
                " win_sheets=" + std::to_string(windows_fullscreen_index.size()) +
                " dos_sheets=" + std::to_string(dos_fullscreen_index.size());
+    }
+
+    struct RuntimeSpriteContractEntry {
+        std::string_view category;
+        std::string_view family;
+        std::size_t first_frame;
+        std::size_t frame_count;
+    };
+
+    static constexpr std::array<RuntimeSpriteContractEntry, 33> runtime_sprite_contract{{
+        {"recovered", "SHIP", 0, 15}, {"recovered", "MISSILE", 0, 3},
+        {"recovered", "BOMB", 0, 3}, {"recovered", "PROBE", 0, 1},
+        {"recovered", "REDPROBE", 0, 1}, {"recovered", "DRONE", 0, 1},
+        {"recovered", "TOP", 0, 1}, {"recovered", "LID", 0, 9},
+        {"recovered", "GEMINI1", 0, 15}, {"recovered", "GEMINI2", 15, 15},
+        {"recovered", "GEMHEAD", 0, 1}, {"recovered", "DEBRIS1", 0, 8},
+        {"recovered", "DEBRIS2A", 0, 16},
+        {"runtime_known", "STINGER", 0, 6}, {"runtime_known", "EXPLODE1", 0, 27},
+        {"runtime_known", "JUNK1", 0, 16}, {"runtime_known", "JUNK2", 0, 16},
+        {"runtime_known", "WHEEL", 0, 14}, {"runtime_known", "MINIPRG", 0, 1},
+        {"runtime_known", "MINIPRB", 0, 1}, {"runtime_known", "MINIPRR", 0, 1},
+        {"runtime_known", "SQUARE", 0, 1}, {"runtime_known", "TARGET", 0, 1},
+        {"runtime_known", "DEBRIS3", 0, 16},
+        {"trajectory", "BLADE", 0, 15}, {"trajectory", "ARROW", 0, 16},
+        {"trajectory", "BAT", 0, 16}, {"trajectory", "HYDRA", 0, 16},
+        {"trajectory", "SADDLE", 0, 32}, {"trajectory", "FRISBEE", 0, 32},
+        {"trajectory", "SLOOP", 0, 32}, {"trajectory", "FLAKE", 0, 16},
+        {"trajectory", "SKATE", 0, 32},
+    }};
+
+    std::size_t runtime_sprite_mapping_count() const noexcept {
+        std::size_t found = 0;
+        for (const auto& entry : runtime_sprite_contract) {
+            for (std::size_t i = 0; i < entry.frame_count; ++i) {
+                if (!resolve_sprite(entry.category, entry.family, entry.first_frame + i).empty()) ++found;
+            }
+        }
+        return found;
+    }
+
+    static constexpr std::size_t expected_runtime_sprite_mapping_count() noexcept {
+        std::size_t count = 0;
+        for (const auto& entry : runtime_sprite_contract) count += entry.frame_count;
+        return count;
     }
 
     bool self_test(std::ostream& out) {
         if (!available) {
             out << "HD_SELFTEST FAIL " << diagnostic_summary() << " missing anchor assets\n";
+            return false;
+        }
+        if (sprite_file_count < kExpectedCurrentHdSpriteFrames) {
+            out << "HD_SELFTEST FAIL " << diagnostic_summary()
+                << " incomplete sprite corpus expected>=" << kExpectedCurrentHdSpriteFrames << "\n";
+            return false;
+        }
+        const auto mapped_runtime_sprites = runtime_sprite_mapping_count();
+        if (mapped_runtime_sprites != expected_runtime_sprite_mapping_count()) {
+            out << "HD_SELFTEST FAIL " << diagnostic_summary()
+                << " runtime_sprite_mappings=" << mapped_runtime_sprites
+                << "/" << expected_runtime_sprite_mapping_count() << "\n";
             return false;
         }
         try {
@@ -336,6 +461,8 @@ struct HdAssetStore {
                 return false;
             }
             out << "HD_SELFTEST OK " << diagnostic_summary()
+                << " runtime_sprite_mappings=" << mapped_runtime_sprites
+                << "/" << expected_runtime_sprite_mapping_count()
                 << " TITLESH=" << title.width << "x" << title.height
                 << " RIVERTOP=" << river.width << "x" << river.height
                 << " SHIP_00=" << ship.width << "x" << ship.height << "\n";
@@ -350,12 +477,14 @@ struct HdAssetStore {
         if (cache_scale == scale) return;
         cache_scale = scale;
         resized_cache.clear();
+        cache_last_use.clear();
     }
 
     void set_filter(HdFilterMode next) {
         if (filter == next) return;
         filter = next;
         resized_cache.clear();
+        cache_last_use.clear();
     }
 
     fs::path resolve_fullscreen(std::string_view jba_name) const {
@@ -372,12 +501,8 @@ struct HdAssetStore {
     fs::path resolve_sprite(std::string_view category,
                             std::string_view family,
                             std::size_t frame) const {
-        const auto stem = strip_extension_upper(std::string(family));
-        char suffix[32]{};
-        std::snprintf(suffix, sizeof(suffix), "_%02zu.png", frame);
-        const auto path = root / "sprite_frames" / std::string(category) /
-                          stem / (stem + suffix);
-        if (fs::exists(path)) return path;
+        const auto key = sprite_key(category, family, frame);
+        if (const auto it = sprite_index.find(key); it != sprite_index.end()) return it->second;
         return {};
     }
 
@@ -390,7 +515,11 @@ struct HdAssetStore {
     const RgbaImage* resized_path(const fs::path& path, int width, int height) {
         if (path.empty() || width <= 0 || height <= 0) return nullptr;
         const std::string key = path.string() + "#" + std::to_string(width) + "x" + std::to_string(height);
-        if (auto it = resized_cache.find(key); it != resized_cache.end()) return it->second.get();
+        ++cache_clock;
+        if (auto it = resized_cache.find(key); it != resized_cache.end()) {
+            cache_last_use[key] = cache_clock;
+            return it->second.get();
+        }
         try {
             auto decoded = load_png_rgba(path);
             auto image = std::make_shared<RgbaImage>(
@@ -399,10 +528,49 @@ struct HdAssetStore {
                     : resize_rgba_bilinear(decoded, width, height));
             auto [it, inserted] = resized_cache.emplace(key, std::move(image));
             (void)inserted;
+            cache_last_use[key] = cache_clock;
             return it->second.get();
         } catch (const std::exception& e) {
             std::cerr << "HD art warning: " << e.what() << '\n';
             return nullptr;
+        }
+    }
+
+    std::size_t resized_cache_bytes() const noexcept {
+        std::size_t total = 0;
+        for (const auto& [key, image] : resized_cache) {
+            (void)key;
+            if (!image) continue;
+            total += image->pixels.size();
+            total += image->packed_rgb.size() * sizeof(std::uint32_t);
+            total += image->packed_dim.size() * sizeof(std::uint32_t);
+        }
+        return total;
+    }
+
+    // The first HD implementation retained every resized 320x200 sheet ever
+    // visited.  At 6x a single fullscreen image is ~9 MiB RGBA plus another
+    // ~9 MiB once packed for X11; walking through menus/results could therefore
+    // grow the cache by hundreds of MiB.  Trim only after a frame is fully
+    // presented so no temporary raw image pointer can be invalidated mid-frame.
+    void trim_cache() {
+        std::size_t bytes = resized_cache_bytes();
+        while (bytes > cache_budget_bytes && resized_cache.size() > 8) {
+            auto victim = cache_last_use.end();
+            for (auto it = cache_last_use.begin(); it != cache_last_use.end(); ++it) {
+                if (victim == cache_last_use.end() || it->second < victim->second) victim = it;
+            }
+            if (victim == cache_last_use.end()) break;
+            const auto image_it = resized_cache.find(victim->first);
+            if (image_it != resized_cache.end()) {
+                const auto& image = image_it->second;
+                if (image) {
+                    bytes -= std::min(bytes, image->pixels.size() +
+                        (image->packed_rgb.size() + image->packed_dim.size()) * sizeof(std::uint32_t));
+                }
+                resized_cache.erase(image_it);
+            }
+            cache_last_use.erase(victim);
         }
     }
 
@@ -435,6 +603,11 @@ struct HdSpriteDraw {
     int logical_height{};
 };
 
+struct HdLayerBoundary {
+    std::array<std::uint8_t, fidelity::logical_viewport_bytes> pixels{};
+    std::size_t sprite_count{};
+};
+
 struct HdFramePlan {
     HdBackgroundKind background{HdBackgroundKind::Disabled};
     std::string fullscreen_asset{};
@@ -444,6 +617,21 @@ struct HdFramePlan {
     bool base_valid{false};
     bool dim_background{false};
     std::vector<HdSpriteDraw> sprites{};
+    // The classic framebuffer is authoritative for render order. HD sprites
+    // cannot simply be drawn after the completed frame or they paint over the
+    // HUD/pause text. Boundaries split the classic frame into ordered layers.
+    // Keep a handful of ordering boundaries so classic procedural overlays can
+    // remain between HD sprite batches. This is still tiny compared with the
+    // original draw stream and avoids flattening everything into one late pass.
+    std::array<HdLayerBoundary, 8> boundaries{};
+    std::size_t boundary_count{};
+    // Explicit classic UI pixels are replayed after all HD asset layers.
+    // Snapshot-diff reconstruction cannot detect a draw when the written
+    // palette index happens to equal the pixel underneath it; that allowed HD
+    // actors to punch through pause/help/HUD text.  The helper draw routines
+    // record their writes here so UI ordering is lossless.
+    std::array<std::uint8_t, fidelity::logical_viewport_bytes> top_overlay_pixels{};
+    std::array<std::uint8_t, fidelity::logical_viewport_bytes> top_overlay_mask{};
 
     void reset() {
         background = HdBackgroundKind::Disabled;
@@ -453,6 +641,8 @@ struct HdFramePlan {
         base_valid = false;
         dim_background = false;
         sprites.clear();
+        boundary_count = 0;
+        top_overlay_mask.fill(0);
     }
 
     void capture_base(const fidelity::IndexedFramebuffer& fb) {
@@ -486,7 +676,27 @@ struct HdFramePlan {
         sprites.push_back({std::move(category), std::move(family), frame,
                            x, y, logical_width, logical_height});
     }
+
+    void boundary(const fidelity::IndexedFramebuffer& fb) {
+        if (boundary_count >= boundaries.size()) return;
+        auto& b = boundaries[boundary_count++];
+        std::copy_n(fb.pixels().begin(), b.pixels.size(), b.pixels.begin());
+        b.sprite_count = sprites.size();
+    }
+
+    void record_top_pixel(int x, int y, std::uint8_t value) noexcept {
+        if (x < 0 || x >= kLogicalW || y < 0 || y >= kLogicalH) return;
+        const auto i = static_cast<std::size_t>(y) * kLogicalW + x;
+        top_overlay_pixels[i] = value;
+        top_overlay_mask[i] = 1;
+    }
 };
+
+// Rendering is single-threaded.  The top-level frame render installs the
+// current plan here so low-level text/line/rectangle helpers can record exact
+// UI writes without plumbing an HD-plan argument through every recovered UI
+// function.
+HdFramePlan* g_ui_overlay_plan = nullptr;
 
 void blit_asset_sprite(fidelity::IndexedFramebuffer& fb,
                        const fidelity::IndexedSpriteFrame& frame,
@@ -729,7 +939,10 @@ void draw_text(fidelity::IndexedFramebuffer& fb, const FontCache& font,
                     if (glyph.pixels[gy * glyph.width + gx] == 0) continue;
                     const int dx = x + static_cast<int>(gx);
                     const int dy = y + static_cast<int>(gy);
-                    if (dx >= 0 && dx < 320 && dy >= 0 && dy < 200) fb.pixels()[dy * 320 + dx] = color;
+                    if (dx >= 0 && dx < 320 && dy >= 0 && dy < 200) {
+                        fb.pixels()[dy * 320 + dx] = color;
+                        if (g_ui_overlay_plan) g_ui_overlay_plan->record_top_pixel(dx, dy, color);
+                    }
                 }
             }
         }
@@ -743,6 +956,9 @@ void draw_hline(fidelity::IndexedFramebuffer& fb, int x, int y, int width, std::
     const int x1 = std::min(320, x + width);
     if (x1 <= x0) return;
     std::fill(fb.pixels().begin() + y * 320 + x0, fb.pixels().begin() + y * 320 + x1, color);
+    if (g_ui_overlay_plan) {
+        for (int x = x0; x < x1; ++x) g_ui_overlay_plan->record_top_pixel(x, y, color);
+    }
 }
 
 void fill_rect(fidelity::IndexedFramebuffer& fb, int x, int y, int width, int height, std::uint8_t color) {
@@ -754,6 +970,9 @@ void fill_rect(fidelity::IndexedFramebuffer& fb, int x, int y, int width, int he
     for (int row = y0; row < y1; ++row) {
         std::fill(fb.pixels().begin() + row * 320 + x0,
                   fb.pixels().begin() + row * 320 + x1, color);
+        if (g_ui_overlay_plan) {
+            for (int x = x0; x < x1; ++x) g_ui_overlay_plan->record_top_pixel(x, row, color);
+        }
     }
 }
 
@@ -1289,7 +1508,11 @@ void render_game(fidelity::IndexedFramebuffer& fb,
                 const bool second = side.body_frame >= 15;
                 blit_asset_sprite(fb, bosses.gemini_body[side.body_frame], side.body_x, side.body_y, hd,
                                   "recovered", second ? "GEMINI2" : "GEMINI1",
-                                  second ? side.body_frame - 15 : side.body_frame);
+                                  // The extracted HD corpus preserves the original
+                                  // global body-frame numbering: GEMINI1 is 0..14
+                                  // and GEMINI2 is 15..29.  Passing a local 0..14
+                                  // index made every second Gemini body miss HD.
+                                  side.body_frame);
             }
             if (side.head_activity != gameplay::boss_activity_inactive)
                 blit_asset_sprite(fb, bosses.gemini_head, side.head_x, side.head_y, hd,
@@ -1352,6 +1575,11 @@ void render_game(fidelity::IndexedFramebuffer& fb,
                           session.encounter.player.x, session.encounter.player.y, hd,
                           "recovered", "SHIP", static_cast<std::size_t>(frame));
         if (session.encounter.shield.active) {
+            // The shield is procedural indexed art drawn AFTER the ship. If it
+            // shares one flattened HD layer with the ship, the ship replacement
+            // coverage mask erases shield pixels inside the ship rectangle.
+            // Seal the ship batch first, then overlay the shield authoritatively.
+            if (hd) hd->boundary(fb);
             render_player_shield_effect(fb, session.encounter.player, effects);
         }
     }
@@ -1375,7 +1603,15 @@ void render_game(fidelity::IndexedFramebuffer& fb,
         blit_scaled_transparent(fb, bank.frames[static_cast<std::size_t>(d.frame)], destination);
         if (hd) {
             const auto& desc = fidelity::objective_scaled_debris_descriptors()[d.bank];
-            hd->add_sprite("runtime_known", strip_extension_upper(std::string(desc.asset)),
+            const auto family = strip_extension_upper(std::string(desc.asset));
+            // The generated 12x corpus preserves the evidence taxonomy: the
+            // DEBRIS1/DEBRIS2A banks were recovered directly, while DEBRIS3 is
+            // part of the runtime-known extraction set.  Do not force all three
+            // through one category or two thirds of the HD objective debris
+            // silently miss their mappings.
+            const std::string_view category =
+                (family == "DEBRIS1" || family == "DEBRIS2A") ? "recovered" : "runtime_known";
+            hd->add_sprite(std::string(category), family,
                            static_cast<std::size_t>(d.frame), destination.left, destination.top,
                            destination.right - destination.left, destination.bottom - destination.top);
         }
@@ -1400,6 +1636,10 @@ void render_game(fidelity::IndexedFramebuffer& fb,
         blit_asset_sprite(fb, sprites.outcome_cursor.frames[0], cursor.x, cursor.y, hd,
                           "runtime_known", "SQUARE", 0);
     }
+
+    // World/boss/actor sprites are below the HUD. Capture that ordering point so
+    // the HD compositor does not redraw ships on top of score/help text.
+    if (hd) hd->boundary(fb);
 
     for (const auto& row : fidelity::plan_shield_meter_rows(gameplay::displayed_shield_units(session.encounter.shield))) {
         if (row.width > 0) draw_hline(fb, row.x, row.y, row.width, row.palette_index);
@@ -1538,6 +1778,10 @@ void render_game(fidelity::IndexedFramebuffer& fb,
                           "runtime_known", "TARGET", 0);
     }
 
+    // The target reticle is intentionally above the ordinary HUD, while pause,
+    // quit and developer overlays remain above the reticle. Preserve that split.
+    if (hd) hd->boundary(fb);
+
     if (paused || quit_confirm) {
         if (hd) hd->dim_background = true;
         // Win32 pause overlay darkens each palette component by 40 with floor 0.
@@ -1557,7 +1801,8 @@ void render_game(fidelity::IndexedFramebuffer& fb,
             draw_text(fb, font, 74, 106, control_legend.shield + "  SHIELD", 28);
             draw_text(fb, font, 74, 116, std::string("F5  OBJECTIVE SAFETY ") +
                 (objective_safety_enabled ? "ON" : "OFF"), 28);
-            draw_text(fb, font, 74, 130, control_legend.resume_cancel + "  RESUMES", 28);
+            draw_text(fb, font, 74, 126, "V   VIDEO SETTINGS", 28);
+            draw_text(fb, font, 74, 140, control_legend.resume_cancel + "  RESUMES", 28);
         } else {
             // Win32 0x0040C734..0x0040C77C. Confirmation is Y, not Q.
             draw_text(fb, font, 120, 80, "QUIT GAME?", 28);
@@ -1953,6 +2198,7 @@ struct VideoPreferences {
     bool prefer_hd{true};
     int scale_mode{0}; // 0 = AUTO, otherwise exact integer scale.
     HdFilterMode filter{HdFilterMode::Smooth};
+    int present_fps{60}; // Presentation only; simulation remains at recovered 70.0863 Hz.
     std::string status{};
 
     explicit VideoPreferences(fs::path path) : config_path(std::move(path)) { load(); }
@@ -1961,6 +2207,7 @@ struct VideoPreferences {
         prefer_hd = true;
         scale_mode = 0;
         filter = HdFilterMode::Smooth;
+        present_fps = 60;
         if (persist) status = save() ? "VIDEO DEFAULTS RESTORED" : "DEFAULTS ACTIVE - SAVE FAILED";
     }
 
@@ -1983,6 +2230,11 @@ struct VideoPreferences {
                 }
             } else if (key == "HD_FILTER") {
                 filter = value == "SHARP" ? HdFilterMode::Sharp : HdFilterMode::Smooth;
+            } else if (key == "PRESENT_FPS") {
+                try {
+                    const int parsed = std::stoi(value);
+                    if (parsed == 35 || parsed == 60 || parsed == 70) present_fps = parsed;
+                } catch (...) {}
             }
         }
     }
@@ -1994,6 +2246,7 @@ struct VideoPreferences {
         out << "ART_MODE=" << (prefer_hd ? "HD" : "CLASSIC") << '\n';
         out << "SCALE=" << (scale_mode == 0 ? std::string("AUTO") : std::to_string(scale_mode)) << '\n';
         out << "HD_FILTER=" << hd_filter_name(filter) << '\n';
+        out << "PRESENT_FPS=" << present_fps << '\n';
         return static_cast<bool>(out);
     }
 };
@@ -2235,9 +2488,13 @@ struct VideoSettingsView {
     int active_scale{kMinScale};
     int maximum_scale{kMinScale};
     std::size_t hd_asset_count{};
+    std::size_t hd_sprite_asset_count{};
     bool last_background_hd{};
     std::size_t last_sprite_hits{};
     std::size_t last_sprite_misses{};
+    std::size_t last_layers{};
+    double last_present_ms{};
+    std::size_t cache_bytes{};
 };
 
 void render_video_settings(fidelity::IndexedFramebuffer& fb,
@@ -2249,41 +2506,47 @@ void render_video_settings(fidelity::IndexedFramebuffer& fb,
                            int selection) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
     if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
-    fill_rect(fb, 24, 38, 272, 136, 0xF6);
-    fill_rect(fb, 26, 40, 268, 132, 0x00);
-    draw_text(fb, font, 104, 47, "VIDEO SETTINGS", 0xF7);
-    draw_hline(fb, 34, 58, 252, 0xF6);
+    fill_rect(fb, 20, 34, 280, 158, 0xF6);
+    fill_rect(fb, 22, 36, 276, 154, 0x00);
+    draw_text(fb, font, 104, 43, "VIDEO SETTINGS", 0xF7);
+    draw_hline(fb, 30, 55, 260, 0xF6);
 
     const auto row = [&](int index, int y, std::string_view label, const std::string& value) {
         const bool selected = selection == index;
         const auto color = static_cast<std::uint8_t>(selected ? 0xF7 : 0xF6);
-        if (selected) draw_text(fb, font, 34, y, ">", color);
-        draw_text(fb, font, 44, y, label, color);
-        draw_text(fb, font, 182, y, value, color);
+        if (selected) draw_text(fb, font, 30, y, ">", color);
+        draw_text(fb, font, 40, y, label, color);
+        draw_text(fb, font, 180, y, value, color);
     };
 
-    row(0, 68, "ART MODE",
-        view.hd_enabled ? "HD 12X" : "CLASSIC");
+    row(0, 64, "ART MODE", view.hd_enabled ? "HD 12X" : "CLASSIC");
     const std::string scale_value = video.scale_mode == 0
         ? "AUTO " + std::to_string(view.active_scale) + "X"
         : std::to_string(view.active_scale) + "X";
-    row(1, 82, "SCALE", scale_value);
-    row(2, 96, "FILTER", std::string(hd_filter_name(video.filter)));
-    row(3, 110, "DEFAULTS", "ENTER");
+    row(1, 77, "SCALE", scale_value);
+    row(2, 90, "FILTER", std::string(hd_filter_name(video.filter)));
+    row(3, 103, "PRESENT RATE", std::to_string(video.present_fps) + " FPS");
+    row(4, 116, "DEFAULTS", "ENTER");
 
-    draw_hline(fb, 34, 124, 252, 0xF6);
-    draw_text(fb, font, 36, 130,
+    draw_hline(fb, 30, 130, 260, 0xF6);
+    draw_text(fb, font, 32, 136,
               view.hd_available
-                  ? ("HD CACHE " + std::to_string(view.hd_asset_count) + " PNGS")
+                  ? ("HD CACHE " + std::to_string(view.hd_asset_count) + " PNGS  SPR " +
+                     std::to_string(view.hd_sprite_asset_count))
                   : "HD CACHE NOT AVAILABLE",
               view.hd_available ? 0xF7 : 0xF6);
-    draw_text(fb, font, 36, 139,
+    draw_text(fb, font, 32, 145,
               "FRAME BG " + std::string(view.last_background_hd ? "HD" : "CLASSIC") +
                   " SPR " + std::to_string(view.last_sprite_hits) +
                   "/" + std::to_string(view.last_sprite_hits + view.last_sprite_misses), 0xF6);
-    if (!video.status.empty()) draw_text(fb, font, 36, 148, video.status, 0xF7);
-    else draw_text(fb, font, 36, 148, "LEFT/RIGHT CHANGE", 0xF6);
-    draw_text(fb, font, 36, 159, "ENTER SELECT   ESC BACK", 0xF6);
+    const int tenths = std::max(0, static_cast<int>(std::lround(view.last_present_ms * 10.0)));
+    const auto cache_mib = view.cache_bytes / (1024u * 1024u);
+    draw_text(fb, font, 32, 154,
+              "PRESENT " + std::to_string(tenths / 10) + "." + std::to_string(tenths % 10) +
+                  "MS L" + std::to_string(view.last_layers) + " C" + std::to_string(cache_mib) + "M", 0xF6);
+    if (!video.status.empty()) draw_text(fb, font, 32, 164, video.status, 0xF7);
+    else draw_text(fb, font, 32, 164, "LEFT/RIGHT CHANGE", 0xF6);
+    draw_text(fb, font, 32, 176, "ENTER SELECT   ESC BACK", 0xF6);
 }
 
 void render_frontend(fidelity::IndexedFramebuffer& fb,
@@ -2364,6 +2627,10 @@ struct X11Presenter {
     bool last_hd_background{false};
     std::size_t last_hd_sprite_hits{0};
     std::size_t last_hd_sprite_misses{0};
+    std::size_t last_hd_layers{0};
+    double last_present_ms{0.0};
+    std::array<std::uint8_t, fidelity::logical_viewport_bytes> hd_coverage{};
+    std::vector<const RgbaImage*> resolved_sprite_images{};
     int scale{kMinScale};
     int window_w{kLogicalW};
     int window_h{kLogicalH};
@@ -2396,6 +2663,7 @@ struct X11Presenter {
         const int fit_max = choose_auto_scale(display, screen);
         scale = std::clamp(requested_scale.value_or(fit_max), kMinScale, fit_max);
         if (hd_assets) hd_assets->set_scale(scale);
+        resolved_sprite_images.reserve(128);
         window_w = kLogicalW * scale;
         window_h = kLogicalH * scale;
         window = XCreateSimpleWindow(display, RootWindow(display, screen), 50, 50, window_w, window_h, 0,
@@ -2532,14 +2800,8 @@ struct X11Presenter {
         if (plan.background == HdBackgroundKind::Fullscreen) {
             const auto* image = hd_assets->fullscreen(plan.fullscreen_asset, scale);
             if (!image || image->width != window_w || image->height != window_h) return false;
-            for (int y = 0; y < window_h; ++y) {
-                for (int x = 0; x < window_w; ++x) {
-                    const auto i = (static_cast<std::size_t>(y) * window_w + x) * 4u;
-                    pixels[static_cast<std::size_t>(y) * window_w + x] =
-                        pack_rgb(image->pixels[i], image->pixels[i + 1], image->pixels[i + 2],
-                                 plan.dim_background);
-                }
-            }
+            const auto& packed = image->packed(plan.dim_background);
+            std::copy_n(packed.begin(), pixels.size(), pixels.begin());
             return true;
         }
         if (plan.background == HdBackgroundKind::World) {
@@ -2547,6 +2809,9 @@ struct X11Presenter {
             for (std::size_t i = 0; i < pages.size(); ++i) {
                 pages[i] = hd_assets->fullscreen(plan.world_assets[i], scale);
                 if (!pages[i] || pages[i]->width != window_w || pages[i]->height != window_h) return false;
+                // Materialize packed RGB once. Subsequent scrolling frames are
+                // scanline copies rather than per-pixel RGBA conversion.
+                (void)pages[i]->packed(plan.dim_background);
             }
             const int page_h = kLogicalH * scale;
             const int world_h = page_h * 3;
@@ -2556,77 +2821,101 @@ struct X11Presenter {
                 const int wy = (source_y + y) % world_h;
                 const int page = wy / page_h;
                 const int py = wy % page_h;
-                const auto* image = pages[static_cast<std::size_t>(page)];
-                for (int x = 0; x < window_w; ++x) {
-                    const auto i = (static_cast<std::size_t>(py) * window_w + x) * 4u;
-                    pixels[static_cast<std::size_t>(y) * window_w + x] =
-                        pack_rgb(image->pixels[i], image->pixels[i + 1], image->pixels[i + 2],
-                                 plan.dim_background);
-                }
+                const auto& packed = pages[static_cast<std::size_t>(page)]->packed(plan.dim_background);
+                std::copy_n(packed.data() + static_cast<std::size_t>(py) * window_w,
+                            window_w,
+                            pixels.data() + static_cast<std::size_t>(y) * window_w);
             }
             return true;
         }
         return false;
     }
 
-    void overlay_classic_deltas(const fidelity::IndexedFramebuffer& fb,
-                                const HdFramePlan& plan) {
-        if (!plan.base_valid) return;
-        const auto& palette = fb.palette();
-        const auto& src = fb.pixels();
-        const auto covered_by_hd_sprite = [&](int px, int py) {
-            if (!hd_assets) return false;
-            for (const auto& sprite : plan.sprites) {
-                // Only suppress the classic pixels when a real HD replacement
-                // exists. The previous compositor suppressed planned sprites
-                // even when their PNG mapping was absent, creating invisible
-                // actors instead of a correct classic fallback.
-                if (!hd_assets->has_sprite(sprite.category, sprite.family, sprite.frame)) continue;
-                if (px >= sprite.x && py >= sprite.y &&
-                    px < sprite.x + sprite.logical_width &&
-                    py < sprite.y + sprite.logical_height) return true;
+    void prepare_hd_sprites(const HdFramePlan& plan) {
+        resolved_sprite_images.assign(plan.sprites.size(), nullptr);
+        last_hd_sprite_hits = 0;
+        last_hd_sprite_misses = 0;
+        if (!hd_assets) return;
+        for (std::size_t i = 0; i < plan.sprites.size(); ++i) {
+            const auto& cmd = plan.sprites[i];
+            const auto path = hd_assets->resolve_sprite(cmd.category, cmd.family, cmd.frame);
+            if (path.empty()) {
+                ++last_hd_sprite_misses;
+                continue;
             }
-            return false;
-        };
-        for (int y = 0; y < kLogicalH; ++y) {
-            for (int x = 0; x < kLogicalW; ++x) {
-                const auto li = static_cast<std::size_t>(y) * kLogicalW + x;
-                if (src[li] == plan.base_pixels[li]) continue;
-                // Asset-backed sprites are replaced by their transparent HD
-                // counterparts below. Do not leave the old chunky indexed
-                // sprite underneath their alpha edges.
-                if (covered_by_hd_sprite(x, y)) continue;
-                const auto c = palette[src[li]];
-                const std::uint32_t rgb = pack_rgb(c.r, c.g, c.b);
-                const int oy = y * scale;
-                const int ox = x * scale;
-                for (int sy = 0; sy < scale; ++sy)
-                    std::fill_n(pixels.data() + static_cast<std::size_t>(oy + sy) * window_w + ox, scale, rgb);
+            const int dst_w = cmd.logical_width * scale;
+            const int dst_h = cmd.logical_height * scale;
+            const auto* image = hd_assets->resized_path(path, dst_w, dst_h);
+            if (!image || !image->valid()) {
+                ++last_hd_sprite_misses;
+                continue;
+            }
+            resolved_sprite_images[i] = image;
+            ++last_hd_sprite_hits;
+        }
+    }
+
+    void build_hd_coverage(const HdFramePlan& plan,
+                           std::size_t sprite_begin,
+                           std::size_t sprite_end) {
+        hd_coverage.fill(0);
+        sprite_end = std::min(sprite_end, plan.sprites.size());
+        for (std::size_t i = sprite_begin; i < sprite_end; ++i) {
+            if (i >= resolved_sprite_images.size() || !resolved_sprite_images[i]) continue;
+            const auto& sprite = plan.sprites[i];
+            const int x0 = std::clamp(sprite.x, 0, kLogicalW);
+            const int y0 = std::clamp(sprite.y, 0, kLogicalH);
+            const int x1 = std::clamp(sprite.x + sprite.logical_width, 0, kLogicalW);
+            const int y1 = std::clamp(sprite.y + sprite.logical_height, 0, kLogicalH);
+            if (x1 <= x0 || y1 <= y0) continue;
+            for (int y = y0; y < y1; ++y) {
+                std::fill(hd_coverage.begin() + static_cast<std::ptrdiff_t>(y * kLogicalW + x0),
+                          hd_coverage.begin() + static_cast<std::ptrdiff_t>(y * kLogicalW + x1), 1);
             }
         }
     }
 
-    bool blit_hd_sprite(const HdSpriteDraw& cmd, bool dim) {
-        if (!hd_assets) return false;
-        const int dst_w = cmd.logical_width * scale;
-        const int dst_h = cmd.logical_height * scale;
-        const auto* image = hd_assets->sprite(cmd.category, cmd.family, cmd.frame, dst_w, dst_h);
-        if (!image) return false;
+    void overlay_classic_layer(const fidelity::IndexedFramebuffer& fb,
+                               const std::uint8_t* before,
+                               const std::uint8_t* after,
+                               const HdFramePlan& plan,
+                               std::size_t sprite_begin,
+                               std::size_t sprite_end) {
+        if (!before || !after) return;
+        build_hd_coverage(plan, sprite_begin, sprite_end);
+        const auto& palette = fb.palette();
+        for (int y = 0; y < kLogicalH; ++y) {
+            for (int x = 0; x < kLogicalW; ++x) {
+                const auto li = static_cast<std::size_t>(y) * kLogicalW + x;
+                if (before[li] == after[li] || hd_coverage[li]) continue;
+                const auto c = palette[after[li]];
+                const std::uint32_t rgb = pack_rgb(c.r, c.g, c.b);
+                const int oy = y * scale;
+                const int ox = x * scale;
+                for (int sy = 0; sy < scale; ++sy)
+                    std::fill_n(pixels.data() + static_cast<std::size_t>(oy + sy) * window_w + ox,
+                                scale, rgb);
+            }
+        }
+    }
 
+    void blit_prepared_hd_sprite(const HdSpriteDraw& cmd,
+                                 const RgbaImage& image,
+                                 bool dim) {
         const int origin_x = cmd.x * scale;
         const int origin_y = cmd.y * scale;
-        for (int sy = 0; sy < image->height; ++sy) {
+        for (int sy = 0; sy < image.height; ++sy) {
             const int dy = origin_y + sy;
             if (dy < 0 || dy >= window_h) continue;
-            for (int sx = 0; sx < image->width; ++sx) {
+            for (int sx = 0; sx < image.width; ++sx) {
                 const int dx = origin_x + sx;
                 if (dx < 0 || dx >= window_w) continue;
-                const auto si = (static_cast<std::size_t>(sy) * image->width + sx) * 4u;
-                const std::uint8_t alpha = image->pixels[si + 3];
+                const auto si = (static_cast<std::size_t>(sy) * image.width + sx) * 4u;
+                const std::uint8_t alpha = image.pixels[si + 3];
                 if (alpha == 0) continue;
-                std::uint8_t r = image->pixels[si];
-                std::uint8_t g = image->pixels[si + 1];
-                std::uint8_t b = image->pixels[si + 2];
+                std::uint8_t r = image.pixels[si];
+                std::uint8_t g = image.pixels[si + 1];
+                std::uint8_t b = image.pixels[si + 2];
                 if (dim) {
                     r = static_cast<std::uint8_t>(r > 40 ? r - 40 : 0);
                     g = static_cast<std::uint8_t>(g > 40 ? g - 40 : 0);
@@ -2647,26 +2936,74 @@ struct X11Presenter {
                 }
             }
         }
-        return true;
+    }
+
+    void blit_hd_sprite_range(const HdFramePlan& plan,
+                              std::size_t sprite_begin,
+                              std::size_t sprite_end) {
+        sprite_end = std::min(sprite_end, plan.sprites.size());
+        for (std::size_t i = sprite_begin; i < sprite_end; ++i) {
+            if (i >= resolved_sprite_images.size() || !resolved_sprite_images[i]) continue;
+            blit_prepared_hd_sprite(plan.sprites[i], *resolved_sprite_images[i], plan.dim_background);
+        }
+    }
+
+    void overlay_recorded_ui(const fidelity::IndexedFramebuffer& fb,
+                             const HdFramePlan& plan) {
+        const auto& palette = fb.palette();
+        for (int y = 0; y < kLogicalH; ++y) {
+            for (int x = 0; x < kLogicalW; ++x) {
+                const auto li = static_cast<std::size_t>(y) * kLogicalW + x;
+                if (!plan.top_overlay_mask[li]) continue;
+                const auto c = palette[plan.top_overlay_pixels[li]];
+                const std::uint32_t rgb = pack_rgb(c.r, c.g, c.b);
+                const int oy = y * scale;
+                const int ox = x * scale;
+                for (int sy = 0; sy < scale; ++sy)
+                    std::fill_n(pixels.data() + static_cast<std::size_t>(oy + sy) * window_w + ox,
+                                scale, rgb);
+            }
+        }
     }
 
     void present(const fidelity::IndexedFramebuffer& fb, const HdFramePlan* plan = nullptr) {
+        const auto begin = std::chrono::steady_clock::now();
         last_hd_background = false;
         last_hd_sprite_hits = 0;
         last_hd_sprite_misses = 0;
+        last_hd_layers = 0;
         const bool use_hd = hd_enabled && plan && plan->base_valid && render_hd_background(*plan);
         last_hd_background = use_hd;
         if (!use_hd) {
             render_classic_full(fb);
         } else {
-            overlay_classic_deltas(fb, *plan);
-            for (const auto& sprite : plan->sprites) {
-                if (blit_hd_sprite(sprite, plan->dim_background)) ++last_hd_sprite_hits;
-                else ++last_hd_sprite_misses;
+            prepare_hd_sprites(*plan);
+            const std::uint8_t* previous_pixels = plan->base_pixels.data();
+            std::size_t previous_sprite_count = 0;
+
+            for (std::size_t layer = 0; layer < plan->boundary_count; ++layer) {
+                const auto& boundary = plan->boundaries[layer];
+                const auto sprite_count = std::min(boundary.sprite_count, plan->sprites.size());
+                overlay_classic_layer(fb, previous_pixels, boundary.pixels.data(), *plan,
+                                      previous_sprite_count, sprite_count);
+                blit_hd_sprite_range(*plan, previous_sprite_count, sprite_count);
+                previous_pixels = boundary.pixels.data();
+                previous_sprite_count = sprite_count;
+                ++last_hd_layers;
             }
+
+            overlay_classic_layer(fb, previous_pixels, fb.pixels().data(), *plan,
+                                  previous_sprite_count, plan->sprites.size());
+            blit_hd_sprite_range(*plan, previous_sprite_count, plan->sprites.size());
+            ++last_hd_layers;
+            // UI text/bars/dialog rectangles always win over HD actors.
+            overlay_recorded_ui(fb, *plan);
         }
         XPutImage(display, window, gc, image, 0, 0, 0, 0, window_w, window_h);
         XFlush(display);
+        if (hd_assets) hd_assets->trim_cache();
+        last_present_ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - begin).count();
     }
 };
 
@@ -2862,6 +3199,7 @@ int main(int argc, char** argv) {
         int control_selection = 0;
         bool control_waiting_for_key = false;
         int video_selection = 0;
+        bool video_settings_return_to_gameplay = false;
         std::int32_t drone_outcome_cursor_y = fidelity::drone_outcome_cursor_initial_y;
 
         bool paused = false;
@@ -2875,10 +3213,11 @@ int main(int argc, char** argv) {
         DroneFailureCause drone_failure_cause = DroneFailureCause::Unknown;
         bool prev_p = false, prev_q = false, prev_r = false, prev_y = false, prev_escape = false;
         bool prev_f1 = false, prev_f2 = false, prev_f3 = false, prev_f4 = false, prev_f5 = false, prev_f6 = false;
-        bool prev_enter = false, prev_up = false, prev_down = false, prev_left = false, prev_right = false;
+        bool prev_enter = false, prev_up = false, prev_down = false, prev_left = false, prev_right = false, prev_v = false;
         KeySnapshot previous_keys(x11.display);
 
         auto next_tick = std::chrono::steady_clock::now();
+        auto next_present = next_tick;
         bool running = true;
         while (running) {
             if (x11.pump_close()) break;
@@ -2910,6 +3249,7 @@ int main(int argc, char** argv) {
             const bool f5 = keys.down(XK_F5);
             const bool f6 = keys.down(XK_F6);
             const bool enter = keys.down(XK_Return) || keys.down(XK_KP_Enter);
+            const bool v = keys.down(XK_v) || keys.down(XK_V);
             const bool enter_edge = enter && !prev_enter;
             const bool up_edge = up && !prev_up;
             const bool down_edge = down && !prev_down;
@@ -2919,6 +3259,7 @@ int main(int argc, char** argv) {
             const bool q_edge = q && !prev_q;
             const bool y_edge = y && !prev_y;
             const bool r_edge = r && !prev_r;
+            const bool v_edge = v && !prev_v;
 
             if (f1 && !prev_f1) debug_hud = !debug_hud;
             if (frontend == FrontEndMode::Gameplay && f5 && !prev_f5 &&
@@ -2940,6 +3281,7 @@ int main(int argc, char** argv) {
                 }
             }
             bool scale_changed = false;
+            bool presentation_changed = false;
             if (f2 && !prev_f2 && x11.set_scale(x11.scale - 1)) {
                 scale_changed = true;
                 video.scale_mode = x11.scale;
@@ -2999,6 +3341,7 @@ int main(int argc, char** argv) {
                         case 5: // VIDEO SETTINGS -> host/remaster preferences.
                             video_selection = 0;
                             video.status.clear();
+                            video_settings_return_to_gameplay = false;
                             frontend = FrontEndMode::VideoSettings;
                             break;
                         case 6: // PLAY DEMO -> raw state 13, then original four-demo selector.
@@ -3131,7 +3474,7 @@ int main(int argc, char** argv) {
                     }
                     break;
                 case FrontEndMode::VideoSettings: {
-                    constexpr int rows = 4;
+                    constexpr int rows = 5;
                     if (up_edge) { video_selection = (video_selection + rows - 1) % rows; video.status.clear(); }
                     if (down_edge) { video_selection = (video_selection + 1) % rows; video.status.clear(); }
                     const bool change_left = left_edge;
@@ -3158,17 +3501,33 @@ int main(int argc, char** argv) {
                         video.filter = video.filter == HdFilterMode::Smooth ? HdFilterMode::Sharp : HdFilterMode::Smooth;
                         hd_changed |= x11.set_hd_filter(video.filter);
                         video.status = video.save() ? "HD FILTER SAVED" : "FILTER ACTIVE - SAVE FAILED";
-                    } else if (video_selection == 3 && enter_edge) {
+                    } else if (video_selection == 3 && (change_left || change_right)) {
+                        static constexpr std::array<int, 3> rates{{35, 60, 70}};
+                        auto it = std::find(rates.begin(), rates.end(), video.present_fps);
+                        std::size_t index = it == rates.end() ? 1u : static_cast<std::size_t>(it - rates.begin());
+                        if (change_right) index = (index + 1u) % rates.size();
+                        else index = (index + rates.size() - 1u) % rates.size();
+                        video.present_fps = rates[index];
+                        presentation_changed = true;
+                        video.status = video.save() ? "PRESENT RATE SAVED" : "RATE ACTIVE - SAVE FAILED";
+                    } else if (video_selection == 4 && enter_edge) {
                         video.restore_defaults(false);
                         video.prefer_hd = hd_assets.available;
                         video.scale_mode = 0;
                         video.filter = HdFilterMode::Smooth;
+                        video.present_fps = 60;
                         hd_changed |= x11.set_hd_enabled(video.prefer_hd);
                         hd_changed |= x11.set_hd_filter(video.filter);
                         scale_changed |= x11.set_scale(x11.maximum_fitting_scale());
+                        presentation_changed = true;
                         video.status = video.save() ? "VIDEO DEFAULTS RESTORED" : "DEFAULTS ACTIVE - SAVE FAILED";
                     }
-                    if (escape_edge) frontend = FrontEndMode::MainMenu;
+                    if (escape_edge) {
+                        frontend = video_settings_return_to_gameplay
+                            ? FrontEndMode::Gameplay
+                            : FrontEndMode::MainMenu;
+                        video_settings_return_to_gameplay = false;
+                    }
                     break;
                 }
                 case FrontEndMode::Gameplay:
@@ -3183,6 +3542,13 @@ int main(int argc, char** argv) {
             if (frontend == FrontEndMode::Gameplay) {
                 if (p && !prev_p && !interstitial.active && session.post_game.phase == gameplay::PostGameModalPhase::Inactive && !paused && !quit_confirm) {
                     paused = true;
+                }
+                if (paused && v_edge && !quit_confirm && !interstitial.active &&
+                    session.post_game.phase == gameplay::PostGameModalPhase::Inactive) {
+                    video_selection = 0;
+                    video.status.clear();
+                    video_settings_return_to_gameplay = true;
+                    frontend = FrontEndMode::VideoSettings;
                 }
                 if (q_edge && !interstitial.active && session.post_game.phase == gameplay::PostGameModalPhase::Inactive && !paused && !quit_confirm) {
                     quit_confirm = true;
@@ -3217,6 +3583,7 @@ int main(int argc, char** argv) {
             prev_down = down;
             prev_left = left;
             prev_right = right;
+            prev_v = v;
             previous_keys = keys;
 
             const bool rapid_fire_down = controls.down(keys, HostControlAction::RapidFire);
@@ -3450,11 +3817,17 @@ int main(int argc, char** argv) {
             }
             if (catchup == 5 && now >= next_tick) next_tick = now;
 
-            // Present only after one or more logical/UI ticks.  The old dev host
-            // submitted identical XImages every ~2 ms between 70 Hz simulation
-            // updates, wasting CPU and introducing compositor pacing noise.
-            if (catchup != 0 || scale_changed || hd_changed) {
+            // Keep the recovered simulation clock at 70.0863 Hz, but decouple
+            // expensive X11 presentation from it.  A 6x frame is 1920x1200; sending
+            // that XImage on every simulation tick costs hundreds of MB/s before
+            // any compositor work.  Presentation runs at the user-selected rate
+            // (35/60/70) while simulation/input/AI continue at the original cadence.
+            const bool force_present = scale_changed || hd_changed || presentation_changed;
+            const auto present_now = std::chrono::steady_clock::now();
+            const bool present_due = force_present || present_now >= next_present;
+            if ((catchup != 0 || force_present) && present_due) {
                 hd_plan.reset();
+                g_ui_overlay_plan = &hd_plan;
                 const GameplayControlLegend control_legend{
                     .main_fire = controls.display(HostControlAction::RapidFire),
                     .shield = controls.display(HostControlAction::Shield),
@@ -3472,9 +3845,13 @@ int main(int argc, char** argv) {
                                         .active_scale = x11.scale,
                                         .maximum_scale = x11.maximum_fitting_scale(),
                                         .hd_asset_count = hd_assets.png_file_count,
+                                        .hd_sprite_asset_count = hd_assets.sprite_file_count,
                                         .last_background_hd = x11.last_hd_background,
                                         .last_sprite_hits = x11.last_hd_sprite_hits,
                                         .last_sprite_misses = x11.last_hd_sprite_misses,
+                                        .last_layers = x11.last_hd_layers,
+                                        .last_present_ms = x11.last_present_ms,
+                                        .cache_bytes = hd_assets.resized_cache_bytes(),
                                     }, video_selection);
                 } else if (interstitial.active) {
                     if (assets.exists(interstitial.mission_asset) && assets.exists(interstitial.outcome_asset)) {
@@ -3495,7 +3872,21 @@ int main(int argc, char** argv) {
                         mission_surveillance_capture_pending = false;
                     }
                 }
+                g_ui_overlay_plan = nullptr;
                 x11.present(framebuffer, &hd_plan);
+
+                const auto present_interval = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                    std::chrono::duration<double>(1.0 / static_cast<double>(std::max(1, video.present_fps))));
+                if (force_present || next_present.time_since_epoch().count() == 0) {
+                    next_present = std::chrono::steady_clock::now() + present_interval;
+                } else {
+                    // Advance from the existing deadline rather than from "now" so
+                    // 60 FPS does not collapse to 35 FPS when sampled by the 70 Hz
+                    // simulation clock.  Skip stale deadlines after a long stall.
+                    do {
+                        next_present += present_interval;
+                    } while (next_present <= present_now);
+                }
             }
 
         }

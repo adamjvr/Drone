@@ -326,3 +326,39 @@ missing HD frames remain visible through the authoritative indexed-render fallba
 
 The renderer still keeps simulation/collision coordinates at 320x200. HD imagery is
 presentation-only and does not modify gameplay geometry or deterministic timing.
+
+## 2026-08-30 — HD compositor performance/order repair
+
+The first persistent-Video-Settings checkpoint (`04f5fcbd`) exposed two independent
+presentation failures during live play: severe slowdown as the number of active actors
+grew, and HD actors painting across classic HUD/pause layers.
+
+The performance bug was structural. Sprite presence checks called `fs::exists()` from
+the compositor's logical-pixel suppression loop. A dense frame could therefore perform
+millions of filesystem metadata lookups. The repaired presenter indexes the complete
+HD sprite tree once at startup and resolves hot-path sprite frames through an in-memory
+hash table. In the controlled Xvfb gameplay benchmark used during this repair, the same
+~8-second HD gameplay sample fell from about 10.9 CPU-seconds in the broken checkpoint
+to about 1.7 CPU-seconds in the repaired host.
+
+World presentation was also changed from per-frame RGBA repacking to cached RGB32 page
+buffers plus scanline copies. HD resized-image caching is now bounded and LRU-trimmed
+rather than retaining every large menu/mission page indefinitely.
+
+The ordering bug came from flattening every HD sprite into one late compositor pass.
+The repaired frame plan preserves classic ordering boundaries around actors, HUD,
+targeting and modal overlays. Text/line/rectangle UI helpers additionally record exact
+logical writes into a final authoritative UI mask; this avoids the snapshot-diff blind
+spot where drawing the same palette index as the previous pixel could otherwise let an
+HD sprite show through pause/help text.
+
+The generated HD corpus is now fully indexed and self-tested against the runtime sprite
+contract. The current delivery contains 398 isolated sprite PNGs; all 396 frames used by
+the present runtime have valid mappings. Two mapping defects were corrected: Gemini's
+second body bank uses its preserved global frame numbers 15..29, and objective debris
+uses the corpus' recovered/runtime-known category split for DEBRIS1/DEBRIS2A/DEBRIS3.
+
+Video Settings keeps simulation at the recovered 70.0863 Hz while allowing presentation
+at 35, 60 or 70 FPS. This reduces X11 upload/compositor cost without altering AI,
+collision, mission timing or input semantics. `V` opens Video Settings from the paused
+game and Escape returns to the still-paused session.

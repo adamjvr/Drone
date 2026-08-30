@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="$ROOT/build-hd-art/drone_playable_host"
 HD="$ROOT/assets_hd"
