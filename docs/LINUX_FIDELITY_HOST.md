@@ -113,3 +113,72 @@ drone_linux_fidelity_host_capture
 The test deliberately removes `DISPLAY`, feeds the actual Linux host a synthetic public `DRONEFB1` frame, requests a headless landmark capture, and requires the output to be byte-for-byte identical. It then exercises the capture+fingerprint wrapper and verifies its metadata.
 
 This makes Linux fidelity-host validation usable on Cortana and CI without a GUI session.
+
+## Integer display scaling
+
+The playable X11 host keeps the fidelity framebuffer at the canonical 320x200 indexed
+resolution and scales only the final host presentation. Scaling is nearest-neighbor by exact
+integer replication, so simulation coordinates, collision, palette behavior, and framebuffer
+validation remain unchanged.
+
+The host chooses the largest scale from 1x through 8x that fits the current X11 screen with a
+small desktop margin. It can be overridden with either:
+
+```sh
+DRONE_SCALE=5 ./RUN-DRONE.sh
+# or
+drone_playable_host assets --scale 5
+```
+
+`--scale auto` restores automatic selection. During runtime, F2 decreases the integer scale
+and F3 increases it. The X11 image buffer and fixed-size window are rebuilt at the new exact
+multiple; no filtered or fractional stretch path is used.
+
+## Runtime control editor
+
+The recovered `CONFIGURE JOYSTICK` main-menu entry now opens the Linux host's
+working control editor instead of a presentation-only modal.  The original
+seven-item main-menu ordering is preserved; the editor is a host extension for
+the reconstructed input layer.
+
+Editable gameplay bindings are:
+
+- move left / right / up / down;
+- main fire / rapid missiles;
+- shield;
+- select/cycle blue Probe or red Stinger;
+- launch the selected Probe/Stinger;
+- pause;
+- quit prompt;
+- confirm quit; and
+- resume/cancel.
+
+Inside the editor, `Up`/`Down` select an action and `Enter` waits for a new key.
+`Backspace` restores the selected action's original default, `D` restores all
+original defaults, and `Escape` cancels a pending rebind or returns to the main
+menu.  Duplicate action keys are rejected so an accidental rebind cannot
+silently steal another gameplay action.
+
+The editor also states the mission-critical weapon distinction recovered from the
+original Instructions pages: a **blue Probe disarms the DRONE**, while a **red
+Stinger missile homes on enemies**. The default mapping is `Ctrl` for main fire,
+`Down` to select/load/cycle Probe/Stinger, and `Up` to launch the selected special.
+
+Bindings are persisted as `drone-controls.cfg` beside the playable package.  A
+missing file means the recovered/default keyboard mapping is used.  The file is
+written only after the user changes or restores a binding.
+
+Live gameplay now carries a host-only weapon help overlay at the start of a
+non-demo game. It shows the active (possibly remapped) keys, identifies the blue
+Probe as the DRONE-disarm weapon, and disappears after the first successful
+special launch. `F4` toggles the help at any time. While a special remains loaded,
+the host displays `PROBE READY` or `STINGER READY` together with the active launch
+key. The pause overlay likewise shows the active main-fire, select, launch, shield,
+and resume bindings. These are presentation aids only and do not alter the
+reconstructed 320x200 gameplay/input semantics.
+
+Front-end navigation remains fixed and independent from gameplay remapping so a
+bad gameplay binding cannot strand the user in the menus.  Instructions accept
+left/up for previous page and right/down/Enter for next page; Ordering accepts
+left for previous and right/Enter for next; Escape returns to the main menu.
+The difficulty selector also accepts Escape to cancel back to the menu.

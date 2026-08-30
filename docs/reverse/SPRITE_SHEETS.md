@@ -96,3 +96,31 @@ JBA bytes
 ```
 
 This chain is suitable for reference-backed validation without executing the original game.
+
+## Trajectory enemy sheet layouts — long-pass correction
+
+A host-side review of the canonical Win32 loader found an important presentation bug in the
+first playable reconstruction. The clean frame extractor itself was correct, but the host
+incorrectly converted a linear frame index into `(cell_x, cell_y)` by assuming every sheet
+used all geometrically possible columns across 320 pixels. The original does not do that:
+its loader explicitly issues frame-slot/cell-coordinate calls for each enemy sheet.
+
+The recovered call sequences around `0x0040A8CD..0x0040B13F` establish these row widths:
+
+| sheet | extracted frame rows |
+|---|---|
+| `Blade.jba` | `4 + 4 + 4 + 3 = 15` |
+| `Arrow.jba` | `4 + 4 + 4 + 4 = 16` |
+| `Bat.jba` | `8 + 8 = 16` |
+| `Hydra.jba` | `5 + 5 + 6 = 16` |
+| `Saddle.jba` | `8 + 8 + 8 + 8 = 32` |
+| `Frisbee.jba` | `8 + 8 + 8 + 8 = 32` |
+| `Sloop.jba` | `8 + 8 + 8 + 8 = 32` |
+| `Flake.jba` | `8 + 8 = 16` |
+| `Skate.jba` | `8 + 8 + 8 + 8 = 32` |
+
+This matters behaviorally because palette index 0 is transparent. The old host's inferred
+packing selected completely blank cells for several valid animation indices, making an
+otherwise active enemy disappear and later reappear while its trajectory state continued.
+The playable X11 host now follows the executable-backed row counts and rejects an unexpected
+fully transparent trajectory frame at load time.
