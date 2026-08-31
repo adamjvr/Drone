@@ -711,8 +711,10 @@ void blit_asset_sprite(fidelity::IndexedFramebuffer& fb,
     if (!hd) return;
     const int w = destination_size ? destination_size->first : static_cast<int>(frame.width);
     const int h = destination_size ? destination_size->second : static_cast<int>(frame.height);
+    const int hd_x = destination_size ? x - (w - static_cast<int>(frame.width)) / 2 : x;
+    const int hd_y = destination_size ? y - (h - static_cast<int>(frame.height)) / 2 : y;
     hd->add_sprite(std::string(category), strip_extension_upper(std::string(family)),
-                   frame_index, x, y, w, h);
+                   frame_index, hd_x, hd_y, w, h);
 }
 
 struct WorldImage {
@@ -1561,7 +1563,7 @@ void render_game(fidelity::IndexedFramebuffer& fb,
     for (const auto& missile : session.encounter.rapid_missiles.missiles) {
         if (missile.active && missile.frame < sprites.missile.frames.size())
             blit_asset_sprite(fb, sprites.missile.frames[missile.frame], missile.x, missile.y, hd,
-                              "recovered", "MISSILE", missile.frame);
+                              "recovered", "MISSILE", missile.frame, std::pair<int, int>{5, 13});
     }
     for (const auto& bomb : session.encounter.enemy_bombs.bombs) {
         if (bomb.active && bomb.frame < sprites.bomb.frames.size())
@@ -1795,14 +1797,18 @@ void render_game(fidelity::IndexedFramebuffer& fb,
             // host controls discoverable. These strings use the ACTIVE bindings,
             // including user remaps from the menu.
             draw_text(fb, font, 116, 62, "GAME PAUSED", 28);
-            draw_text(fb, font, 74, 76, control_legend.main_fire + "  FIRE MISSILES", 28);
-            draw_text(fb, font, 74, 86, control_legend.special_select + "  SELECT PROBE/STINGER", 28);
-            draw_text(fb, font, 74, 96, control_legend.special_launch + "  LAUNCH SELECTED", 28);
-            draw_text(fb, font, 74, 106, control_legend.shield + "  SHIELD", 28);
-            draw_text(fb, font, 74, 116, std::string("F5  OBJECTIVE SAFETY ") +
+            draw_text(fb, font, 86, 78, "FIRE", 28);
+            draw_text(fb, font, 74, 76, "FIRE       " + control_legend.main_fire, 28);
+            draw_text(fb, font, 86, 88, "SELECT", 28);
+            draw_text(fb, font, 74, 86, "SELECT     " + control_legend.special_select, 28);
+            draw_text(fb, font, 86, 98, "LAUNCH", 28);
+            draw_text(fb, font, 74, 96, "LAUNCH     " + control_legend.special_launch, 28);
+            draw_text(fb, font, 86, 108, "SHIELD", 28);
+            draw_text(fb, font, 176, 108, control_legend.shield, 28);
+            draw_text(fb, font, 86, 120, std::string("F5  SAFETY ") +
                 (objective_safety_enabled ? "ON" : "OFF"), 28);
-            draw_text(fb, font, 74, 126, "V   VIDEO SETTINGS", 28);
-            draw_text(fb, font, 74, 140, control_legend.resume_cancel + "  RESUMES", 28);
+            draw_text(fb, font, 86, 132, "V   VIDEO SETTINGS", 28);
+            draw_text(fb, font, 86, 144, control_legend.resume_cancel + "   RESUME", 28);
         } else {
             // Win32 0x0040C734..0x0040C77C. Confirmation is Y, not Q.
             draw_text(fb, font, 120, 80, "QUIT GAME?", 28);
@@ -2047,18 +2053,18 @@ struct HostControlDefinition {
 
 constexpr std::array<HostControlDefinition, static_cast<std::size_t>(HostControlAction::Count)>
 kHostControlDefinitions{{
-    {"MOVE_LEFT",      "MOVE LEFT",          XK_Left,      NoSymbol},
-    {"MOVE_RIGHT",     "MOVE RIGHT",         XK_Right,     NoSymbol},
-    {"MOVE_UP",        "MOVE UP",            XK_a,         NoSymbol},
-    {"MOVE_DOWN",      "MOVE DOWN",          XK_z,         NoSymbol},
-    {"RAPID_FIRE",     "MAIN FIRE / MISSILES", XK_Control_L, XK_Control_R},
+    {"MOVE_LEFT",      "LEFT",          XK_Left,      NoSymbol},
+    {"MOVE_RIGHT",     "RIGHT",         XK_Right,     NoSymbol},
+    {"MOVE_UP",        "UP",            XK_a,         NoSymbol},
+    {"MOVE_DOWN",      "DOWN",          XK_z,         NoSymbol},
+    {"RAPID_FIRE",     "FIRE", XK_Control_L, XK_Control_R},
     {"SHIELD",         "SHIELD",               XK_space,     NoSymbol},
-    {"SPECIAL_LOAD",   "SELECT PROBE/STINGER", XK_Down,      NoSymbol},
-    {"SPECIAL_LAUNCH", "LAUNCH PROBE/STINGER", XK_Up,        NoSymbol},
+    {"SPECIAL_LOAD",   "SELECT SPECIAL", XK_Down,      NoSymbol},
+    {"SPECIAL_LAUNCH", "LAUNCH SPECIAL", XK_Up,        NoSymbol},
     {"PAUSE",          "PAUSE",              XK_p,         NoSymbol},
-    {"QUIT_PROMPT",    "QUIT PROMPT",        XK_q,         XK_Escape},
+    {"QUIT_PROMPT",    "QUIT",        XK_q,         XK_Escape},
     {"CONFIRM_QUIT",   "CONFIRM QUIT",       XK_y,         NoSymbol},
-    {"RESUME_CANCEL",  "RESUME/CANCEL",      XK_r,         NoSymbol},
+    {"RESUME_CANCEL",  "RESUME",      XK_r,         NoSymbol},
 }};
 
 constexpr std::size_t host_control_index(HostControlAction action) noexcept {
@@ -2348,13 +2354,12 @@ void apply_demo_replay_checkpoints(
     session.encounter.drone.y = frame.drone.y;
 }
 
-constexpr std::array<std::string_view, 8> kMainMenuLabels{{
+constexpr std::array<std::string_view, 7> kMainMenuLabels{{
     "START GAME",
     "INSTRUCTIONS",
     "ORDERING INFORMATION",
     "HIGH SCORES",
-    "CONFIGURE CONTROLS",
-    "VIDEO SETTINGS",
+    "CONFIGURE JOYSTICK",
     "PLAY DEMO",
     "EXIT DRONE",
 }};
@@ -2364,18 +2369,18 @@ struct MenuTextPlacement {
     int y;
 };
 
-// The first five and final two entries retain the recovered front-end vocabulary.
-// VIDEO SETTINGS is an explicit host/remaster extension so display preferences are
-// discoverable without relying on F-key shortcuts.
-constexpr std::array<MenuTextPlacement, 8> kMainMenuPlacements{{
-    {125, 67},
-    {117, 77},
-    {85, 87},
-    {121, 97},
-    {96, 107},
-    {108, 117},
-    {128, 127},
-    {124, 137},
+// Exact Win32 run_main_menu placements recovered at 0x004198B1 onward.
+// Keep the original seven-line menu geometrically untouched. Host/remaster
+// Video Settings is exposed as the separate V-key footer below the menu so a
+// compatibility option does not shift or relabel the historical front end.
+constexpr std::array<MenuTextPlacement, 7> kMainMenuPlacements{{
+    {125, 72},
+    {117, 82},
+    {85, 92},
+    {121, 102},
+    {92, 112},
+    {128, 122},
+    {124, 132},
 }};
 
 constexpr std::array<std::string_view, 3> kDifficultyLabels{{
@@ -2391,12 +2396,18 @@ void render_main_menu(fidelity::IndexedFramebuffer& fb,
                       const FontCache& font,
                       int selection) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
-    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
+    // Front-end fidelity takes precedence over remaster presentation for now.
+    // Do not create an HD fullscreen plan here: the original 320x200 title/menu
+    // stays authoritative while gameplay art can still use the HD compositor.
+    (void)hd;
     selection = std::clamp(selection, 0, static_cast<int>(kMainMenuLabels.size()) - 1);
     for (std::size_t i = 0; i < kMainMenuLabels.size(); ++i) {
         draw_text(fb, font, kMainMenuPlacements[i].x, kMainMenuPlacements[i].y,
                   kMainMenuLabels[i], static_cast<std::uint8_t>(i == static_cast<std::size_t>(selection) ? 0xF7 : 0xF6));
     }
+    // Non-invasive host extension: Video Settings remains discoverable without
+    // becoming an eighth historical menu item or moving any original entry.
+    draw_text(fb, font, 108, 180, "V  VIDEO SETTINGS", 0xF6);
 }
 
 void blit_frontend_modal(fidelity::IndexedFramebuffer& fb,
@@ -2427,7 +2438,7 @@ void render_difficulty(fidelity::IndexedFramebuffer& fb,
                        const FontCache& font,
                        gameplay::DifficultyLevel difficulty) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
-    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
+    (void)hd;
     blit_frontend_modal(fb, assets.jba("CHOOSE.JBA"));
     const int selected = std::clamp(static_cast<int>(difficulty) - 1, 0, 2);
     for (std::size_t i = 0; i < kDifficultyLabels.size(); ++i) {
@@ -2445,41 +2456,40 @@ void render_controls_editor(fidelity::IndexedFramebuffer& fb,
                             bool waiting_for_key,
                             int display_scale) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
-    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
+    (void)hd;
 
-    // This is a host-extension of the original CONFIGURE JOYSTICK path.  Keep
-    // the original 320x200/paletted presentation vocabulary, but make the
-    // reconstructed Linux input path visible and actually editable.
-    fill_rect(fb, 6, 24, 308, 172, 0xF6);
-    fill_rect(fb, 8, 26, 304, 168, 0x00);
-    draw_text(fb, font, 93, 30, "CONFIGURE CONTROLS", 0xF7);
-    draw_hline(fb, 14, 41, 292, 0xF6);
+    // Host extension of the original CONFIGURE JOYSTICK path. Keep every
+    // editable binding visible, but use compact labels so the page respects
+    // the original 320x200 framebuffer instead of running text off-screen.
+    fill_rect(fb, 8, 22, 304, 174, 0xF6);
+    fill_rect(fb, 10, 24, 300, 170, 0x00);
+    draw_text(fb, font, 93, 28, "CONFIGURE CONTROLS", 0xF7);
+    draw_hline(fb, 16, 39, 288, 0xF6);
 
     selection = std::clamp(selection, 0, static_cast<int>(kHostControlDefinitions.size()) - 1);
     int y = 43;
     for (std::size_t i = 0; i < kHostControlDefinitions.size(); ++i, y += 8) {
         const bool selected = i == static_cast<std::size_t>(selection);
         const auto color = static_cast<std::uint8_t>(selected ? 0xF7 : 0xF6);
-        if (selected) draw_text(fb, font, 12, y, ">", color);
-        draw_text(fb, font, 22, y, kHostControlDefinitions[i].label, color);
+        if (selected) draw_text(fb, font, 16, y, ">", color);
+        draw_text(fb, font, 26, y, kHostControlDefinitions[i].label, color);
         const auto binding_text = selected && waiting_for_key
             ? std::string("<PRESS KEY>")
             : controls.display(static_cast<HostControlAction>(i));
-        draw_text(fb, font, 190, y, binding_text, color);
+        draw_text(fb, font, 192, y, binding_text, color);
     }
 
-    draw_hline(fb, 14, 138, 292, 0xF6);
-    draw_text(fb, font, 16, 143, "BLUE PROBE DISARMS DRONES", 0xF7);
-    draw_text(fb, font, 16, 151, "RED STINGER MISSILE ATTACKS ENEMIES", 0xF7);
-    draw_text(fb, font, 16, 160,
-              "SCALE " + std::to_string(display_scale) + "X   VIDEO SETTINGS ON MAIN MENU", 0xF6);
-    draw_text(fb, font, 16, 169,
+    draw_hline(fb, 16, 141, 288, 0xF6);
+    draw_text(fb, font, 18, 146, "BLUE PROBE DISARMS DRONE", 0xF7);
+    draw_text(fb, font, 18, 155, "RED STINGER ATTACKS ENEMIES", 0xF7);
+    draw_text(fb, font, 18, 164, "ENTER REBIND   BKSP DEFAULT", 0xF6);
+    draw_text(fb, font, 18, 173,
+              "D ALL DEFAULTS   V VIDEO   SCALE " + std::to_string(display_scale) + "X", 0xF6);
+    draw_text(fb, font, 18, 182,
               waiting_for_key
                   ? (controls.status.empty() ? "PRESS NEW KEY - ESC CANCEL" : controls.status)
-                  : (controls.status.empty() ? "AMMO UNLIMITED - DOWN LOADS/CYCLES, UP LAUNCHES" : controls.status),
+                  : (controls.status.empty() ? "ESC BACK" : controls.status),
               waiting_for_key ? 0xF7 : 0xF6);
-    draw_text(fb, font, 16, 178, "ENTER REBIND   BACKSPACE DEFAULT", 0xF6);
-    draw_text(fb, font, 16, 187, "D ALL DEFAULTS   ESC BACK", 0xF6);
 }
 
 struct VideoSettingsView {
@@ -2505,48 +2515,43 @@ void render_video_settings(fidelity::IndexedFramebuffer& fb,
                            const VideoSettingsView& view,
                            int selection) {
     render_fullscreen_image(fb, assets.jba("TITLESH.JBA"));
-    if (hd) hd->begin_fullscreen("TITLESH.JBA", fb);
-    fill_rect(fb, 20, 34, 280, 158, 0xF6);
-    fill_rect(fb, 22, 36, 276, 154, 0x00);
-    draw_text(fb, font, 104, 43, "VIDEO SETTINGS", 0xF7);
-    draw_hline(fb, 30, 55, 260, 0xF6);
+    (void)hd;
+
+    // Host/remaster preference page. Keep this deliberately user-facing: the
+    // earlier version exposed cache/layer timing diagnostics directly in the
+    // menu, which made the reconstructed front end look like a developer HUD.
+    fill_rect(fb, 28, 42, 264, 142, 0xF6);
+    fill_rect(fb, 30, 44, 260, 138, 0x00);
+    draw_text(fb, font, 104, 51, "VIDEO SETTINGS", 0xF7);
+    draw_hline(fb, 38, 62, 244, 0xF6);
 
     const auto row = [&](int index, int y, std::string_view label, const std::string& value) {
         const bool selected = selection == index;
         const auto color = static_cast<std::uint8_t>(selected ? 0xF7 : 0xF6);
-        if (selected) draw_text(fb, font, 30, y, ">", color);
-        draw_text(fb, font, 40, y, label, color);
-        draw_text(fb, font, 180, y, value, color);
+        if (selected) draw_text(fb, font, 40, y, ">", color);
+        draw_text(fb, font, 50, y, label, color);
+        draw_text(fb, font, 182, y, value, color);
     };
 
-    row(0, 64, "ART MODE", view.hd_enabled ? "HD 12X" : "CLASSIC");
+    row(0, 70, "ART MODE", view.hd_enabled ? "HD 12X" : "CLASSIC");
     const std::string scale_value = video.scale_mode == 0
         ? "AUTO " + std::to_string(view.active_scale) + "X"
         : std::to_string(view.active_scale) + "X";
-    row(1, 77, "SCALE", scale_value);
-    row(2, 90, "FILTER", std::string(hd_filter_name(video.filter)));
-    row(3, 103, "PRESENT RATE", std::to_string(video.present_fps) + " FPS");
-    row(4, 116, "DEFAULTS", "ENTER");
+    row(1, 84, "SCALE", scale_value);
+    row(2, 98, "FILTER", std::string(hd_filter_name(video.filter)));
+    row(3, 112, "PRESENT RATE", std::to_string(video.present_fps) + " FPS");
+    row(4, 126, "DEFAULTS", "ENTER");
 
-    draw_hline(fb, 30, 130, 260, 0xF6);
-    draw_text(fb, font, 32, 136,
-              view.hd_available
-                  ? ("HD CACHE " + std::to_string(view.hd_asset_count) + " PNGS  SPR " +
-                     std::to_string(view.hd_sprite_asset_count))
-                  : "HD CACHE NOT AVAILABLE",
-              view.hd_available ? 0xF7 : 0xF6);
-    draw_text(fb, font, 32, 145,
-              "FRAME BG " + std::string(view.last_background_hd ? "HD" : "CLASSIC") +
-                  " SPR " + std::to_string(view.last_sprite_hits) +
-                  "/" + std::to_string(view.last_sprite_hits + view.last_sprite_misses), 0xF6);
-    const int tenths = std::max(0, static_cast<int>(std::lround(view.last_present_ms * 10.0)));
-    const auto cache_mib = view.cache_bytes / (1024u * 1024u);
-    draw_text(fb, font, 32, 154,
-              "PRESENT " + std::to_string(tenths / 10) + "." + std::to_string(tenths % 10) +
-                  "MS L" + std::to_string(view.last_layers) + " C" + std::to_string(cache_mib) + "M", 0xF6);
-    if (!video.status.empty()) draw_text(fb, font, 32, 164, video.status, 0xF7);
-    else draw_text(fb, font, 32, 164, "LEFT/RIGHT CHANGE", 0xF6);
-    draw_text(fb, font, 32, 176, "ENTER SELECT   ESC BACK", 0xF6);
+    draw_hline(fb, 38, 140, 244, 0xF6);
+    if (!view.hd_available) {
+        draw_text(fb, font, 48, 147, "HD ART NOT INSTALLED", 0xF7);
+    } else if (!video.status.empty()) {
+        draw_text(fb, font, 48, 147, video.status, 0xF7);
+    } else {
+        draw_text(fb, font, 48, 147, "LEFT/RIGHT CHANGE", 0xF6);
+    }
+    draw_text(fb, font, 48, 160, "ENTER SELECT", 0xF6);
+    draw_text(fb, font, 180, 160, "ESC BACK", 0xF6);
 }
 
 void render_frontend(fidelity::IndexedFramebuffer& fb,
@@ -2576,20 +2581,17 @@ void render_frontend(fidelity::IndexedFramebuffer& fb,
         const int page = std::clamp(instructions_page, 1, 9);
         const auto name = std::string("INSTR0") + std::to_string(page) + ".JBA";
         render_fullscreen_image(fb, assets.jba(name));
-        if (hd) hd->begin_fullscreen(name, fb);
         return;
     }
     case FrontEndMode::Ordering: {
         const int page = std::clamp(ordering_page, 1, 5);
         const auto name = std::string("ORDER") + std::to_string(page) + ".JBA";
         render_fullscreen_image(fb, assets.jba(name));
-        if (hd) hd->begin_fullscreen(name, fb);
         return;
     }
     case FrontEndMode::HighScores: {
         const std::string high_score_asset = assets.exists("TOPFLYER.JBA") ? "TOPFLYER.JBA" : "TITLESH.JBA";
         render_fullscreen_image(fb, assets.jba(high_score_asset));
-        if (hd) hd->begin_fullscreen(high_score_asset, fb);
         {
             // TOPFLYER.JBA already contains the title, rank numerals and Escape
             // footer. Fill only the ten dynamic entry rows.
@@ -3216,6 +3218,13 @@ int main(int argc, char** argv) {
         bool prev_enter = false, prev_up = false, prev_down = false, prev_left = false, prev_right = false, prev_v = false;
         KeySnapshot previous_keys(x11.display);
 
+        // Suppress startup Return-key bleed from the terminal.  The key
+        // used to launch run-drone-remastered.sh may still be physically
+        // down when the X11 host gets its first tick; seed the edge state
+        // from the initial key snapshot so MainMenu remains visible until
+        // Return is released and pressed again deliberately.
+        prev_enter = previous_keys.down(XK_Return) || previous_keys.down(XK_KP_Enter);
+
         auto next_tick = std::chrono::steady_clock::now();
         auto next_present = next_tick;
         bool running = true;
@@ -3302,11 +3311,17 @@ int main(int argc, char** argv) {
             if (frontend != FrontEndMode::Gameplay) {
                 switch (frontend) {
                 case FrontEndMode::MainMenu:
-                    if (up_edge) main_menu_selection = (main_menu_selection + static_cast<int>(kMainMenuLabels.size()) - 1) % static_cast<int>(kMainMenuLabels.size());
-                    if (down_edge) main_menu_selection = (main_menu_selection + 1) % static_cast<int>(kMainMenuLabels.size());
-                    if (enter_edge) {
-                        // Exact menu selection order recovered from Win32 run_main_menu.
-                        switch (main_menu_selection) {
+                    if (v_edge) {
+                        video_selection = 0;
+                        video.status.clear();
+                        video_settings_return_to_gameplay = false;
+                        frontend = FrontEndMode::VideoSettings;
+                    } else {
+                        if (up_edge) main_menu_selection = (main_menu_selection + static_cast<int>(kMainMenuLabels.size()) - 1) % static_cast<int>(kMainMenuLabels.size());
+                        if (down_edge) main_menu_selection = (main_menu_selection + 1) % static_cast<int>(kMainMenuLabels.size());
+                        if (enter_edge) {
+                            // Exact seven-entry menu selection order recovered from Win32 run_main_menu.
+                            switch (main_menu_selection) {
                         case 0: // START GAME -> raw state 2, then synchronous skill selector.
                             audio.push(audio::leave_original_main_menu_audio(menu_audio, 2).view());
                             audio.push(audio::original_main_menu_air_restart(session.original_audio, 2).view());
@@ -3338,13 +3353,7 @@ int main(int argc, char** argv) {
                             controls.status.clear();
                             frontend = FrontEndMode::ConfigureJoystick;
                             break;
-                        case 5: // VIDEO SETTINGS -> host/remaster preferences.
-                            video_selection = 0;
-                            video.status.clear();
-                            video_settings_return_to_gameplay = false;
-                            frontend = FrontEndMode::VideoSettings;
-                            break;
-                        case 6: // PLAY DEMO -> raw state 13, then original four-demo selector.
+                        case 5: // PLAY DEMO -> raw state 13, then original four-demo selector.
                             audio.push(audio::leave_original_main_menu_audio(menu_audio, 13).view());
                             audio.push(audio::original_main_menu_air_restart(session.original_audio, 13).view());
                             begin_next_original_demo(demo_replay, assets, session, world);
@@ -3364,10 +3373,11 @@ int main(int argc, char** argv) {
                             frontend = FrontEndMode::Gameplay;
                             next_tick = std::chrono::steady_clock::now();
                             break;
-                        case 7: // EXIT DRONE -> raw state 0.
+                        case 6: // EXIT DRONE -> raw state 0.
                             audio.push(audio::leave_original_main_menu_audio(menu_audio, 0).view());
                             running = false;
                             break;
+                        }
                         }
                     }
                     break;
@@ -3595,7 +3605,13 @@ int main(int argc, char** argv) {
             int catchup = 0;
             while (now >= next_tick && catchup < 5) {
                 if (frontend != FrontEndMode::Gameplay) {
-                    if (menu_audio.lowbees_owned) {
+                    if (frontend == FrontEndMode::VideoSettings &&
+                        video_settings_return_to_gameplay && paused) {
+                        // Video Settings opened from Pause is still part of the
+                        // paused gameplay overlay, not a trip back to main-menu
+                        // audio ownership.
+                        audio.push(audio::tick_original_gameplay_overlay_audio(session.original_audio).view());
+                    } else if (menu_audio.lowbees_owned) {
                         audio.push(audio::tick_original_main_menu_audio(menu_audio).view());
                     }
                 } else if (interstitial.active) {

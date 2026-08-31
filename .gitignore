@@ -24,3 +24,7 @@ __pycache__/
 /assets_hd/
 # Local classic runtime corpus used by the playable host.
 /runtime-assets/
+
+# Local/generated true-remaster and authored 4K art corpus.
+/assets_remastered/
+/.drone-remaster-cache/

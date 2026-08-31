@@ -362,3 +362,34 @@ Video Settings keeps simulation at the recovered 70.0863 Hz while allowing prese
 at 35, 60 or 70 FPS. This reduces X11 upload/compositor cost without altering AI,
 collision, mission timing or input semantics. `V` opens Video Settings from the paused
 game and Escape returns to the still-paused session.
+
+## 2026-08-30 — front-end/menu recovery after remaster integration
+
+The renderer/remaster stabilization checkpoint preserved gameplay but regressed the
+front-end by inserting host Video Settings as an eighth ordinary menu row and shifting
+the recovered Win32 menu geometry. The front end is restored to the original seven
+selectable rows, wording, ordering and placements: START GAME, INSTRUCTIONS, ORDERING
+INFORMATION, HIGH SCORES, CONFIGURE JOYSTICK, PLAY DEMO and EXIT DRONE. The host-only
+Video Settings extension no longer changes that historical layout; it is exposed as a
+separate `V  VIDEO SETTINGS` footer and remains reachable with `V` from Pause.
+
+Front-end pages are intentionally rendered through the authoritative classic 320x200
+path even when remastered gameplay art is enabled. This prevents remaster presentation
+from changing the recovered title/menu, instructions, ordering, difficulty and score
+screens while the gameplay compositor continues to use HD/remastered assets. Video
+Settings itself is a compact host modal with only user-facing ART MODE, SCALE, FILTER,
+PRESENT RATE and DEFAULTS rows; cache, mapping, layer-count and frame-time diagnostics
+remain runtime/debug concerns rather than menu content.
+
+Pause and Configure Controls were compacted to fit the logical 320x200 framebuffer.
+Pause exposes active fire/select/launch/shield bindings, Objective Safety, `V` for Video
+Settings and the active resume binding without overflowing the right edge. The controls
+editor still exposes every persistent remappable action but uses shorter display labels
+and a compact footer. Opening Video Settings from Pause retains paused-game overlay
+audio ownership, and Escape returns to the same paused session instead of entering
+main-menu audio/state.
+
+A stale switch index introduced by removing the eighth selectable row was also fixed:
+EXIT DRONE is again case 6 (the visible seventh row), while PLAY DEMO remains case 5.
+This was verified through a live X11 menu-exit test in addition to the complete CTest
+suite.
